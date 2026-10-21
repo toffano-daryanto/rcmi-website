@@ -320,7 +320,6 @@ dialog::backdrop { background: rgba(18, 20, 28, .65); }
 .lb-stage iframe { width: 100%; aspect-ratio: 16 / 9; max-height: calc(100vh - 110px); border: 0; }
 .lb-bar { display: flex; align-items: center; gap: 10px; padding: 10px 12px; flex-wrap: wrap; }
 .lb-bar #lb-count { margin-right: auto; font-weight: 600; font-size: .9rem; opacity: .8; }
-.lb-drive { color: #fff; font-size: .85rem; }
 .btn-ghost-light { background: transparent; color: #fff; box-shadow: inset 0 0 0 2px rgba(255,255,255,.45); }
 #btn-area, #btn-home { display: inline-flex; align-items: center; text-decoration: none; white-space: nowrap; }
 
@@ -537,3 +536,20 @@ dialog::backdrop { background: rgba(18, 20, 28, .65); }
 .msg .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .msg .actions a { text-decoration: none; display: inline-flex; align-items: center; }
 @media (max-width: 600px) { .contact { padding-left: 16px; padding-right: 16px; } }
+
+/* ---------- Joining fee (new member pending) & admin lists ---------- */
+.join-pay { text-align: left; margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--line); }
+.join-pay h2 { font-size: 1.3rem; margin-bottom: 8px; }
+.join-pay .qris { margin: 14px 0; }
+.join-pay .form { margin-top: 14px; }
+.joinpay-ok { color: var(--good); font-weight: 700; margin: 12px 0 0; }
+.proof-btn { margin-top: 6px; align-self: flex-start; }
+.proof-img { display: block; max-width: 100%; max-height: 70vh; margin: 8px auto; border-radius: var(--radius-m); }
+
+/* View-only gallery media */
+img[src*="drive.google.com"] { -webkit-user-drag: none; user-select: none; -webkit-touch-callout: none; }
+.lb-video { position: relative; width: 100%; }
+.lb-video iframe { display: block; }
+.lb-shield { position: absolute; top: 0; right: 0; width: 72px; height: 64px; background: transparent; z-index: 2; }
+.row .actions a.btn { text-decoration: none; }
+@media (max-width: 400px) { #btn-signin { font-size: .8rem; padding-left: 10px; padding-right: 10px; } }

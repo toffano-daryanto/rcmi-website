@@ -43,9 +43,14 @@ service cloud.firestore {
         && str(request.resource.data.displayName, 80)
         && str(request.resource.data.city, 60)
         && (
-          // Normal sign-up: waits for an admin.
+          // New member sign-up: pays the joining fee and waits for an admin.
           (request.resource.data.keys().hasOnly(['displayName','email','photoURL','city','instagram','whatsapp','bio','status','role','createdAt','phoneKey','accountType'])
             && request.resource.data.status == 'pending')
+          ||
+          // General user (not an RCMI member): just registers, active straight away, no member number.
+          (request.resource.data.keys().hasOnly(['displayName','email','photoURL','city','instagram','whatsapp','bio','status','role','createdAt','approvedAt','phoneKey','accountType'])
+            && request.resource.data.status == 'approved'
+            && request.resource.data.accountType == 'general')
           ||
           // Registered phone number: active straight away as that member (each record can be claimed once).
           (request.resource.data.keys().hasOnly(['displayName','email','photoURL','city','instagram','whatsapp','bio','status','role','createdAt','memberNo','rosterId','approvedAt','phoneKey','accountType'])
@@ -113,7 +118,8 @@ service cloud.firestore {
     // ---------- Monthly dues ----------
     // Payment settings (bank account, amount, due day) — members read, admins edit.
     match /settings/{id} {
-      allow read: if member() || admin();
+      // Payment details (bank / QRIS) are also shown to new members paying the joining fee.
+      allow read: if member() || admin() || (signedIn() && id == 'payment');
       allow write: if admin();
     }
     // One document per member per month: dues/{rosterId}_{YYYY-MM}.
@@ -141,6 +147,16 @@ service cloud.firestore {
     match /finance/{id} {
       allow read: if admin() || (id == 'ledger' && member());
       allow write: if admin();
+    }
+
+    // Joining-fee proof from a new member waiting for approval: the applicant and admins only.
+    match /joinPayments/{uid} {
+      allow read: if (signedIn() && request.auth.uid == uid) || admin();
+      allow create, update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['proof','createdAt'])
+        && str(request.resource.data.proof, 400000) && request.resource.data.proof.matches('data:image/.*')
+        && request.resource.data.createdAt == request.time;
+      allow delete: if admin();
     }
 
     // Contact form: signed-in users can send a message (tied to their account); only admins can read and manage them.

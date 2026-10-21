@@ -7,12 +7,12 @@ import {
   getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, collection, query, where,
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig } from "./config.js?v=1792600308";
+import { firebaseConfig } from "./config.js?v=1792600706";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792600308";
-import { SEED_EVENTS } from "./seed-events.js?v=1792600308";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792600308";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792600308";
+import { GALLERY } from "./gallery-data.js?v=1792600706";
+import { SEED_EVENTS } from "./seed-events.js?v=1792600706";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792600706";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792600706";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -116,15 +116,20 @@ function renderGallery() {
   }).join("");
 }
 const lb = $("#lightbox");
+// Gallery media is view-only on the site: no right-click "save / open image", no dragging the photo out.
+const isDriveMedia = (el) => el.closest?.(".lb-stage, .g-tile") || (el.tagName === "IMG" && el.src.includes("drive.google.com"));
+document.addEventListener("contextmenu", (e) => { if (isDriveMedia(e.target)) e.preventDefault(); });
+document.addEventListener("dragstart", (e) => { if (isDriveMedia(e.target)) e.preventDefault(); });
 const lbState = { group: null, i: 0 };
 function lbShow() {
   const g = GALLERY.find(x => x.key === lbState.group); if (!g) return;
   const it = g.items[lbState.i];
   $("#lb-stage").innerHTML = it.kind === "video"
-    ? `<iframe src="https://drive.google.com/file/d/${encodeURIComponent(it.id)}/preview" allow="autoplay; fullscreen" allowfullscreen title="Video"></iframe>`
-    : `<img src="${driveThumb(it.id, 1600)}" alt="" referrerpolicy="no-referrer">`;
+    // View only: the sandbox blocks the player's "open in Drive" pop-out, and a shield covers that button.
+    ? `<div class="lb-video"><iframe src="https://drive.google.com/file/d/${encodeURIComponent(it.id)}/preview" allow="autoplay; fullscreen" allowfullscreen
+         sandbox="allow-scripts allow-same-origin allow-presentation" title="Video"></iframe><span class="lb-shield" aria-hidden="true"></span></div>`
+    : `<img src="${driveThumb(it.id, 1600)}" alt="" referrerpolicy="no-referrer" draggable="false">`;
   $("#lb-count").textContent = `${lbState.i + 1} / ${g.items.length}`;
-  $("#lb-drive").href = `https://drive.google.com/file/d/${encodeURIComponent(it.id)}/view`;
   $("#lb-prev").disabled = lbState.i === 0;
   $("#lb-next").disabled = lbState.i === g.items.length - 1;
 }
@@ -221,6 +226,44 @@ function show(screen) {
 function showGate(which) {
   show("gate");
   ["onboarding", "pending", "rejected"].forEach(w => { $(`#gate-${w}`).hidden = w !== which; });
+  if (which === "pending" && state.joinPayFor !== state.user?.uid) { state.joinPayFor = state.user?.uid; renderJoinPay(); }
+}
+
+/* New member waiting for approval: pay the Rp150.000 joining fee (QRIS / bank) and upload the proof. */
+const JOIN_FEE = 150000;
+async function renderJoinPay() {
+  const box = $("#join-pay");
+  if (isGeneral()) { box.hidden = true; return; }
+  await loadPaySettings();
+  let proof = null;
+  try { const s = await getDoc(doc(db, "joinPayments", state.user.uid)); proof = s.exists() ? s.data() : null; } catch (e) {}
+  const p = state.pay;
+  const qris = typeof p.qris === "string" && p.qris.startsWith("data:image/") ? p.qris : "";
+  const hasBank = p.bank && p.accountNo;
+  box.hidden = false;
+  box.innerHTML = `
+    <h2>${t("joinpay_title")}</h2>
+    <p>${t("joinpay_lead", { amount: `<strong>${fmtIDR(JOIN_FEE)}</strong>` })}</p>
+    ${qris ? `<div class="qris"><img src="${qris}" alt="QRIS RCMI"><div>
+        <p>${t("qris_hint", { amount: `<strong>${fmtIDR(JOIN_FEE)}</strong>` })}</p>
+        <p class="muted">${t("qris_mobile")}</p>
+        <a class="btn btn-ghost btn-sm" href="${qris}" download="QRIS-RCMI.png">${t("qris_save")}</a></div></div>` : ""}
+    ${hasBank ? `<p class="muted">${qris ? t("or_transfer") : t("dues_transfer_to")}</p>
+      <p class="acct"><strong>${esc(p.bank)} ${esc(p.accountNo)}</strong><br>${esc(p.accountName)}</p>` : ""}
+    ${!qris && !hasBank ? `<p class="muted">${t("joinpay_ask_admin")}</p>` : ""}
+    ${proof ? `<p class="joinpay-ok">${t("joinpay_received")}</p>` : ""}
+    <form class="form" id="f-joinpay">
+      <label><span>${t(proof ? "joinpay_replace" : "joinpay_upload")}</span><input type="file" name="file" accept="image/*" required></label>
+      <div class="form-actions"><button class="btn btn-mat" type="submit">${t("joinpay_send")}</button></div>
+    </form>`;
+  $("#f-joinpay").addEventListener("submit", async (e) => {
+    e.preventDefault(); const btn = e.target.querySelector("[type=submit]"); btn.disabled = true;
+    try {
+      const data = await compressPhoto(e.target.file.files[0], 1200, 380000);
+      await setDoc(doc(db, "joinPayments", state.user.uid), { proof: data, createdAt: serverTimestamp() });
+      toast(t("joinpay_received")); renderJoinPay();
+    } catch (err) { fail(err); btn.disabled = false; }
+  });
 }
 // The main website is "#/" and its anchors (#about, #gallery…); the members area is "#/collection", "#/members/…" etc.
 const isMemberRoute = () => TABS.includes(location.hash.replace(/^#\/?/, "").split("/")[0]);
@@ -298,7 +341,7 @@ function syncAccountType() {
   $("#phone-hint").textContent = t(general ? "f_phone_hint_general" : "f_phone_hint");
   const lead = $("#onb-lead"); lead.dataset.i18n = general ? "onb_lead_general" : "onb_lead"; lead.textContent = t(lead.dataset.i18n);
   $("#invite-note").hidden = general || !state.invite;
-  $("#form-onboarding [type=submit]").textContent = t(!general && state.invite ? "activate_account" : "send_request");
+  $("#form-onboarding [type=submit]").textContent = t(general ? "create_account" : state.invite ? "activate_account" : "send_request");
 }
 $$("#form-onboarding [name=accountType]").forEach(r => r.addEventListener("change", syncAccountType));
 
@@ -352,13 +395,17 @@ $("#form-onboarding").addEventListener("submit", async (e) => {
       accountType,
       createdAt: serverTimestamp(),
       ...(inv ? { status: "approved", memberNo: inv.memberNo, rosterId: inv.rosterId, approvedAt: serverTimestamp(), ...(inv.phoneKey ? { phoneKey: inv.phoneKey } : {}) }
-              : { status: "pending", ...(key ? { phoneKey: key } : {}) })
+        : accountType === "general" ? { status: "approved", approvedAt: serverTimestamp(), ...(key ? { phoneKey: key } : {}) }
+        : { status: "pending", ...(key ? { phoneKey: key } : {}) })
     });
     saveContact({ displayName: f.displayName.value.trim(), whatsapp: f.whatsapp.value.trim(), instagram: f.instagram.value });
     if (inv) {
       await updateDoc(doc(db, "roster", inv.rosterId), { claimedBy: u.uid }).catch(() => {});
       toast(t("approved_msg", { no: memberNo(inv.memberNo) }));
       if (!isMemberRoute()) location.hash = "#/card";
+    } else if (accountType === "general") {
+      toast(t("general_welcome"));
+      if (!isMemberRoute()) location.hash = "#/events";
     }
   } catch (err) {
     // The rules refuse when that member record is already linked to another account.
@@ -1573,13 +1620,33 @@ async function loadAdmin() {
       fetchRoster(true)
     ]);
     const pending = state.pending = pend.docs.map(d => ({ id: d.id, ...d.data() }));
-    const members = state.members = Object.values(state.siteUsers).sort((a, b) => (a.memberNo || 0) - (b.memberNo || 0));
+    const proofs = state.joinProofs = {};
+    await Promise.all(pending.filter(u => u.accountType !== "general").map(u =>
+      getDoc(doc(db, "joinPayments", u.id)).then(s => { if (s.exists()) proofs[u.id] = s.data(); }).catch(() => {})));
+    const all = Object.values(state.siteUsers);
+    const members = state.members = all.filter(u => u.accountType !== "general").sort((a, b) => (a.memberNo || 0) - (b.memberNo || 0));
+    const generals = all.filter(u => u.accountType === "general").sort((a, b) => String(a.displayName).localeCompare(String(b.displayName)));
+    $("#admin-members-count").textContent = `(${members.length})`;
+    $("#admin-general-count").textContent = `(${generals.length})`;
+    const since = (u) => fmtDate(u.approvedAt || u.createdAt, { day: "numeric", month: "short", year: "numeric" });
+    $("#admin-general").innerHTML = generals.length ? generals.map(u => `
+      <div class="row">
+        <img src="${esc(u.photoURL)}" alt="" referrerpolicy="no-referrer">
+        <div class="grow"><strong>${esc(u.displayName)}</strong><span class="type-tag general">${t("type_general")}</span>
+          <small>${esc(u.city)}${u.instagram ? " · @" + esc(u.instagram) : ""}${u.email ? " · " + esc(u.email) : ""}${u.whatsapp ? " · " + esc(u.whatsapp) : ""}</small>
+          ${since(u) ? `<small>${t("registered_on", { date: since(u) })}</small>` : ""}</div>
+        <div class="actions">
+          ${waNumber(u.whatsapp) ? `<a class="btn btn-sm btn-ghost" target="_blank" rel="noopener" href="https://wa.me/${waNumber(u.whatsapp)}">WhatsApp</a>` : ""}
+          ${u.role !== "admin" ? `<button class="btn btn-sm btn-ghost" data-mkadmin="${esc(u.id)}">${t("make_admin")}</button>` : ""}
+        </div>
+      </div>`).join("") : `<p class="muted">${t("no_general")}</p>`;
     $("#admin-pending").innerHTML = pending.length ? pending.map(u => `
       <div class="row">
         <img src="${esc(u.photoURL)}" alt="" referrerpolicy="no-referrer">
         <div class="grow"><strong>${esc(u.displayName)}</strong><span class="type-tag ${u.accountType === "general" ? "general" : ""}">${t(u.accountType === "general" ? "type_general" : "type_member")}</span>
           <small>${esc(u.city)} · ${u.instagram ? "@" + esc(u.instagram) : ""} · ${esc(u.email)}</small>
-          ${u.bio ? `<small>${esc(u.bio)}</small>` : ""}</div>
+          ${u.bio ? `<small>${esc(u.bio)}</small>` : ""}
+          ${u.accountType !== "general" ? (proofs[u.id] ? `<button type="button" class="btn btn-sm btn-ghost proof-btn" data-proof="${esc(u.id)}">${t("view_join_proof")}</button>` : `<small class="muted">${t("no_join_proof")}</small>`) : ""}</div>
         <div class="actions">
           <button class="btn btn-sm btn-mat" data-approve="${esc(u.id)}">${t("approve")}</button>
           <button class="btn btn-sm btn-danger" data-reject="${esc(u.id)}">${t("reject")}</button>
@@ -1708,6 +1775,8 @@ function openApprove(uid) {
 
 $("#view-admin").addEventListener("click", async (e) => {
   const a = e.target.closest("[data-approve]"), r = e.target.closest("[data-reject]"), m = e.target.closest("[data-mkadmin]");
+  const pf = e.target.closest("[data-proof]");
+  if (pf) { const d = state.joinProofs?.[pf.dataset.proof]; if (d) openModal(`<h2>${t("view_join_proof")}</h2><img class="proof-img" src="${esc(d.proof)}" alt=""><p class="muted">${fmtDate(d.createdAt, { day: "numeric", month: "short", year: "numeric" })}</p>`); return; }
   try {
     if (a) {
       const pu = (state.pending || []).find(x => x.id === a.dataset.approve);

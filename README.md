@@ -54,7 +54,9 @@ It shows totals, the P&L by category, the IDS 2025 event result, the RCMI x Hell
 
 ### Two account types
 - **Anggota (member):** RCMI members. Sign up with the registered phone → active immediately (or admin approval). Full access: member list & profiles, member card, monthly dues, collection, events, market.
-- **Pengguna umum (general user):** non-members, approved by an admin. Can post in the market, see sellers' WhatsApp, view events and RSVP, and view the collection. No member list, member card or dues; their "Kartu saya" tab is "Profil saya".
+- **Sign up:** the top-bar button is *Sign in or create account*. New accounts are asked "Create your account as an RCMI member?" — **Yes**: registered members (matching phone) are active right away; new members see the Rp150.000 joining fee (QRIS / bank from *Pengaturan iuran*), upload the payment proof (`joinPayments/{uid}`, visible to them and admins only) and wait for admin approval — admins see a *View payment proof* button on the request. **No**: general users just register and are active right away.
+- **Admin page** lists *Members* and *General users* separately, with counts.
+- **Pengguna umum (general user):** non-members, active as soon as they register. Can post in the market, see sellers' WhatsApp, view events and RSVP, and view the collection. No member list, member card or dues; their "Kartu saya" tab is "Profil saya".
 - The **market is public**: anyone can browse it on the main website without signing in. Sellers' WhatsApp numbers live in `contacts/{uid}` and are shown only to signed-in, approved accounts; visitors see Instagram only.
 
 ### Auto-approve by phone number
@@ -66,7 +68,7 @@ When a member signs up they enter their phone number first. If it matches a numb
 - Numbers are stored in `rosterPrivate` (admins only) and `phoneInvites/{62812…}`, which can be read only by exact number, never listed.
 
 ### Gallery photos and videos
-The landing-page gallery (`public/js/gallery-data.js`) shows the 74 photos and videos from the RCMI Drive folder directly from Google Drive. Each file has to be shared **Anyone with the link → Viewer**, or its tile stays blank. Share the media files individually — **not the whole folder**, which also holds the registration responses and payment proofs.
+The landing-page gallery (`public/js/gallery-data.js`) shows the 74 photos and videos from the RCMI Drive folder directly from Google Drive. Each file has to be shared **Anyone with the link → Viewer**, or its tile stays blank. Share the media files individually — **not the whole folder**, which also holds the registration responses and payment proofs. On the site the media is view-only: there's no "Open in Drive" link, right-click/drag-to-save is blocked, and the video player's pop-out button is disabled. (Files shared by link can never be made 100% impossible to find, but visitors have no way through the site to open them in Drive.)
 
 ### Monthly dues (Iuran)
 - **Members** see this month's status, where to transfer (Rp50.000, due by the 10th), their history, and upload a transfer receipt.

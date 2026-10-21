@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;1,600;1,700;1,800&family=Barlow:wght@400;500;600;700&family=Noto+Serif:wght@700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/style.css?v=1792600308">
+  <link rel="stylesheet" href="/css/style.css?v=1792600706">
   <link rel="icon" type="image/png" href="/img/icon-64.png">
   <link rel="apple-touch-icon" href="/img/icon-192.png">
   <meta property="og:image" content="/img/icon-512.png">
@@ -194,6 +194,7 @@
         <div class="pending-mark" aria-hidden="true"></div>
         <h1 data-i18n="pending_title"></h1>
         <p class="muted" data-i18n="pending_lead"></p>
+        <div class="join-pay" id="join-pay" hidden></div>
       </div>
       <div class="panel" id="gate-rejected" hidden>
         <h1 data-i18n="rejected_title"></h1>
@@ -295,8 +296,10 @@
         <div class="rows inbox" id="admin-inbox"></div>
         <h2 data-i18n="pending_requests"></h2>
         <div class="rows" id="admin-pending"></div>
-        <h2 data-i18n="members"></h2>
+        <h2><span data-i18n="members"></span> <span class="inbox-count" id="admin-members-count"></span></h2>
         <div class="rows" id="admin-members"></div>
+        <h2><span data-i18n="general_users"></span> <span class="inbox-count" id="admin-general-count"></span></h2>
+        <div class="rows" id="admin-general"></div>
         <div id="admin-import"></div>
       </div>
     </section>
@@ -311,7 +314,6 @@
     <div class="lb-bar">
       <button type="button" class="btn btn-sm btn-ghost-light" id="lb-prev" data-i18n="prev"></button>
       <span id="lb-count"></span>
-      <a class="lb-drive" id="lb-drive" target="_blank" rel="noopener" data-i18n="open_drive"></a>
       <button type="button" class="btn btn-sm btn-ghost-light" id="lb-next" data-i18n="next"></button>
       <button type="button" class="btn btn-sm btn-amber" id="lb-close" data-i18n="close"></button>
     </div>
@@ -323,6 +325,6 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="/js/app.js?v=1792600308"></script>
+  <script type="module" src="/js/app.js?v=1792600706"></script>
 </body>
 </html>
