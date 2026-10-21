@@ -9,6 +9,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
 import { firebaseConfig } from "./config.js";
 import { t, getLang, setLang, applyStatic } from "./i18n.js";
+import { GALLERY } from "./gallery-data.js";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -74,7 +75,7 @@ function bindPhotoPreview(form) {
 }
 
 /* ---------------- language + scale ruler (work without Firebase) ---------------- */
-$$("[data-lang]").forEach(b => b.addEventListener("click", () => { setLang(b.dataset.lang); updateRuler(); rerender(); }));
+$$("[data-lang]").forEach(b => b.addEventListener("click", () => { setLang(b.dataset.lang); updateRuler(); renderGallery(); rerender(); }));
 
 const range = $("#real-length");
 function updateRuler() {
@@ -85,7 +86,58 @@ function updateRuler() {
   $("#ruler-out").textContent = t("ruler_result", { mm: mm.toFixed(1).replace(".", getLang() === "id" ? "," : ".") });
 }
 range.addEventListener("input", updateRuler);
-applyStatic(); updateRuler();
+
+/* ---------------- gallery (public, served from Google Drive) ---------------- */
+const driveThumb = (id, w) => `https://drive.google.com/thumbnail?id=${encodeURIComponent(id)}&sz=w${w}`;
+const GALLERY_PREVIEW = 12;
+const galleryOpen = new Set();
+function renderGallery() {
+  const box = $("#gallery-groups"); if (!box) return;
+  const lang = getLang();
+  box.innerHTML = GALLERY.map(g => {
+    const photos = g.items.filter(i => i.kind === "photo").length, videos = g.items.length - photos;
+    const counts = [photos ? t("count_photos", { n: photos }) : "", videos ? t("count_videos", { n: videos }) : ""].filter(Boolean).join(", ");
+    const expanded = galleryOpen.has(g.key);
+    const shown = expanded ? g.items : g.items.slice(0, GALLERY_PREVIEW);
+    return `<section class="g-group">
+      <div class="g-head"><h3>${esc(g.title[lang] || g.title.id)}</h3><small>${counts}</small></div>
+      <div class="g-grid">${shown.map((it, i) => `
+        <button type="button" class="g-tile" data-g="${g.key}" data-i="${i}" aria-label="${it.kind === "video" ? "Video" : "Foto"} ${i + 1}">
+          <img src="${driveThumb(it.id, 400)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.classList.add('broken')">
+          ${it.kind === "video" ? '<span class="g-play" aria-hidden="true"></span>' : ""}
+        </button>`).join("")}</div>
+      ${g.items.length > GALLERY_PREVIEW ? `<button type="button" class="btn btn-ghost g-more" data-more="${g.key}">${expanded ? t("show_less") : t("show_all", { n: g.items.length })}</button>` : ""}
+    </section>`;
+  }).join("");
+}
+const lb = $("#lightbox");
+const lbState = { group: null, i: 0 };
+function lbShow() {
+  const g = GALLERY.find(x => x.key === lbState.group); if (!g) return;
+  const it = g.items[lbState.i];
+  $("#lb-stage").innerHTML = it.kind === "video"
+    ? `<iframe src="https://drive.google.com/file/d/${encodeURIComponent(it.id)}/preview" allow="autoplay; fullscreen" allowfullscreen title="Video"></iframe>`
+    : `<img src="${driveThumb(it.id, 1600)}" alt="" referrerpolicy="no-referrer">`;
+  $("#lb-count").textContent = `${lbState.i + 1} / ${g.items.length}`;
+  $("#lb-drive").href = `https://drive.google.com/file/d/${encodeURIComponent(it.id)}/view`;
+  $("#lb-prev").disabled = lbState.i === 0;
+  $("#lb-next").disabled = lbState.i === g.items.length - 1;
+}
+$("#gallery-groups").addEventListener("click", (e) => {
+  const more = e.target.closest("[data-more]");
+  if (more) { const k = more.dataset.more; galleryOpen.has(k) ? galleryOpen.delete(k) : galleryOpen.add(k); renderGallery(); return; }
+  const tile = e.target.closest(".g-tile"); if (!tile) return;
+  lbState.group = tile.dataset.g; lbState.i = Number(tile.dataset.i); lbShow(); lb.showModal();
+});
+const lbStep = (d) => { const g = GALLERY.find(x => x.key === lbState.group); const n = lbState.i + d; if (g && n >= 0 && n < g.items.length) { lbState.i = n; lbShow(); } };
+$("#lb-prev").addEventListener("click", () => lbStep(-1));
+$("#lb-next").addEventListener("click", () => lbStep(1));
+$("#lb-close").addEventListener("click", () => lb.close());
+lb.addEventListener("close", () => { $("#lb-stage").innerHTML = ""; });
+lb.addEventListener("keydown", (e) => { if (e.key === "ArrowLeft") lbStep(-1); if (e.key === "ArrowRight") lbStep(1); });
+lb.addEventListener("click", (e) => { if (e.target === lb) lb.close(); });
+
+applyStatic(); updateRuler(); renderGallery();
 
 /* ---------------- Firebase ---------------- */
 const configured = firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith("PASTE");
@@ -114,7 +166,7 @@ $("#btn-signout").addEventListener("click", () => signOut(auth));
 getRedirectResult(auth).catch(fail);
 
 /* ---------------- state + screens ---------------- */
-const state = { user: null, profile: null, tab: "collection", carFilter: "all", marketFilter: "all", cars: [], listings: [], events: [] };
+const state = { user: null, profile: null, tab: "collection", sub: "", carFilter: "all", marketFilter: "all", cars: [], listings: [], events: [], roster: null, rosterPrivate: {}, siteUsers: {}, memberSearch: "" };
 let unsubProfile = null;
 
 function show(screen) {
@@ -135,6 +187,7 @@ onAuthStateChanged(auth, (user) => {
   $("#user-chip").hidden = !user;
   if (!user) { state.profile = null; show("landing"); return; }
   $("#user-avatar").src = user.photoURL || "";
+  $("#user-avatar").hidden = !user.photoURL;
 
   // Live listener on the member's own record: moves them from pending to approved automatically.
   unsubProfile = onSnapshot(doc(db, "users", user.uid), (snap) => {
@@ -173,21 +226,22 @@ $("#form-onboarding").addEventListener("submit", async (e) => {
 });
 
 /* ---------------- routing ---------------- */
-const TABS = ["collection", "events", "market", "card", "admin"];
+const TABS = ["collection", "events", "market", "members", "card", "admin"];
 window.addEventListener("hashchange", route);
 function route() {
   if (!state.profile || state.profile.status !== "approved") return;
-  const h = location.hash.replace(/^#\/?/, "");
+  const [h, sub = ""] = location.hash.replace(/^#\/?/, "").split("/");
   let tab = TABS.includes(h) ? h : "collection";
+  state.sub = decodeURIComponent(sub);
   if (tab === "admin" && state.profile.role !== "admin") tab = "collection";
   state.tab = tab;
   $$(".tabs a").forEach(a => { if (a.dataset.tab === tab) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
   TABS.forEach(n => { $(`#view-${n}`).hidden = n !== tab; });
-  ({ collection: loadCars, events: loadEvents, market: loadListings, card: renderCard, admin: loadAdmin })[tab]();
+  ({ collection: loadCars, events: loadEvents, market: loadListings, members: loadMembers, card: () => fetchRoster().catch(() => {}).then(renderCard), admin: loadAdmin })[tab]();
 }
 function rerender() {
   if ($("#app").hidden) return;
-  ({ collection: renderCars, events: renderEvents, market: renderListings, card: renderCard, admin: loadAdmin })[state.tab]();
+  ({ collection: renderCars, events: renderEvents, market: renderListings, members: showMembers, card: renderCard, admin: loadAdmin })[state.tab]();
 }
 const isAdmin = () => state.profile?.role === "admin";
 const canEdit = (ownerUid) => ownerUid === state.user?.uid || isAdmin();
@@ -282,7 +336,7 @@ function eventHTML(ev, upcoming) {
     <div class="event-date"><b>${d ? d.getDate() : ""}</b><span>${fmtDate(ev.date, { month: "short", year: "2-digit" })}</span></div>
     <div>
       <h3>${esc(ev.title)}</h3>
-      <p>${d ? d.toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" }) : ""} · ${esc(ev.place)}</p>
+      <p>${ev.dateLabel ? esc(ev.dateLabel[getLang()] || ev.dateLabel.id) : ev.allDay ? fmtDate(ev.date, { day: "numeric", month: "long", year: "numeric" }) : d ? d.toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" }) : ""} · ${esc(ev.place)}</p>
       ${ev.description ? `<p>${esc(ev.description)}</p>` : ""}
       <p class="who"><strong>${t("attending", { n: ev.rsvps.length })}</strong>${names ? ` — ${names}` : ""}</p>
     </div>
@@ -294,7 +348,7 @@ function eventHTML(ev, upcoming) {
 }
 function renderEvents() {
   const now = Date.now();
-  const up = state.events.filter(e => toDate(e.date)?.getTime() >= now - 6 * 3600e3);
+  const up = state.events.filter(e => toDate(e.date)?.getTime() >= now - (e.allDay ? 2 * 86400e3 : 6 * 3600e3));
   const past = state.events.filter(e => !up.includes(e)).reverse();
   $("#events-upcoming").innerHTML = up.length ? up.map(e => eventHTML(e, true)).join("") : `<p class="empty">${t("empty_events")}</p>`;
   $("#events-past").innerHTML = past.map(e => eventHTML(e, false)).join("");
@@ -433,21 +487,135 @@ $("#btn-add-listing").addEventListener("click", () => {
   });
 });
 
+/* ================= Members (roster from the Google Form + people who joined on the site) ================= */
+const initials = (n) => String(n || "").split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join("");
+const norm = (x) => String(x || "").toLowerCase().normalize("NFKD").replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
+async function fetchRoster(force = false) {
+  if (state.roster && !force) return;
+  const [rs, us] = await Promise.all([
+    getDocs(collection(db, "roster")),
+    getDocs(query(collection(db, "users"), where("status", "==", "approved")))
+  ]);
+  state.siteUsers = Object.fromEntries(us.docs.map(d => [d.id, { id: d.id, ...d.data() }]));
+  const roster = rs.docs.map(d => ({ id: d.id, ...d.data() }));
+  // Members who joined on the site without a roster record still get a profile.
+  const linked = new Set(roster.map(r => r.claimedBy).filter(Boolean));
+  Object.values(state.siteUsers).forEach(u => {
+    if (!linked.has(u.id)) roster.push({ id: "u-" + u.id, memberNo: u.memberNo || null, name: u.displayName, city: u.city, province: "", status: "member", claimedBy: u.id, joined: "" });
+  });
+  roster.sort((a, b) => (a.memberNo ?? 1e9) - (b.memberNo ?? 1e9) || String(a.name).localeCompare(b.name));
+  state.roster = roster;
+  if (isAdmin()) {
+    const ps = await getDocs(collection(db, "rosterPrivate"));
+    state.rosterPrivate = Object.fromEntries(ps.docs.map(d => [d.id, d.data()]));
+  }
+}
+async function loadMembers() {
+  try { await fetchRoster(); showMembers(); } catch (e) { fail(e); }
+}
+function showMembers() {
+  const id = state.sub;
+  $("#members-list").hidden = !!id;
+  $("#member-profile").hidden = !id;
+  if (id) renderProfile(id); else renderRoster();
+}
+function renderRoster() {
+  const q = norm(state.memberSearch);
+  const list = (state.roster || [])
+    .filter(r => isAdmin() || r.status !== "applicant")
+    .filter(r => !q || norm(`${r.name} ${r.city} ${r.province} ${r.memberNo ?? ""}`).includes(q));
+  $("#roster").innerHTML = list.map(r => {
+    const u = r.claimedBy && state.siteUsers[r.claimedBy];
+    const place = [u?.city || r.city, r.province].filter(Boolean).join(", ");
+    return `<button type="button" class="r-item ${r.status === "applicant" ? "r-applicant" : ""}" data-member="${esc(r.id)}">
+      <span class="r-no">${u?.photoURL ? `<img src="${esc(u.photoURL)}" alt="" referrerpolicy="no-referrer">` : r.memberNo ? "#" + r.memberNo : esc(initials(r.name))}</span>
+      <span><strong>${esc(u?.displayName || r.name)}</strong>
+        <small>${r.memberNo ? memberNo(r.memberNo) : esc(t("applicant"))} · ${esc(place || "—")}</small>
+        ${u ? `<small class="r-on">✓ ${t("on_site")}</small>` : ""}</span>
+    </button>`;
+  }).join("") || `<p class="empty">—</p>`;
+}
+$("#member-search").addEventListener("input", (e) => { state.memberSearch = e.target.value; renderRoster(); });
+$("#roster").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-member]"); if (b) location.hash = `#/members/${encodeURIComponent(b.dataset.member)}`;
+});
+
+async function renderProfile(id) {
+  const box = $("#member-profile");
+  const r = (state.roster || []).find(x => x.id === id);
+  if (!r || (r.status === "applicant" && !isAdmin())) {
+    box.innerHTML = `<a class="btn btn-ghost profile-back" href="#/members">← ${t("back_members")}</a><p class="empty">${t("member_not_found")}</p>`;
+    return;
+  }
+  const u = r.claimedBy ? state.siteUsers[r.claimedBy] : null;
+  const name = u?.displayName || r.name;
+  const city = u?.city || r.city;
+  const place = [city, r.province].filter(Boolean).join(", ");
+  const since = r.joined ? new Date(r.joined) : (u?.approvedAt || u?.createdAt);
+  const ig = igHandle(u?.instagram), wa = waNumber(u?.whatsapp);
+  const priv = isAdmin() ? state.rosterPrivate[r.id] : null;
+  box.innerHTML = `
+    <a class="btn btn-ghost profile-back" href="#/members">← ${t("back_members")}</a>
+    <div class="profile">
+      <div>${cardHTML({ no: r.memberNo, name, city, instagram: u?.instagram, photoURL: u?.photoURL, since })}</div>
+      <div>
+        <h1>${esc(name)}</h1>
+        ${u?.bio ? `<p class="bio">${esc(u.bio)}</p>` : ""}
+        <dl>
+          ${r.memberNo ? `<dt>${t("card_member")}</dt><dd>${memberNo(r.memberNo)}</dd>` : ""}
+          ${place ? `<dt>${t("f_city")}</dt><dd>${esc(place)}</dd>` : ""}
+          ${since ? `<dt>${t("registered")}</dt><dd>${fmtDate(since, { day: "numeric", month: "long", year: "numeric" })}</dd>` : ""}
+          ${ig ? `<dt>Instagram</dt><dd><a href="https://instagram.com/${encodeURIComponent(ig)}" target="_blank" rel="noopener">@${esc(ig)}</a></dd>` : ""}
+          ${wa ? `<dt>WhatsApp</dt><dd><a href="https://wa.me/${wa}" target="_blank" rel="noopener">${esc(u.whatsapp)}</a></dd>` : ""}
+          <dt>Status</dt><dd>${u ? "✓ " + t("on_site") : t("not_on_site")}</dd>
+        </dl>
+        ${priv ? `<div class="admin-box"><small>${t("admin_only")}</small>
+          ${priv.phone ? `${t("phone")}: <a href="https://wa.me/${waNumber(priv.phone)}" target="_blank" rel="noopener">${esc(priv.phone)}</a><br>` : ""}
+          ${priv.shirtSize ? `${t("shirt")}: ${esc(priv.shirtSize)} × ${priv.shirtQty || 1} — ${priv.shirtPaid ? t("paid") : t("unpaid")}` : ""}
+        </div>` : ""}
+        <div id="profile-extra"></div>
+      </div>
+    </div>`;
+  if (!u) return;
+  try {
+    const [cs, ls] = await Promise.all([
+      getDocs(query(collection(db, "cars"), where("ownerUid", "==", u.id))),
+      getDocs(query(collection(db, "listings"), where("ownerUid", "==", u.id)))
+    ]);
+    if (state.sub !== id) return;
+    const cars = cs.docs.map(d => ({ id: d.id, ...d.data() }));
+    const listings = ls.docs.map(d => ({ id: d.id, ...d.data() })).filter(l => l.status !== "sold");
+    const tile = (x, title) => `<div class="item">${x.photos?.[0] ? `<img class="ph" src="${x.photos[0]}" alt="" loading="lazy">` : `<div class="ph ph-empty">1:64</div>`}<div class="meta"><h3>${esc(title)}</h3>${x.price ? `<p class="price">${fmtIDR(x.price)}</p>` : x.maker ? `<p>${esc(x.maker)}</p>` : ""}</div></div>`;
+    $("#profile-extra").innerHTML = `
+      <h2>${t("their_cars")}</h2>
+      ${cars.length ? `<div class="mini-grid">${cars.map(c => tile(c, c.name)).join("")}</div>` : `<p class="muted">${t("no_cars_yet")}</p>`}
+      ${listings.length ? `<h2>${t("their_listings")}</h2><div class="mini-grid">${listings.map(l => tile(l, l.title)).join("")}</div>` : ""}`;
+  } catch (e) { fail(e); }
+}
+
 /* ================= Member card + profile ================= */
-function renderCard() {
-  const p = state.profile;
-  $("#member-card").innerHTML = `
+function cardHTML({ no, name, city, instagram, photoURL, since }) {
+  const sub = [city, instagram ? "@" + igHandle(instagram) : "", since ? `${t("card_since")} ${fmtDate(since, { month: "short", year: "numeric" })}` : ""].filter(Boolean).map(esc).join(" · ");
+  return `
     <div class="mcard">
       <div class="mcard-top">
         <div><span class="wm-main">RCMI</span><div class="mcard-sub">Resin Car Model Indonesia · 1:64</div></div>
-        ${p.photoURL ? `<img src="${esc(p.photoURL)}" alt="" referrerpolicy="no-referrer">` : ""}
+        ${photoURL ? `<img src="${esc(photoURL)}" alt="" referrerpolicy="no-referrer">` : ""}
       </div>
       <div>
-        <div class="mcard-no">${memberNo(p.memberNo)}</div>
-        <div class="mcard-name">${esc(p.displayName)}</div>
-        <div class="mcard-sub">${esc(p.city)}${p.instagram ? " · @" + esc(igHandle(p.instagram)) : ""} · ${t("card_since")} ${fmtDate(p.approvedAt || p.createdAt, { month: "short", year: "numeric" })}</div>
+        <div class="mcard-no">${no ? memberNo(no) : esc(t("applicant"))}</div>
+        <div class="mcard-name">${esc(name)}</div>
+        <div class="mcard-sub">${sub}</div>
       </div>
     </div>`;
+}
+function renderCard() {
+  const p = state.profile;
+  const r = (state.roster || []).find(x => x.id === p.rosterId);
+  $("#member-card").innerHTML = cardHTML({
+    no: p.memberNo, name: p.displayName, city: p.city, instagram: p.instagram, photoURL: p.photoURL,
+    since: r?.joined ? new Date(r.joined) : (p.approvedAt || p.createdAt)
+  });
   const f = $("#form-profile");
   ["displayName", "city", "instagram", "whatsapp", "bio"].forEach(k => { if (document.activeElement !== f[k]) f[k].value = p[k] || ""; });
 }
@@ -466,12 +634,12 @@ $("#form-profile").addEventListener("submit", async (e) => {
 async function loadAdmin() {
   if (!isAdmin()) return;
   try {
-    const [pend, mem] = await Promise.all([
+    const [pend] = await Promise.all([
       getDocs(query(collection(db, "users"), where("status", "==", "pending"))),
-      getDocs(query(collection(db, "users"), where("status", "==", "approved")))
+      fetchRoster(true)
     ]);
-    const pending = pend.docs.map(d => ({ id: d.id, ...d.data() }));
-    const members = state.members = mem.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (a.memberNo || 0) - (b.memberNo || 0));
+    const pending = state.pending = pend.docs.map(d => ({ id: d.id, ...d.data() }));
+    const members = state.members = Object.values(state.siteUsers).sort((a, b) => (a.memberNo || 0) - (b.memberNo || 0));
     $("#admin-pending").innerHTML = pending.length ? pending.map(u => `
       <div class="row">
         <img src="${esc(u.photoURL)}" alt="" referrerpolicy="no-referrer">
@@ -492,21 +660,69 @@ async function loadAdmin() {
       </div>`).join("");
   } catch (e) { fail(e); }
 }
+
+// Suggest the roster record whose name best matches the person signing up.
+function bestRosterMatch(name) {
+  const words = new Set(norm(name).split(" ").filter(w => w.length > 2));
+  let best = null, score = 0;
+  for (const r of state.roster || []) {
+    if (r.claimedBy || r.id.startsWith("u-")) continue;
+    const sc = norm(r.name).split(" ").filter(w => words.has(w)).length;
+    if (sc > score) { best = r; score = sc; }
+  }
+  return best;
+}
+
+function openApprove(uid) {
+  const u = (state.pending || []).find(x => x.id === uid); if (!u) return;
+  const free = (state.roster || []).filter(r => !r.claimedBy && !r.id.startsWith("u-"));
+  const match = bestRosterMatch(u.displayName);
+  openModal(`
+    <h2>${t("link_title", { name: esc(u.displayName) })}</h2>
+    <p class="muted">${esc(u.city)}${u.instagram ? " · @" + esc(u.instagram) : ""} · ${esc(u.email)}</p>
+    <form class="form" id="f-approve">
+      <label><span>${t("link_label")}</span>
+        <select name="rosterId">
+          ${free.map(r => `<option value="${esc(r.id)}" ${match?.id === r.id ? "selected" : ""}>${r.memberNo ? memberNo(r.memberNo) : t("applicant")} — ${esc(r.name)}${r.city ? " (" + esc(r.city) + ")" : ""}</option>`).join("")}
+          <option value="" ${match ? "" : "selected"}>${t("link_new")}</option>
+        </select>
+      </label>
+      <div class="form-actions">
+        <button type="button" class="btn btn-ghost" data-act="close">${t("cancel")}</button>
+        <button class="btn btn-mat" type="submit">${t("approve")}</button>
+      </div>
+    </form>`);
+  $("#modal-body").onclick = (ev) => { if (ev.target.dataset.act === "close") closeModal(); };
+  $("#f-approve").addEventListener("submit", async (e) => {
+    e.preventDefault(); const btn = e.target.querySelector('[type="submit"]'); btn.disabled = true;
+    const rosterId = e.target.rosterId.value;
+    try {
+      const no = await runTransaction(db, async (tx) => {
+        const cRef = doc(db, "counters", "members");
+        const rRef = rosterId ? doc(db, "roster", rosterId) : null;
+        const c = await tx.get(cRef);
+        const rSnap = rRef ? await tx.get(rRef) : null;
+        if (rSnap && rSnap.exists() && rSnap.data().claimedBy) throw new Error("Roster record already linked");
+        let no = rSnap?.exists() ? rSnap.data().memberNo : null;
+        if (!no) {
+          no = c.exists() ? c.data().next : Math.max(0, ...(state.roster || []).map(r => r.memberNo || 0)) + 1;
+          tx.set(cRef, { next: no + 1 });
+        }
+        const finalId = rRef ? rosterId : `m${String(no).padStart(3, "0")}`;
+        if (rRef) tx.update(rRef, { memberNo: no, status: "member", claimedBy: uid });
+        else tx.set(doc(db, "roster", finalId), { memberNo: no, name: u.displayName, city: u.city || "", province: "", status: "member", joined: new Date().toISOString().slice(0, 10), claimedBy: uid });
+        tx.update(doc(db, "users", uid), { status: "approved", memberNo: no, rosterId: finalId, approvedAt: serverTimestamp() });
+        return no;
+      });
+      closeModal(); toast(t("approved_msg", { no: memberNo(no) })); loadAdmin();
+    } catch (err) { fail(err); btn.disabled = false; }
+  });
+}
+
 $("#view-admin").addEventListener("click", async (e) => {
   const a = e.target.closest("[data-approve]"), r = e.target.closest("[data-reject]"), m = e.target.closest("[data-mkadmin]");
   try {
-    if (a) {
-      a.disabled = true;
-      const no = await runTransaction(db, async (tx) => {
-        const cRef = doc(db, "counters", "members");
-        const c = await tx.get(cRef);
-        const next = c.exists() ? c.data().next : Math.max(0, ...(state.members || []).map(u => u.memberNo || 0)) + 1;
-        tx.set(cRef, { next: next + 1 });
-        tx.update(doc(db, "users", a.dataset.approve), { status: "approved", memberNo: next, approvedAt: serverTimestamp() });
-        return next;
-      });
-      toast(t("approved_msg", { no: memberNo(no) })); loadAdmin();
-    }
+    if (a) openApprove(a.dataset.approve);
     if (r && confirm(`${t("reject")}?`)) { await updateDoc(doc(db, "users", r.dataset.reject), { status: "rejected" }); loadAdmin(); }
     if (m) { await updateDoc(doc(db, "users", m.dataset.mkadmin), { role: "admin" }); toast(t("saved")); loadAdmin(); }
   } catch (err) { fail(err); }

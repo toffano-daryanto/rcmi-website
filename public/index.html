@@ -22,6 +22,7 @@
     </a>
     <nav class="topnav" id="landing-nav">
       <a href="#about" data-i18n="nav_about">Tentang</a>
+      <a href="#gallery" data-i18n="nav_gallery">Galeri</a>
       <a href="#join" data-i18n="nav_join">Cara bergabung</a>
     </nav>
     <div class="top-actions">
@@ -47,6 +48,7 @@
         <div class="hero-inner">
           <h1 data-i18n="hero_title">Mobil resin 1:64, dicetak tangan, dikoleksi bersama.</h1>
           <p class="lead" data-i18n="hero_lead"></p>
+          <p class="stats" data-i18n="stats"></p>
           <button type="button" class="btn btn-amber btn-lg js-signin" data-i18n="sign_in">Masuk dengan Google</button>
         </div>
 
@@ -77,8 +79,31 @@
         </div>
       </section>
 
+      <section class="gallery" id="gallery">
+        <h2 data-i18n="gallery_title">Galeri</h2>
+        <p class="muted" data-i18n="gallery_lead"></p>
+        <div id="gallery-groups"></div>
+      </section>
+
       <section class="join" id="join">
         <h2 data-i18n="join_title">Cara bergabung</h2>
+        <div class="fees">
+          <div class="fee">
+            <h3 data-i18n="fee_title"></h3>
+            <p class="fee-amt" data-i18n="fee_join_amt"></p>
+            <p data-i18n="fee_join"></p>
+            <p class="fee-amt" data-i18n="fee_month_amt"></p>
+            <p data-i18n="fee_month"></p>
+          </div>
+          <div class="fee">
+            <h3 data-i18n="benefits_title"></h3>
+            <ul class="benefits">
+              <li data-i18n="benefit_1"></li>
+              <li data-i18n="benefit_2"></li>
+              <li data-i18n="benefit_3"></li>
+            </ul>
+          </div>
+        </div>
         <ol class="steps">
           <li data-i18n="join_1"></li>
           <li data-i18n="join_2"></li>
@@ -120,6 +145,7 @@
         <a href="#/collection" data-tab="collection" data-i18n="tab_collection">Koleksi</a>
         <a href="#/events" data-tab="events" data-i18n="tab_events">Acara</a>
         <a href="#/market" data-tab="market" data-i18n="tab_market">Pasar</a>
+        <a href="#/members" data-tab="members" data-i18n="tab_members">Anggota</a>
         <a href="#/card" data-tab="card" data-i18n="tab_card">Kartu saya</a>
         <a href="#/admin" data-tab="admin" data-i18n="tab_admin" id="tab-admin" hidden>Admin</a>
       </nav>
@@ -160,6 +186,17 @@
         <div class="grid" id="listings"></div>
       </div>
 
+      <div class="view" id="view-members" hidden>
+        <div id="members-list">
+          <div class="view-head">
+            <p class="muted" data-i18n="members_lead"></p>
+            <input type="search" id="member-search" class="search" data-i18n-ph="search_members" aria-label="Search members">
+          </div>
+          <div class="roster" id="roster"></div>
+        </div>
+        <div id="member-profile" hidden></div>
+      </div>
+
       <div class="view" id="view-card" hidden>
         <div class="card-wrap" id="member-card"></div>
         <form id="form-profile" class="form panel-flat">
@@ -186,6 +223,17 @@
     <span class="wm-main">RCMI</span>
     <span data-i18n="footer">Resin Car Model Indonesia</span>
   </footer>
+
+  <dialog id="lightbox" aria-label="Gallery">
+    <div class="lb-stage" id="lb-stage"></div>
+    <div class="lb-bar">
+      <button type="button" class="btn btn-sm btn-ghost-light" id="lb-prev" data-i18n="prev"></button>
+      <span id="lb-count"></span>
+      <a class="lb-drive" id="lb-drive" target="_blank" rel="noopener" data-i18n="open_drive"></a>
+      <button type="button" class="btn btn-sm btn-ghost-light" id="lb-next" data-i18n="next"></button>
+      <button type="button" class="btn btn-sm btn-amber" id="lb-close" data-i18n="close"></button>
+    </div>
+  </dialog>
 
   <dialog id="modal">
     <div id="modal-body"></div>

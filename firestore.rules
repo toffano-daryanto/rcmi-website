@@ -40,6 +40,16 @@ service cloud.firestore {
       allow delete: if admin();
     }
 
+    // Imported roster (from the Google Form): number, name, province — visible to members.
+    match /roster/{id} {
+      allow read: if approved();
+      allow write: if admin();
+    }
+    // Phone numbers and T-shirt orders — admins only.
+    match /rosterPrivate/{id} {
+      allow read, write: if admin();
+    }
+
     // Member-number counter, managed by admins during approval.
     match /counters/{id} {
       allow read, write: if admin();

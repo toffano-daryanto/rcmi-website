@@ -3,3 +3,5 @@ node_modules/
 *.log
 .DS_Store
 service-account*.json
+data/roster.json
+scripts/node_modules/
