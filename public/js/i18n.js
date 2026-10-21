@@ -195,6 +195,10 @@ export const STRINGS = {
     ps_qris: "Gambar QRIS",
     ps_qris_hint: "Unggah gambar QRIS dari bank atau e-wallet RCMI. Gambar ini tampil untuk semua anggota.",
     ps_qris_remove: "Hapus QRIS",
+    import_title: "Impor data anggota dari Google Form",
+    import_lead: "Pilih file roster.json. Ini memuat 22 anggota, 5 pendaftar, 3 acara 2025, dan pengaturan iuran. Aman dijalankan ulang.",
+    import_btn: "Impor data",
+    import_done: "Selesai: {members} anggota, {applicants} pendaftar, {events} acara.",
     deleted: "Dihapus."
   },
   en: {
@@ -392,6 +396,10 @@ export const STRINGS = {
     ps_qris: "QRIS image",
     ps_qris_hint: "Upload the QRIS image from RCMI's bank or e-wallet. All members see it.",
     ps_qris_remove: "Remove QRIS",
+    import_title: "Import members from the Google Form",
+    import_lead: "Choose the roster.json file. It loads the 22 members, 5 applicants, the 3 events from 2025 and the dues settings. Safe to run again.",
+    import_btn: "Import data",
+    import_done: "Done: {members} members, {applicants} applicants, {events} events.",
     deleted: "Deleted."
   }
 };

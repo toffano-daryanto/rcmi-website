@@ -5,11 +5,12 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
 import {
   getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, collection, query, where,
-  orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp
+  orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
 import { firebaseConfig } from "./config.js";
 import { t, getLang, setLang, applyStatic } from "./i18n.js";
 import { GALLERY } from "./gallery-data.js";
+import { SEED_EVENTS } from "./seed-events.js";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -933,7 +934,58 @@ async function loadAdmin() {
           <small>${esc(u.city)} · ${u.instagram ? "@" + esc(u.instagram) : ""}${u.role === "admin" ? " · admin" : ""}</small></div>
         ${u.role !== "admin" ? `<div class="actions"><button class="btn btn-sm btn-ghost" data-mkadmin="${esc(u.id)}">${t("make_admin")}</button></div>` : ""}
       </div>`).join("");
+    $("#admin-import").innerHTML = `
+      <details class="panel-flat dues-settings" ${state.roster?.some(r => r.id === "m001") ? "" : "open"}>
+        <summary><strong>${t("import_title")}</strong></summary>
+        <p class="muted">${t("import_lead")}</p>
+        <form class="form" id="f-import">
+          <label><span>roster.json</span><input type="file" name="file" accept=".json,application/json" required></label>
+          <div class="form-actions"><button class="btn btn-mat" type="submit">${t("import_btn")}</button></div>
+        </form>
+      </details>`;
+    $("#f-import").addEventListener("submit", async (ev) => {
+      ev.preventDefault(); const btn = ev.target.querySelector('[type="submit"]'); btn.disabled = true;
+      try {
+        const r = await importRoster(ev.target.file.files[0]);
+        toast(t("import_done", r)); state.roster = null; loadAdmin();
+      } catch (err) { fail(err); btn.disabled = false; }
+    });
   } catch (e) { fail(e); }
+}
+
+/* Import the Google Form roster from the browser (no terminal needed). Admin only; safe to run again. */
+async function importRoster(file) {
+  const data = JSON.parse(await file.text());
+  if (!Array.isArray(data.members)) throw new Error("roster.json: 'members' list not found");
+  const rid = (no) => `m${String(no).padStart(3, "0")}`;
+  const batch = writeBatch(db);
+  for (const m of data.members) {
+    batch.set(doc(db, "roster", rid(m.no)), { memberNo: m.no, name: m.name, city: m.city || "", province: m.province || "", joined: m.joined || "", status: "member" }, { merge: true });
+    batch.set(doc(db, "rosterPrivate", rid(m.no)), { phone: m.phone || "", shirtSize: m.shirt?.size || "", shirtQty: m.shirt?.qty || 0, shirtPaid: !!m.shirt?.paid }, { merge: true });
+  }
+  for (const a of data.applicants || []) {
+    batch.set(doc(db, "roster", `a-${a.key}`), { memberNo: null, name: a.name, city: a.city || "", province: a.province || "", status: "applicant", applied: a.applied || "" }, { merge: true });
+    batch.set(doc(db, "rosterPrivate", `a-${a.key}`), { phone: a.phone || "" }, { merge: true });
+  }
+  for (const e of SEED_EVENTS) {
+    batch.set(doc(db, "events", e.id), { title: e.title, place: e.place, description: e.description || "", date: Timestamp.fromDate(new Date(e.start)),
+      allDay: !!e.allDay, dateLabel: e.dateLabel || null, createdBy: "import" }, { merge: true });
+  }
+  await batch.commit();
+  // Counter never moves backwards; the signed-in admin who is member #1 gets linked to that record.
+  const maxNo = Math.max(...data.members.map(m => m.no));
+  await runTransaction(db, async (tx) => {
+    const cRef = doc(db, "counters", "members");
+    const c = await tx.get(cRef);
+    tx.set(cRef, { next: Math.max(c.exists() ? c.data().next || 1 : 1, maxNo + 1) });
+  });
+  if (state.profile.memberNo === 1) {
+    await setDoc(doc(db, "roster", rid(1)), { claimedBy: state.user.uid }, { merge: true });
+    if (state.profile.rosterId !== rid(1)) await updateDoc(doc(db, "users", state.user.uid), { rosterId: rid(1) });
+  }
+  const pay = await getDoc(doc(db, "settings", "payment"));
+  if (!pay.exists()) await setDoc(doc(db, "settings", "payment"), { ...PAY_DEFAULTS });
+  return { members: data.members.length, applicants: (data.applicants || []).length, events: SEED_EVENTS.length };
 }
 
 // Suggest the roster record whose name best matches the person signing up.

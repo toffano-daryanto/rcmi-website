@@ -66,6 +66,21 @@ Without the secret, the workflow skips deploying instead of failing.
 
 ---
 
+## No terminal? Do everything in the browser
+
+**1. Database rules** — Firebase console → *Firestore Database → Rules*: replace everything with the contents of `firestore.rules`, then **Publish**.
+
+**2. Put the site online** (pick one):
+- **GitHub Actions** (auto-updates on every push): Firebase console → *Project settings → Service accounts → Generate new private key*. In GitHub → repo *Settings → Secrets and variables → Actions*, add secret `FIREBASE_SERVICE_ACCOUNT` with the whole JSON. Then *Actions → Deploy to Firebase → Run workflow*. Site: `https://rcmi-website.web.app`.
+  If the deploy says permission denied: Google Cloud console → *IAM* (project rcmi-website) → edit the `firebase-adminsdk-…` account → add roles **Firebase Admin** and **Service Usage Consumer**.
+- **Netlify Drop** (no GitHub needed): open app.netlify.com/drop and drag the `public` folder in. Then Firebase console → *Authentication → Settings → Authorized domains* → add the `….netlify.app` address so Google sign-in works there.
+
+**3. Make yourself admin** — open the site, sign in with Google and submit the profile form. Then Firebase console → *Firestore Database → Data → users →* your document, and set: `status` = `approved`, `role` = `admin`, add `memberNo` (number) = `1`, add `rosterId` (string) = `m001`. Reload the site.
+
+**4. Import members** — *Admin* tab → **Impor data anggota** → choose `data/roster.json` → **Impor data**. This loads the 22 members, 5 applicants, the 2025 events and the dues settings, and links you to RCMI-0001.
+
+(Optional: with the `FIREBASE_SERVICE_ACCOUNT` and `ROSTER_JSON` secrets set, *Actions → Import members → Run workflow* does steps 3–4 for you.)
+
 ## Database structure (Firestore)
 
 | Collection | What's in it | Who can write |

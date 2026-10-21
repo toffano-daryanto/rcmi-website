@@ -1,0 +1,51 @@
+name: Import members
+
+# Run by hand from the Actions tab (no terminal needed).
+# Loads the RCMI roster, applicants, events and dues settings into Firestore,
+# and makes the given Google account admin (linked to member #1).
+#
+# Needs two repo secrets:
+#   FIREBASE_SERVICE_ACCOUNT  - the service-account JSON key from Firebase
+#   ROSTER_JSON               - the full contents of data/roster.json (kept out of git: it has phone numbers)
+
+on:
+  workflow_dispatch:
+    inputs:
+      admin_email:
+        description: "Google account to make admin (must have signed in to the site once). Leave empty to only import."
+        required: false
+        default: "tovano.d@gmail.com"
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Write private files
+        env:
+          SA_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          ROSTER_JSON: ${{ secrets.ROSTER_JSON }}
+        run: |
+          if [ -z "$SA_JSON" ] || [ -z "$ROSTER_JSON" ]; then
+            echo "::error::Add the FIREBASE_SERVICE_ACCOUNT and ROSTER_JSON secrets first (Settings → Secrets and variables → Actions)."
+            exit 1
+          fi
+          printf '%s' "$SA_JSON" > "$RUNNER_TEMP/sa.json"
+          printf '%s' "$ROSTER_JSON" > data/roster.json
+      - name: Import
+        working-directory: scripts
+        env:
+          ADMIN_EMAIL: ${{ inputs.admin_email }}
+        run: |
+          npm install --no-audit --no-fund
+          if [ -n "$ADMIN_EMAIL" ]; then
+            node seed.mjs --key "$RUNNER_TEMP/sa.json" --make-admin "$ADMIN_EMAIL"
+          else
+            node seed.mjs --key "$RUNNER_TEMP/sa.json"
+          fi
+      - name: Clean up
+        if: always()
+        run: rm -f "$RUNNER_TEMP/sa.json" data/roster.json
