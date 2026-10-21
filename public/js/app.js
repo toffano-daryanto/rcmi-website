@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792610411";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792610618";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792610411";
-import { SEED_EVENTS } from "./seed-events.js?v=1792610411";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792610411";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792610411";
+import { GALLERY } from "./gallery-data.js?v=1792610618";
+import { SEED_EVENTS } from "./seed-events.js?v=1792610618";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792610618";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792610618";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -671,6 +671,7 @@ function addrFieldsHTML() {
   const sel = (name, label, req = true) => `<label><span>${t(label)}${req ? " *" : ""}</span><select name="addr_${name}" ${req ? "required" : ""} disabled><option value="">—</option></select></label>`;
   return `<fieldset class="addr">
     <legend>${t("addr_title")} <small>${t("addr_private")}</small></legend>
+    <label class="lay-check addr-same"><input type="checkbox" name="addr_same"> <span>${t("addr_same")}</span></label>
     <div class="row2">
       <label><span>${t("addr_recipient")} *</span><input name="addr_recipient" required maxlength="80" autocomplete="name"></label>
       <label><span>${t("addr_phone")} *</span><input name="addr_phone" required maxlength="20" inputmode="tel" autocomplete="tel" placeholder="08…"></label>
@@ -723,11 +724,29 @@ async function bindWilayah(f, preset = {}) {
   setOpts(P, provs, preset.province || "");
   if (preset.province) await onProv(preset.city, preset.district, preset.village);
 }
-function fillAddrSlots() { $$(".addr-slot").forEach(el => { if (!el.dataset.ready) { el.dataset.ready = "1"; el.innerHTML = addrFieldsHTML(); bindWilayah(el.closest("form")).catch(() => {}); } }); }
+function fillAddrSlots() { $$(".addr-slot").forEach(el => { if (!el.dataset.ready) { el.dataset.ready = "1"; el.innerHTML = addrFieldsHTML(); bindWilayah(el.closest("form")).catch(() => {}); bindSameAsProfile(el.closest("form")); } }); }
+// "Same as my name and phone": recipient = the profile's name, phone = the profile's WhatsApp number.
+function bindSameAsProfile(f) {
+  const same = f.addr_same, R = f.addr_recipient, Ph = f.addr_phone;
+  const sync = () => {
+    R.readOnly = Ph.readOnly = same.checked;
+    if (same.checked) { R.value = f.displayName.value.trim(); Ph.value = f.whatsapp.value.trim(); }
+  };
+  same.addEventListener("change", sync);
+  f.displayName.addEventListener("input", () => same.checked && sync());
+  f.whatsapp.addEventListener("input", () => same.checked && sync());
+  same.checked = true; sync();
+  f._syncSame = sync;
+}
 fillAddrSlots();
 const readAddr = (f) => Object.fromEntries(ADDR_KEYS.map(k => [k, String(f["addr_" + k]?.value || "").trim()]));
 function writeAddr(f, a) {
   ["recipient", "phone", "street", "postal", "note"].forEach(k => { const el = f["addr_" + k]; if (el && document.activeElement !== el) el.value = a?.[k] || ""; });
+  // Tick "same as profile" when the saved recipient matches the profile (or nothing is saved yet).
+  if (f.addr_same) {
+    const sameNow = !a || (norm(a.recipient) === norm(f.displayName.value) && phoneKey(a.phone) === phoneKey(f.whatsapp.value));
+    f.addr_same.checked = sameNow; f._syncSame?.();
+  }
   if (a) bindWilayah(f, a).catch(() => {});
 }
 const saveAddr = (a) => setDoc(doc(db, "addresses", state.user.uid), { ...a, updatedAt: serverTimestamp() });
@@ -2447,6 +2466,7 @@ function renderCard() {
   });
   const f = $("#form-profile");
   ["displayName", "city", "instagram", "whatsapp", "bio"].forEach(k => { if (document.activeElement !== f[k]) f[k].value = p[k] || ""; });
+  f._syncSame?.();
 }
 $("#form-profile").addEventListener("submit", async (e) => {
   e.preventDefault(); const f = e.target;

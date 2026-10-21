@@ -884,3 +884,5 @@ fieldset.addr legend small { font-weight: 500; color: var(--muted); }
 .my-addr .btn { text-decoration: none; display: inline-block; }
 @media (min-width: 901px) { #view-card .my-addr { grid-column: 1; margin: 0; } #view-card #form-profile { grid-column: 2; grid-row: 1 / span 2; } }
 @media (min-width: 901px) { #view-card { grid-template-rows: auto 1fr; } #view-card .my-addr { align-self: start; margin-top: 4px; } }
+.addr-same { font-weight: 600 !important; }
+input[readonly] { background: rgba(0,0,0,.04); color: var(--muted); }
