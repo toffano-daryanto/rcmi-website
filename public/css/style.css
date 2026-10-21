@@ -821,3 +821,18 @@ section[id], [id="contact"], [id="join"] { scroll-margin-top: 96px; }
 .cmt-inline { border-top: 1px solid var(--line); margin-top: 14px; }
 .cmt-sheet .cmt-title { margin-top: 4px; }
 .cmt-of { margin: 0 0 4px; }
+
+/* Search */
+.ig-head h1 { margin-right: auto !important; }
+.ig-search { max-width: 520px; margin: 12px auto 4px; }
+.ig-search input, .mk-search input { width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); font: inherit; }
+.ig-search input:focus, .mk-search input:focus { outline: 2px solid var(--red); outline-offset: 0; }
+#feed-results { max-width: 935px; margin: 10px auto 0; }
+.ig-found { margin: 0 0 10px; }
+.ig-hover { font-size: .85rem; padding: 8px; text-align: center; }
+.mk-search { position: relative; flex: 1 1 220px; max-width: 340px; }
+.mk-search span { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--muted); display: grid; }
+.mk-search input { padding-left: 40px; }
+@media (max-width: 600px) { .ig-search, #feed-results { padding: 0 16px; } #feed-results { padding: 0; } .ig-found { padding: 0 16px; } .mk-search { max-width: none; flex-basis: 100%; order: 3; } }
+.hashtag { color: #1a5fb4; font-weight: 600; text-decoration: none; }
+.hashtag:hover { text-decoration: underline; }

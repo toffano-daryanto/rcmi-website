@@ -69,6 +69,9 @@ Setup (once): script.google.com → *New project* → paste `scripts/drive-uploa
 ### Moderation (admins)
 On a Collection post (⋯ button) or a market listing (*Admin only* bar), admins can **Hide** or **Delete** the post and must write a note with the reason. The owner gets a notification in their bell (`notices/{id}`, readable only by them and admins) showing the reason; a hidden post disappears for everyone else but stays visible to its owner, marked *Hidden* with the reason. **Admin → Hidden posts** lists everything hidden, with *Show again* (owner is notified) and *Delete*. Owners can't unhide their own posts.
 
+### Search & hashtags
+🔍 on the Collection page searches everyone's posts (car, maker, caption words, #hashtags, member, city) and shows the matches as a photo grid; the Market page has a search box (title, description, condition, seller, #hashtags) that works together with the All/Sell/Trade/Wanted filter. #hashtags in captions and listing descriptions are links that search for that tag.
+
 ### Comments & replies
 Collection posts (💬 icon, "View all N comments", "Add a comment…") and market listings (comments under the listing) have Instagram-style comments. Tap **Reply** under a comment to answer it; replies show indented with "@name". Anyone can read; active accounts can comment; the author, the post's owner and admins can delete a comment. The post's owner gets a bell notification for new comments, and the person replied to gets one for replies; tapping it opens the post. Stored in `cars/{id}/comments` and `listings/{id}/comments`.
 

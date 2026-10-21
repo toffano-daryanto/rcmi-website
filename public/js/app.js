@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792609020";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792609188";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792609020";
-import { SEED_EVENTS } from "./seed-events.js?v=1792609020";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792609020";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792609020";
+import { GALLERY } from "./gallery-data.js?v=1792609188";
+import { SEED_EVENTS } from "./seed-events.js?v=1792609188";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792609188";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792609188";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -798,7 +798,7 @@ function openAddCar(after) {
         ownerUid: state.user.uid, ownerName: state.profile.displayName, ownerPhoto: state.profile.photoURL || state.user.photoURL || "",
         ownerCity: state.profile.city || "", createdAt: serverTimestamp()
       });
-      closeModal(); toast(t("feed_posted")); state.feedLoaded = false; after?.();
+      closeModal(); toast(t("feed_posted")); state.feedLoaded = false; state.allCars = null; after?.();
     } catch (err) { fail(err); btn.disabled = false; }
   });
 }
@@ -922,7 +922,7 @@ function postHTML(c) {
       <button type="button" class="share" data-share-post="${esc(c.id)}" aria-label="${t("share")}">${SHARE_ICON}</button>
       <span class="like-count">${likes.length ? t(likes.length === 1 ? "likes_one" : "likes_n", { n: likes.length }) : ""}</span>
     </div>
-    <p class="post-cap"><strong>${esc(c.name)}</strong>${c.maker ? ` <span class="post-maker">· ${esc(c.maker)}</span>` : ""}${c.notes ? `<br>${esc(c.notes)}` : ""}</p>
+    <p class="post-cap"><strong>${esc(c.name)}</strong>${c.maker ? ` <span class="post-maker">· ${esc(c.maker)}</span>` : ""}${c.notes ? `<br>${tagify(c.notes, "feed")}` : ""}</p>
     <div class="post-cmts" data-cmts="cars:${esc(c.id)}"></div>
     <time class="post-time">${ago(c.createdAt)}</time>
   </article>`;
@@ -938,7 +938,7 @@ function renderFeed() {
 $("#feed-more").addEventListener("click", () => loadFeed());
 async function toggleLike(id, forceOn = false) {
   if (!state.user || state.profile?.status !== "approved") { openSignInChooser(); return; }
-  const c = state.feed.find(x => x.id === id) || (state.feedProfile?.posts || []).find(x => x.id === id); if (!c) return;
+  const c = state.feed.find(x => x.id === id) || (state.feedProfile?.posts || []).find(x => x.id === id) || state.searchPosts.find(x => x.id === id); if (!c) return;
   const uid = state.user.uid; const on = (c.likedBy || []).includes(uid);
   if (forceOn && on) return;
   c.likedBy = on ? c.likedBy.filter(x => x !== uid) : [...(c.likedBy || []), uid];
@@ -949,7 +949,7 @@ async function toggleLike(id, forceOn = false) {
 // Update one post's heart and count in place (keeps the photo carousel where it is).
 function paintLike(c) {
   // Same car can be in the feed, a profile and an open post at once: keep them all in step.
-  [state.feed, state.feedProfile?.posts || []].forEach(list => { const x = list.find(y => y.id === c.id); if (x && x !== c) x.likedBy = c.likedBy; });
+  [state.feed, state.feedProfile?.posts || [], state.searchPosts, state.allCars || []].forEach(list => { const x = list.find(y => y.id === c.id); if (x && x !== c) x.likedBy = c.likedBy; });
   document.querySelectorAll(`.post[data-post="${CSS.escape(c.id)}"]`).forEach(post => {
     const n = (c.likedBy || []).length, mine = (c.likedBy || []).includes(state.user?.uid);
     const b = post.querySelector(".like"); b.classList.toggle("on", mine); b.setAttribute("aria-pressed", String(mine));
@@ -1036,7 +1036,7 @@ function shareListing(l) {
 document.addEventListener("click", (e) => {
   const b = e.target.closest("[data-share-post]"); if (!b) return;
   const id = b.dataset.sharePost;
-  const c = state.feed.find(x => x.id === id) || (state.feedProfile?.posts || []).find(x => x.id === id) || state.deepPost;
+  const c = state.feed.find(x => x.id === id) || (state.feedProfile?.posts || []).find(x => x.id === id) || state.searchPosts.find(x => x.id === id) || state.deepPost;
   if (c) sharePost(c);
 });
 // Shared links: #/feed/p/<id> opens that post, #/market/<id> opens that listing.
@@ -1074,7 +1074,7 @@ const CMT_ICON = `<svg viewBox="0 0 24 24" width="25" height="25" aria-hidden="t
 state.cmtItems = {};   // "cars:<id>" / "listings:<id>" → the post, for titles and owner
 const cmtCol = (col, id) => collection(db, col, id, "comments");
 const findPost = (col, id) => state.cmtItems[`${col}:${id}`]
-  || (col === "cars" ? (state.feed.find(x => x.id === id) || (state.feedProfile?.posts || []).find(x => x.id === id) || (state.deepPost?.id === id ? state.deepPost : null))
+  || (col === "cars" ? (state.feed.find(x => x.id === id) || (state.feedProfile?.posts || []).find(x => x.id === id) || state.searchPosts.find(x => x.id === id) || (state.deepPost?.id === id ? state.deepPost : null))
                      : state.listings.find(x => x.id === id));
 function cmtLine(c, col, postId, owner, isReply) {
   const canDel = state.user && (c.uid === state.user.uid || owner === state.user.uid || isAdmin());
@@ -1256,6 +1256,64 @@ function paintProfile() {
       ${(c.photos || []).length > 1 ? `<i class="ig-multi" aria-hidden="true">❏</i>` : ""}
       <span class="ig-hover">♥ ${(c.likedBy || []).length}</span></button>`).join("")}</div>`;
 }
+/* Hashtags (#jdm, #r34…) in captions and listings are links that search for that tag. */
+function tagify(text, where) {
+  return esc(text).replace(/(^|\s)#([\p{L}\p{N}_]{1,40})/gu, (m, pre, tag) => `${pre}<a href="#" class="hashtag" data-tag="${tag}" data-tag-where="${where}">#${tag}</a>`);
+}
+document.addEventListener("click", (e) => {
+  const a = e.target.closest("a.hashtag"); if (!a) return;
+  e.preventDefault();
+  if (modal.open) closeModal();
+  const q = "#" + a.dataset.tag;
+  if (a.dataset.tagWhere === "market") {
+    if (!location.hash.startsWith("#/market")) location.hash = "#/market";
+    setTimeout(() => { $("#market-q").value = q; renderListings(); $("#market-q").scrollIntoView({ block: "center" }); }, 200);
+  } else {
+    if (location.hash !== "#/feed") location.hash = "#/feed";
+    setTimeout(() => { $("#feed-search").hidden = false; $("#feed-q").value = q; loadAllCars().then(runFeedSearch); window.scrollTo(0, 0); }, 200);
+  }
+});
+
+/* ---- Search the collection: everyone's posts, by car, maker, notes, owner or city ---- */
+const searchText = (...xs) => norm(xs.filter(Boolean).join(" "));
+state.searchPosts = [];
+$("#feed-search-btn").addEventListener("click", () => {
+  const box = $("#feed-search"); box.hidden = !box.hidden;
+  if (!box.hidden) { $("#feed-q").focus(); loadAllCars(); } else { $("#feed-q").value = ""; runFeedSearch(); }
+});
+async function loadAllCars() {
+  if (state.allCars) { runFeedSearch(); return; }
+  try {
+    const snap = await getDocs(query(collection(db, "cars"), orderBy("createdAt", "desc"), limit(500)));
+    state.allCars = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(c => !c.hidden && !c.modHidden);
+  } catch (e) { state.allCars = []; }
+  runFeedSearch();
+}
+let feedSearchTimer;
+$("#feed-q").addEventListener("input", () => { clearTimeout(feedSearchTimer); feedSearchTimer = setTimeout(runFeedSearch, 150); });
+function runFeedSearch() {
+  const q = norm($("#feed-q").value);
+  const res = $("#feed-results");
+  const on = !!q;
+  res.hidden = !on; $("#feed-people").hidden = on;
+  if (!/^#\/feed\/u\//.test(location.hash)) $("#feed-main").hidden = on; else $("#feed-profile").hidden = on;
+  if (!on) return;
+  if (!state.allCars) { res.innerHTML = `<p class="muted">…</p>`; return; }
+  const words = q.split(" ");
+  const hits = state.searchPosts = state.allCars.filter(c => { const h = searchText(c.name, c.maker, c.notes, c.ownerName, c.ownerCity); return words.every(w => h.includes(w)); });
+  res.innerHTML = `<p class="muted ig-found">${t(hits.length === 1 ? "search_found_one" : "search_found", { n: hits.length })}</p>
+    ${hits.length ? `<div class="ig-grid">${hits.map(c => `<button type="button" class="ig-tile" data-open-post="${esc(c.id)}">
+      ${c.photos?.[0] ? `<img src="${photoSrc(c.photos[0])}" alt="${esc(c.name)}" loading="lazy" draggable="false">` : `<span>1:64</span>`}
+      <span class="ig-hover">${esc(c.name)}</span></button>`).join("")}</div>` : `<p class="empty">${t("search_none")}</p>`}`;
+}
+$("#feed-results").addEventListener("click", (e) => {
+  const tile = e.target.closest("[data-open-post]"); if (!tile) return;
+  const c = state.searchPosts.find(x => x.id === tile.dataset.openPost); if (!c) return;
+  openModal(`<div class="post-modal">${postHTML(c)}</div>`);
+  $("#modal-body").onclick = null;
+  wireCarousels($("#modal-body")); fillCommentPreviews($("#modal-body"));
+});
+
 $("#feed-profile").addEventListener("click", (e) => {
   const tile = e.target.closest("[data-open-post]"); if (!tile) return;
   const c = (state.feedProfile?.posts || []).find(x => x.id === tile.dataset.openPost); if (!c) return;
@@ -1386,7 +1444,9 @@ async function loadListings() {
 const typeLabel = (ty) => t({ sell: "t_sell", trade: "t_trade", wanted: "t_wanted" }[ty] || "t_sell");
 function renderListings() {
   const f = state.marketFilter;
-  const list = f === "all" ? state.listings : state.listings.filter(l => l.type === f);
+  const words = norm($("#market-q")?.value || "").split(" ").filter(Boolean);
+  const list = (f === "all" ? state.listings : state.listings.filter(l => l.type === f))
+    .filter(l => { if (!words.length) return true; const h = searchText(l.title, l.description, l.condition, l.ownerName, typeLabel(l.type)); return words.every(w => h.includes(w)); });
   $("#listings").innerHTML = list.length ? list.map(l => `
     <button type="button" class="item" data-listing="${esc(l.id)}">
       ${l.photos?.[0] ? `<img class="ph" src="${photoSrc(l.photos[0])}" alt="" loading="lazy">` : `<div class="ph ph-empty">1:64</div>`}
@@ -1395,8 +1455,10 @@ function renderListings() {
         <h3>${esc(l.title)}</h3>
         <p>${l.price ? `<span class="price">${fmtIDR(l.price)}</span> · ` : ""}${esc(l.ownerName)}</p>
       </div>
-    </button>`).join("") : `<p class="empty">${t("empty_market")}</p>`;
+    </button>`).join("") : `<p class="empty">${t(words.length ? "search_none" : "empty_market")}</p>`;
 }
+let marketSearchTimer;
+$("#market-q").addEventListener("input", () => { clearTimeout(marketSearchTimer); marketSearchTimer = setTimeout(renderListings, 150); });
 $$("[data-mfilter]").forEach(b => b.addEventListener("click", () => {
   state.marketFilter = b.dataset.mfilter;
   $$("[data-mfilter]").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
@@ -1415,7 +1477,7 @@ function openListing(l) {
     <h2>${esc(l.title)}</h2>
     ${l.price ? `<p class="price">${fmtIDR(l.price)}</p>` : ""}
     ${l.condition ? `<p><strong>${t("l_condition")}:</strong> ${esc(l.condition)}</p>` : ""}
-    ${l.description ? `<p>${esc(l.description)}</p>` : ""}
+    ${l.description ? `<p>${tagify(l.description, "market")}</p>` : ""}
     <p class="muted">${esc(l.ownerName)} · ${fmtDate(l.createdAt, { day: "numeric", month: "short" })}</p>
     ${l.modHidden ? `<p class="mod-note">🚫 ${t(isAdmin() && l.ownerUid !== state.user?.uid ? "mod_hidden_admin" : "mod_hidden_owner")}${l.modNote ? `<br><strong>${t("mod_reason")}:</strong> ${esc(l.modNote)}` : ""}</p>` : ""}
     <p class="listing-risk">⚠️ ${t("mn_short")}</p>
@@ -2611,7 +2673,7 @@ document.addEventListener("click", (e) => {
   const b = e.target.closest("[data-mod-post]"); if (!b || !isAdmin()) return;
   e.stopPropagation();
   const id = b.dataset.modPost;
-  const c = state.feed.find(x => x.id === id) || (state.feedProfile?.posts || []).find(x => x.id === id) || state.deepPost;
+  const c = state.feed.find(x => x.id === id) || (state.feedProfile?.posts || []).find(x => x.id === id) || state.searchPosts.find(x => x.id === id) || state.deepPost;
   if (c) openModerate("cars", c, "hide");
 });
 function openModerate(col, item, mode) {
@@ -2670,7 +2732,7 @@ async function unhidePost(col, item) {
   } catch (e) { fail(e); }
 }
 function afterModeration(col) {
-  if (col === "cars") { state.feedLoaded = false; state.feedProfile = null; if (location.hash.startsWith("#/feed")) { state.feedLoaded = true; loadFeed(true); renderFeedRoute(); } }
+  if (col === "cars") { state.allCars = null; state.feedLoaded = false; state.feedProfile = null; if (location.hash.startsWith("#/feed")) { state.feedLoaded = true; loadFeed(true); renderFeedRoute(); } }
   else { state.listingsLoaded = false; if (location.hash.startsWith("#/market")) { state.listingsLoaded = true; loadListings(); } }
   if (state.tab === "admin" && !$("#app").hidden) loadModHidden();
 }

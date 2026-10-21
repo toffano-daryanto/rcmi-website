@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;1,600;1,700;1,800&family=Barlow:wght@400;500;600;700&family=Noto+Serif:wght@700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/style.css?v=1792609020">
+  <link rel="stylesheet" href="/css/style.css?v=1792609188">
   <link rel="icon" type="image/png" href="/img/icon-64.png">
   <link rel="apple-touch-icon" href="/img/icon-192.png">
   <meta property="og:image" content="/img/icon-512.png">
@@ -196,6 +196,10 @@
             <button type="button" data-mfilter="trade" aria-pressed="false" data-i18n="t_trade"></button>
             <button type="button" data-mfilter="wanted" aria-pressed="false" data-i18n="t_wanted"></button>
           </div>
+          <div class="mk-search">
+            <span aria-hidden="true"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="m15.5 15.5 5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>
+            <input type="search" id="market-q" autocomplete="off" data-i18n-ph="market_search_ph">
+          </div>
           <button type="button" class="btn btn-mat" id="btn-add-listing" data-i18n="add_listing" hidden></button>
           <p class="market-hint muted" id="market-hint" data-i18n="market_hint"></p>
         </div>
@@ -208,11 +212,16 @@
       <section class="feed-sec" id="feed">
         <header class="ig-head">
           <h1 data-i18n="feed_title">Koleksi</h1>
+          <button type="button" class="ig-plus" id="feed-search-btn" aria-label="Search"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="m15.5 15.5 5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
           <button type="button" class="ig-plus js-feed-plus" aria-label="New post">
             <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 8v8M8 12h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
           </button>
         </header>
         <p class="muted ig-lead" data-i18n="feed_lead"></p>
+        <div class="ig-search" id="feed-search" hidden>
+          <input type="search" id="feed-q" autocomplete="off" data-i18n-ph="feed_search_ph">
+        </div>
+        <div id="feed-results" hidden></div>
         <div class="ig-people" id="feed-people"></div>
         <div id="feed-profile" hidden></div>
         <div id="feed-main">
@@ -402,6 +411,6 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="/js/app.js?v=1792609020"></script>
+  <script type="module" src="/js/app.js?v=1792609188"></script>
 </body>
 </html>
