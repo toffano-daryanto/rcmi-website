@@ -789,3 +789,35 @@ section[id], [id="contact"], [id="join"] { scroll-margin-top: 96px; }
   .lb-bar { padding: 8px 10px; flex-wrap: nowrap; }
   .lb-bar .btn { padding: .35em .7em; }
 }
+
+/* ---------- Comments & replies ---------- */
+.cmt-btn { background: none; border: 0; padding: 4px; cursor: pointer; color: var(--ink); display: grid; }
+.cmt-btn:hover { color: var(--red); }
+.post-cmts { padding: 4px 14px 0; font-size: .92rem; }
+.post-cmts:empty { display: none; }
+.cmt-all, .cmt-add { display: block; background: none; border: 0; padding: 2px 0; color: var(--muted); font: inherit; font-size: .9rem; cursor: pointer; text-align: left; }
+.cmt-all:hover, .cmt-add:hover { color: var(--ink); }
+.cmt-mini { margin: 2px 0; overflow-wrap: anywhere; }
+.cmt-at { color: #1a5fb4; font-weight: 600; }
+.cmt-title { font-size: 1.05rem; margin: 18px 0 8px; }
+.cmt-list { display: grid; gap: 12px; max-height: 50vh; overflow-y: auto; padding-right: 4px; }
+.cmt { display: flex; gap: 10px; align-items: flex-start; }
+.cmt-reply { margin-left: 42px; }
+.cmt-av { flex: none; width: 32px; height: 32px; border-radius: 50%; overflow: hidden; display: grid; place-items: center; background: var(--navy); color: #fff; font-size: .72rem; font-weight: 700; }
+.cmt-reply .cmt-av { width: 26px; height: 26px; font-size: .62rem; }
+.cmt-av img { width: 100%; height: 100%; object-fit: cover; }
+.cmt-body p { margin: 0; font-size: .93rem; overflow-wrap: anywhere; }
+.cmt-body small { color: var(--muted); font-size: .76rem; }
+.cmt-act { background: none; border: 0; padding: 0; color: var(--muted); font: inherit; font-size: .76rem; font-weight: 700; cursor: pointer; }
+.cmt-act:hover { color: var(--red); }
+.cmt-replying { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; padding: 6px 10px; background: rgba(0,0,0,.05); border-radius: 8px; font-size: .85rem; color: var(--muted); }
+.cmt-replying[hidden] { display: none; }
+.cmt-replying button { background: none; border: 0; cursor: pointer; font-size: 1rem; color: var(--muted); }
+.cmt-form { display: flex; align-items: center; gap: 10px; margin-top: 10px; padding-top: 12px; border-top: 1px solid var(--line); }
+.cmt-form input[name=text] { flex: 1; min-width: 0; border: 0; background: transparent; font: inherit; padding: 8px 0; outline: none; }
+.cmt-post { background: none; border: 0; color: var(--red); cursor: pointer; font: inherit; font-weight: 800; }
+.cmt-post:disabled { opacity: .5; }
+.cmt-signin { margin-top: 12px; }
+.cmt-inline { border-top: 1px solid var(--line); margin-top: 14px; }
+.cmt-sheet .cmt-title { margin-top: 4px; }
+.cmt-of { margin: 0 0 4px; }

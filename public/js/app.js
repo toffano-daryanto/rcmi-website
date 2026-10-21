@@ -6,14 +6,14 @@ import {
 import {
   getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, collection, query, where,
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
-  startAfter, arrayUnion, arrayRemove
+  startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792607658";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792609020";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792607658";
-import { SEED_EVENTS } from "./seed-events.js?v=1792607658";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792607658";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792607658";
+import { GALLERY } from "./gallery-data.js?v=1792609020";
+import { SEED_EVENTS } from "./seed-events.js?v=1792609020";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792609020";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792609020";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -319,9 +319,12 @@ const ms = (ts) => toDate(ts)?.getTime() || 0;
 function bellItems() {
   const seen = ms(state.profile?.notifSeenAt);
   const items = [];
-  for (const n of notif.notices) items.push({ at: ms(n.at), unread: !n.read, href: "#", notice: n.id,
-    text: t({ hidden: "nt_hidden", deleted: "nt_deleted", unhidden: "nt_unhidden" }[n.kind] || "nt_hidden", { title: esc(n.title), where: t(n.target === "market" ? "nav_market" : "nav_feed") })
-      + (n.note ? `<em class="bell-note">${t("mod_reason")}: ${esc(n.note)}</em>` : "") });
+  for (const n of notif.notices) items.push(n.kind === "comment" || n.kind === "reply"
+    ? { at: ms(n.at), unread: !n.read, notice: n.id, href: n.target === "market" ? `#/market/${encodeURIComponent(n.postId)}` : `#/feed/p/${encodeURIComponent(n.postId)}`,
+        text: t(n.kind === "reply" ? "nt_reply" : "nt_comment", { name: esc(n.fromName || ""), title: esc(n.title) }) + `<em class="bell-note">“${esc(n.note)}”</em>` }
+    : { at: ms(n.at), unread: !n.read, href: "#", notice: n.id,
+        text: t({ hidden: "nt_hidden", deleted: "nt_deleted", unhidden: "nt_unhidden" }[n.kind] || "nt_hidden", { title: esc(n.title), where: t(n.target === "market" ? "nav_market" : "nav_feed") })
+          + (n.note ? `<em class="bell-note">${t("mod_reason")}: ${esc(n.note)}</em>` : "") });
   for (const u of notif.pending) items.push({ at: ms(notif.proofs[u.id]?.createdAt) || ms(u.createdAt), unread: true, href: "#/admin",
     text: t(u.accountType === "general" ? "notif_pending_general" : notif.proofs[u.id] ? "notif_pending_paid" : "notif_pending_member", { name: esc(u.displayName) }) });
   for (const m of notif.messages) items.push({ at: ms(m.createdAt), unread: true, href: "#/admin",
@@ -356,6 +359,12 @@ $("#bell-panel").addEventListener("click", (e) => {
 function openNotice(id) {
   const n = notif.notices.find(x => x.id === id); if (!n) return;
   if (!n.read) updateDoc(doc(db, "notices", id), { read: true }).catch(() => {});
+  if (n.kind === "comment" || n.kind === "reply") {   // open the post, then its comments
+    const h = n.target === "market" ? `#/market/${encodeURIComponent(n.postId)}` : `#/feed/p/${encodeURIComponent(n.postId)}`;
+    state.deepOpened = null; state.openCommentsAfter = n.target === "market" ? null : `cars:${n.postId}`;
+    if (location.hash === h) openDeepLink(); else location.hash = h;
+    return;
+  }
   const where = t(n.target === "market" ? "nav_market" : "nav_feed");
   openModal(`
     <h2>${t({ hidden: "nt_hidden_title", deleted: "nt_deleted_title", unhidden: "nt_unhidden_title" }[n.kind] || "nt_hidden_title")}</h2>
@@ -909,10 +918,12 @@ function postHTML(c) {
       <button type="button" class="like ${mine ? "on" : ""}" data-like="${esc(c.id)}" aria-pressed="${mine}" aria-label="${t("like")}">
         <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M12 21s-7.5-4.6-9.6-9.2C.9 8.4 3 4.5 6.8 4.5c2.2 0 3.6 1.2 4.2 2.3h2c.6-1.1 2-2.3 4.2-2.3 3.8 0 5.9 3.9 4.4 7.3C19.5 16.4 12 21 12 21Z"/></svg>
       </button>
+      <button type="button" class="cmt-btn" data-cmt-open="cars:${esc(c.id)}" aria-label="${t("comments")}">${CMT_ICON}</button>
       <button type="button" class="share" data-share-post="${esc(c.id)}" aria-label="${t("share")}">${SHARE_ICON}</button>
       <span class="like-count">${likes.length ? t(likes.length === 1 ? "likes_one" : "likes_n", { n: likes.length }) : ""}</span>
     </div>
     <p class="post-cap"><strong>${esc(c.name)}</strong>${c.maker ? ` <span class="post-maker">· ${esc(c.maker)}</span>` : ""}${c.notes ? `<br>${esc(c.notes)}` : ""}</p>
+    <div class="post-cmts" data-cmts="cars:${esc(c.id)}"></div>
     <time class="post-time">${ago(c.createdAt)}</time>
   </article>`;
 }
@@ -921,6 +932,7 @@ function renderFeed() {
   box.innerHTML = state.feed.length ? state.feed.map(postHTML).join("") : `<p class="empty">${t("feed_empty")}</p>`;
   $("#feed-more").hidden = state.feedDone || !state.feed.length;
   wireCarousels(box);
+  fillCommentPreviews(box);
   renderPeople();
 }
 $("#feed-more").addEventListener("click", () => loadFeed());
@@ -1040,8 +1052,9 @@ async function openDeepLink() {
     if (!c || c.hidden || (c.modHidden && !isAdmin() && c.ownerUid !== state.user?.uid)) { toast(t("not_found")); return; }
     state.deepPost = c;
     openModal(`<div class="post-modal">${postHTML(c)}</div>`); $("#modal-body").onclick = null;
-    wireCarousels($("#modal-body"));
+    wireCarousels($("#modal-body")); fillCommentPreviews($("#modal-body"));
     modal.addEventListener("close", () => { state.deepOpened = null; history.replaceState(null, "", "#/feed"); }, { once: true });
+    if (state.openCommentsAfter === `cars:${c.id}`) { state.openCommentsAfter = null; setTimeout(() => openComments("cars", c.id), 150); }
     return;
   }
   m = h.match(/^#\/market\/([^/]+)/);
@@ -1055,6 +1068,142 @@ async function openDeepLink() {
     modal.addEventListener("close", () => { state.deepOpened = null; history.replaceState(null, "", "#/market"); }, { once: true });
   }
 }
+
+/* ================= Comments & replies (collection posts & market listings) ================= */
+const CMT_ICON = `<svg viewBox="0 0 24 24" width="25" height="25" aria-hidden="true"><path d="M20.5 11.6a8.4 8.4 0 0 1-12.3 7.5L3.5 20.5l1.5-4.5A8.4 8.4 0 1 1 20.5 11.6Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>`;
+state.cmtItems = {};   // "cars:<id>" / "listings:<id>" → the post, for titles and owner
+const cmtCol = (col, id) => collection(db, col, id, "comments");
+const findPost = (col, id) => state.cmtItems[`${col}:${id}`]
+  || (col === "cars" ? (state.feed.find(x => x.id === id) || (state.feedProfile?.posts || []).find(x => x.id === id) || (state.deepPost?.id === id ? state.deepPost : null))
+                     : state.listings.find(x => x.id === id));
+function cmtLine(c, col, postId, owner, isReply) {
+  const canDel = state.user && (c.uid === state.user.uid || owner === state.user.uid || isAdmin());
+  const canReply = state.user && state.profile?.status === "approved";
+  return `<div class="cmt ${isReply ? "cmt-reply" : ""}" data-cid="${esc(c.id)}">
+    <span class="cmt-av">${c.photo ? `<img src="${esc(c.photo)}" alt="" referrerpolicy="no-referrer">` : esc(initials(c.name))}</span>
+    <div class="cmt-body"><p><strong>${esc(c.name)}</strong> ${c.replyToName ? `<span class="cmt-at">@${esc(c.replyToName)}</span> ` : ""}${esc(c.text)}</p>
+      <small>${ago(c.at)}
+        ${canReply ? ` · <button type="button" class="cmt-act" data-cmt-reply="${esc(c.parent || c.id)}|${esc(c.id)}|${esc(c.name)}">${t("cmt_reply")}</button>` : ""}
+        ${canDel ? ` · <button type="button" class="cmt-act" data-cmt-del="${col}:${esc(postId)}:${esc(c.id)}">${t("delete")}</button>` : ""}</small></div>
+  </div>`;
+}
+// Under each feed post: "View all N comments" + the 2 newest + "Add a comment…".
+async function fillCommentPreviews(root) {
+  for (const box of root.querySelectorAll("[data-cmts]")) {
+    if (box.dataset.loaded) continue; box.dataset.loaded = "1";
+    const [col, id] = box.dataset.cmts.split(":");
+    try {
+      const [cnt, snap] = await Promise.all([getCountFromServer(cmtCol(col, id)), getDocs(query(cmtCol(col, id), orderBy("at", "desc"), limit(2)))]);
+      paintPreview(box, col, id, cnt.data().count, snap.docs.map(d => ({ id: d.id, ...d.data() })).reverse());
+    } catch (e) { paintPreview(box, col, id, 0, []); }
+  }
+}
+function paintPreview(box, col, id, n, latest) {
+  box.innerHTML = `
+    ${n > latest.length ? `<button type="button" class="cmt-all" data-cmt-open="${col}:${esc(id)}">${t("cmt_view_all", { n })}</button>` : ""}
+    ${latest.map(c => `<p class="cmt-mini"><strong>${esc(c.name)}</strong> ${c.replyToName ? `<span class="cmt-at">@${esc(c.replyToName)}</span> ` : ""}${esc(c.text)}</p>`).join("")}
+    <button type="button" class="cmt-add" data-cmt-open="${col}:${esc(id)}">${t("cmt_add")}</button>`;
+}
+function refreshPreview(col, id) {
+  document.querySelectorAll(`[data-cmts="${col}:${CSS.escape(id)}"]`).forEach(b => { delete b.dataset.loaded; });
+  fillCommentPreviews(document);
+}
+// The full list (comments with their replies underneath) and a box to write one.
+async function renderCommentsInto(box, col, item) {
+  if (!box) return;
+  const key = `${col}:${item.id}`;
+  box.innerHTML = `<h3 class="cmt-title">${t("comments")}</h3><div class="cmt-list"><p class="muted">…</p></div>${cmtFormHTML(key)}`;
+  try {
+    const snap = await getDocs(query(cmtCol(col, item.id), orderBy("at", "asc"), limit(300)));
+    const all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const ids = new Set(all.map(c => c.id));
+    const tops = all.filter(c => !c.parent || !ids.has(c.parent));
+    const html = tops.map(c => cmtLine(c, col, item.id, item.ownerUid, false)
+      + all.filter(r => r.parent === c.id).map(r => cmtLine(r, col, item.id, item.ownerUid, true)).join("")).join("");
+    box.querySelector(".cmt-title").textContent = all.length ? `${t("comments")} (${all.length})` : t("comments");
+    box.querySelector(".cmt-list").innerHTML = html || `<p class="muted cmt-none">${t("cmt_none")}</p>`;
+    const l = box.querySelector(".cmt-list"); l.scrollTop = l.scrollHeight;
+    box._comments = all;
+  } catch (e) { box.querySelector(".cmt-list").innerHTML = `<p class="muted">${t("cmt_none")}</p>`; }
+}
+function cmtFormHTML(key) {
+  if (!state.user) return `<button type="button" class="btn btn-ghost cmt-signin" data-cmt-signin>${t("cmt_signin")}</button>`;
+  if (state.profile?.status !== "approved") return `<p class="muted">${t("cmt_need_active")}</p>`;
+  const ph = state.profile.photoURL || state.user.photoURL;
+  return `<div class="cmt-replying" hidden><span></span><button type="button" data-cmt-cancel aria-label="${t("cancel")}">✕</button></div>
+  <form class="cmt-form" data-cmt-form="${esc(key)}">
+    <span class="cmt-av">${ph ? `<img src="${esc(ph)}" alt="" referrerpolicy="no-referrer">` : esc(initials(state.profile.displayName))}</span>
+    <input name="text" maxlength="500" autocomplete="off" placeholder="${esc(t("cmt_placeholder"))}" required>
+    <input type="hidden" name="parent"><input type="hidden" name="replyTo"><input type="hidden" name="replyName">
+    <button type="submit" class="cmt-post">${t("cmt_post")}</button>
+  </form>`;
+}
+function openComments(col, id) {
+  const item = findPost(col, id); if (!item) return;
+  state.cmtItems[`${col}:${id}`] = item;
+  openModal(`<div class="cmt-sheet"><p class="muted cmt-of">${esc(item.name || item.title || "")} · ${esc(item.ownerName || "")}</p><section data-cmt-inline="${col}:${esc(id)}"></section></div>`);
+  $("#modal-body").onclick = null;
+  renderCommentsInto($("#modal-body [data-cmt-inline]"), col, item).then(() => $("#modal-body .cmt-form [name=text]")?.focus());
+}
+function setReplying(box, parent, replyTo, name) {
+  const f = box.querySelector(".cmt-form"), bar = box.querySelector(".cmt-replying"); if (!f) return;
+  f.parent.value = parent || ""; f.replyTo.value = replyTo || ""; f.replyName.value = name || "";
+  bar.hidden = !parent; if (parent) bar.querySelector("span").textContent = t("cmt_replying_to", { name });
+  f.text.placeholder = parent ? t("cmt_reply_ph", { name }) : t("cmt_placeholder");
+  f.text.focus();
+}
+document.addEventListener("click", async (e) => {
+  const o = e.target.closest("[data-cmt-open]");
+  if (o) { const [col, id] = o.dataset.cmtOpen.split(":"); openComments(col, id); return; }
+  if (e.target.closest("[data-cmt-signin]")) { closeModal(); openSignInChooser(); return; }
+  const r = e.target.closest("[data-cmt-reply]");
+  if (r) { const [parent, replyTo, name] = r.dataset.cmtReply.split("|"); setReplying(r.closest("[data-cmt-inline]"), parent, replyTo, name); return; }
+  const x = e.target.closest("[data-cmt-cancel]");
+  if (x) { setReplying(x.closest("[data-cmt-inline]"), "", "", ""); return; }
+  const d = e.target.closest("[data-cmt-del]");
+  if (d) {
+    const [col, pid, cid] = d.dataset.cmtDel.split(":");
+    if (!confirm(t("cmt_del_confirm"))) return;
+    try {
+      await deleteDoc(doc(db, col, pid, "comments", cid));
+      const item = findPost(col, pid); const box = d.closest("[data-cmt-inline]");
+      if (item && box) renderCommentsInto(box, col, item);
+      refreshPreview(col, pid);
+    } catch (err) { fail(err); }
+  }
+});
+document.addEventListener("submit", async (e) => {
+  const f = e.target.closest("[data-cmt-form]"); if (!f) return;
+  e.preventDefault();
+  const [col, id] = f.dataset.cmtForm.split(":");
+  const text = f.text.value.trim(); if (!text) return;
+  const btn = f.querySelector("button[type=submit]"); btn.disabled = true;
+  const box = f.closest("[data-cmt-inline]");
+  try {
+    const me = state.profile, item = findPost(col, id);
+    const parent = f.parent.value, replyName = f.replyName.value;
+    const data = { uid: state.user.uid, name: String(me.displayName || "").slice(0, 80),
+      photo: String(me.photoURL || state.user.photoURL || "").slice(0, 600), text: text.slice(0, 500), at: serverTimestamp() };
+    if (parent) { data.parent = parent; data.replyToName = replyName.slice(0, 80); }
+    await addDoc(cmtCol(col, id), data);
+    // Notifications: the post owner ("commented on your post") and, for a reply, the person replied to.
+    const base = { target: col === "cars" ? "collection" : "market", postId: id, title: String(item?.name || item?.title || "").slice(0, 100),
+      note: text.slice(0, 200), from: state.user.uid, fromName: String(me.displayName || "").slice(0, 80), read: false };
+    const told = new Set([state.user.uid]);
+    if (parent) {
+      const target = (box?._comments || []).find(c => c.id === f.replyTo.value) || (box?._comments || []).find(c => c.id === parent);
+      if (target && !told.has(target.uid)) {
+        told.add(target.uid);
+        addDoc(collection(db, "notices"), { ...base, uid: target.uid, kind: "reply", parentId: target.id, at: serverTimestamp() }).catch(() => {});
+      }
+    }
+    if (item?.ownerUid && !told.has(item.ownerUid)) addDoc(collection(db, "notices"), { ...base, uid: item.ownerUid, kind: "comment", at: serverTimestamp() }).catch(() => {});
+    f.text.value = "";
+    if (box && item) { await renderCommentsInto(box, col, item); box.querySelector(".cmt-form [name=text]")?.focus(); }
+    refreshPreview(col, id);
+  } catch (err) { fail(err); }
+  btn.disabled = false;
+});
 
 /* ---- Instagram-style extras: collectors row, profiles with a photo grid, the + button ---- */
 const feedAv = (photo, name) => photo ? `<img src="${esc(photo)}" alt="" referrerpolicy="no-referrer">` : esc(initials(name));
@@ -1112,7 +1261,7 @@ $("#feed-profile").addEventListener("click", (e) => {
   const c = (state.feedProfile?.posts || []).find(x => x.id === tile.dataset.openPost); if (!c) return;
   openModal(`<div class="post-modal">${postHTML(c)}</div>`);
   $("#modal-body").onclick = null;
-  wireCarousels($("#modal-body"));
+  wireCarousels($("#modal-body")); fillCommentPreviews($("#modal-body"));
 });
 // Tap a name or avatar in a post to open that collector's profile.
 document.addEventListener("click", (e) => {
@@ -1270,6 +1419,7 @@ function openListing(l) {
     <p class="muted">${esc(l.ownerName)} · ${fmtDate(l.createdAt, { day: "numeric", month: "short" })}</p>
     ${l.modHidden ? `<p class="mod-note">🚫 ${t(isAdmin() && l.ownerUid !== state.user?.uid ? "mod_hidden_admin" : "mod_hidden_owner")}${l.modNote ? `<br><strong>${t("mod_reason")}:</strong> ${esc(l.modNote)}` : ""}</p>` : ""}
     <p class="listing-risk">⚠️ ${t("mn_short")}</p>
+    <section class="cmt-inline" data-cmt-inline="listings:${esc(l.id)}"></section>
     ${isAdmin() ? `<div class="mod-bar"><small>${t("admin_only")}</small>
       ${l.modHidden ? `<button type="button" class="btn btn-sm btn-mat" data-act="unhide">${t("mod_unhide")}</button>` : `<button type="button" class="btn btn-sm btn-ghost" data-act="modhide">${t("mod_hide")}</button>`}
       <button type="button" class="btn btn-sm btn-danger" data-act="moddel">${t("mod_delete")}</button></div>` : ""}
@@ -1281,6 +1431,8 @@ function openListing(l) {
       ${canEdit(l.ownerUid) && l.status !== "sold" ? `<button class="btn btn-ghost" data-act="sold">${t("mark_sold")}</button>` : ""}
       ${canEdit(l.ownerUid) ? `<button class="btn btn-danger" data-act="del">${t("delete")}</button>` : ""}
     </div>`);
+  state.cmtItems[`listings:${l.id}`] = l;
+  renderCommentsInto($("#modal-body [data-cmt-inline]"), "listings", l);
   // Members see the seller's WhatsApp (read from the member list, which only approved members can open).
   if (member && l.ownerUid) {
     getDoc(doc(db, "contacts", l.ownerUid)).then(u => {

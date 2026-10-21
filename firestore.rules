@@ -176,10 +176,26 @@ service cloud.firestore {
       allow delete: if admin();
     }
 
+    // "X commented on your post" / "X replied to your comment": any active account, but only to the real
+    // owner of that post / author of that comment.
+    function commentNotice() {
+      let d = request.resource.data;
+      let col = d.target == 'market' ? 'listings' : 'cars';
+      return approved()
+        && d.kind in ['comment', 'reply'] && d.target in ['collection', 'market']
+        && d.from == request.auth.uid && d.uid != request.auth.uid
+        && d.keys().hasOnly(['uid', 'kind', 'target', 'postId', 'parentId', 'title', 'note', 'from', 'fromName', 'at', 'read'])
+        && d.read == false && d.at == request.time
+        && str(d.note, 200) && str(d.title, 100) && str(d.fromName, 80) && d.postId is string
+        && (d.kind == 'comment'
+              ? get(/databases/$(database)/documents/$(col)/$(d.postId)).data.ownerUid == d.uid
+              : (d.parentId is string && get(/databases/$(database)/documents/$(col)/$(d.postId)/comments/$(d.parentId)).data.uid == d.uid));
+    }
+
     // Notices to a user from the admins (e.g. "your post was hidden", with the reason).
     match /notices/{id} {
       allow read: if (signedIn() && resource.data.uid == request.auth.uid) || admin();
-      allow create: if admin();
+      allow create: if admin() || commentNotice();
       allow update: if (signedIn() && resource.data.uid == request.auth.uid
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read'])) || admin();
       allow delete: if (signedIn() && resource.data.uid == request.auth.uid) || admin();
@@ -240,6 +256,30 @@ service cloud.firestore {
            || (resource.data.get('likedBy', []).toSet().difference(request.resource.data.likedBy.toSet()) == [request.auth.uid].toSet()
                && request.resource.data.likedBy.toSet().difference(resource.data.get('likedBy', []).toSet()).size() == 0)));
       allow delete: if (approved() && resource.data.ownerUid == request.auth.uid) || admin();
+    }
+
+    // Comments (and replies: parent = the comment replied to) on collection posts and market listings.
+    // Anyone can read; active accounts can write; the author, the post's owner and admins can delete.
+    function commentOk() {
+      let d = request.resource.data;
+      return approved() && d.uid == request.auth.uid
+        && d.keys().hasOnly(['uid', 'name', 'photo', 'text', 'at', 'parent', 'replyToName'])
+        && str(d.text, 500) && d.text.size() > 0
+        && str(d.name, 80) && str(d.photo, 600)
+        && (!('parent' in d) || d.parent is string) && (!('replyToName' in d) || str(d.replyToName, 80))
+        && d.at == request.time;
+    }
+    match /cars/{carId}/comments/{cid} {
+      allow read: if true;
+      allow create: if commentOk();
+      allow delete: if (signedIn() && resource.data.uid == request.auth.uid) || admin()
+        || (signedIn() && get(/databases/$(database)/documents/cars/$(carId)).data.ownerUid == request.auth.uid);
+    }
+    match /listings/{listingId}/comments/{cid} {
+      allow read: if true;
+      allow create: if commentOk();
+      allow delete: if (signedIn() && resource.data.uid == request.auth.uid) || admin()
+        || (signedIn() && get(/databases/$(database)/documents/listings/$(listingId)).data.ownerUid == request.auth.uid);
     }
 
     // ---------- Events & meetups ----------
