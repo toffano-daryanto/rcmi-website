@@ -22,6 +22,8 @@ const toDate = (ts) => (ts && ts.toDate ? ts.toDate() : ts ? new Date(ts) : null
 const fmtDate = (ts, opts) => { const d = toDate(ts); return d ? d.toLocaleDateString(locale(), opts) : ""; };
 const fmtIDR = (n) => "Rp " + Number(n).toLocaleString("id-ID");
 const igHandle = (s) => String(s || "").trim().replace(/^@/, "").replace(/^https?:\/\/(www\.)?instagram\.com\//, "").replace(/\/.*$/, "");
+// Normalise an Indonesian phone number to 62812… so "0812-…", "+62 812…" and "812…" all match.
+const phoneKey = (s) => { let d = String(s || "").replace(/\D/g, ""); if (d.startsWith("0")) d = "62" + d.slice(1); else if (d.startsWith("8")) d = "62" + d; return d; };
 const waNumber = (s) => { let d = String(s || "").replace(/\D/g, ""); if (d.startsWith("0")) d = "62" + d.slice(1); return d; };
 
 let toastTimer;
@@ -250,7 +252,6 @@ onAuthStateChanged(auth, (user) => {
         note.hidden = !state.invite;
         if (state.invite) note.textContent = t("invite_found", { no: memberNo(state.invite.memberNo) });
         $("#form-onboarding [type=submit]").textContent = t(state.invite ? "activate_account" : "send_request");
-        if (!state.invite && state.emailWarnedFor !== user.uid) { state.emailWarnedFor = user.uid; showEmailMismatch(user.email); }
       }).catch(() => { state.invite = null; if (!f.displayName.value) f.displayName.value = user.displayName || ""; });
     } else {
       state.profile = { id: snap.id, ...snap.data() };
@@ -264,33 +265,42 @@ onAuthStateChanged(auth, (user) => {
   }, fail);
 });
 
-// Signed in with an email that isn't registered: ask them to use the Gmail they gave RCMI.
-function showEmailMismatch(email) {
-  openModal(`
-    <h2>${t("email_mismatch_title")}</h2>
-    <p>${t("email_mismatch_body", { email: `<strong>${esc(email)}</strong>` })}</p>
-    <p class="muted">${t("email_mismatch_hint")}</p>
-    <div class="form-actions">
-      <button type="button" class="btn btn-ghost" data-act="new">${t("email_mismatch_new")}</button>
-      <button type="button" class="btn btn-mat" data-act="switch">${t("email_mismatch_switch")}</button>
-    </div>`);
-  $("#modal-body").onclick = async (ev) => {
-    const act = ev.target.dataset.act;
-    if (act === "new") closeModal();
-    if (act === "switch") {
-      closeModal();
-      state.emailWarnedFor = null;
-      await signOut(auth);
-      setEnter(true); signIn();
-    }
-  };
+// Typed phone number isn't on the RCMI list (or already used): ask for the registered number, or apply as new.
+function showPhoneMismatch(phone, taken) {
+  return new Promise((resolve) => {
+    let done = false; const finish = (v) => { if (!done) { done = true; resolve(v); } };
+    openModal(`
+      <h2>${t(taken ? "phone_taken_title" : "phone_mismatch_title")}</h2>
+      <p>${t(taken ? "phone_taken_body" : "phone_mismatch_body", { phone: `<strong>${esc(phone)}</strong>` })}</p>
+      <p class="muted">${t(taken ? "phone_taken_hint" : "phone_mismatch_hint")}</p>
+      <div class="form-actions">
+        <button type="button" class="btn btn-ghost" data-act="new">${t("phone_mismatch_new")}</button>
+        <button type="button" class="btn btn-mat" data-act="fix">${t("phone_fix")}</button>
+      </div>`);
+    $("#modal-body").onclick = (ev) => {
+      const act = ev.target.dataset.act; if (!act) return;
+      finish(act); closeModal();
+    };
+    modal.addEventListener("close", () => finish("fix"), { once: true });
+  });
 }
 
 $("#form-onboarding").addEventListener("submit", async (e) => {
   e.preventDefault();
-  const f = e.target; const u = state.user; const inv = state.invite;
+  const f = e.target; const u = state.user;
   const btn = f.querySelector("[type=submit]"); btn.disabled = true;
+  const key = phoneKey(f.whatsapp.value);
   try {
+    // 1) Registered Google email (if admins added one), else 2) registered phone number.
+    let inv = state.invite;
+    if (!inv && key) {
+      const snap = await getDoc(doc(db, "phoneInvites", key)).catch(() => null);
+      inv = snap?.exists() ? { ...snap.data(), phoneKey: key } : null;
+      if (!inv) {
+        const choice = await showPhoneMismatch(f.whatsapp.value.trim(), false);
+        if (choice === "fix") { btn.disabled = false; f.whatsapp.focus(); f.whatsapp.select(); return; }
+      }
+    }
     await setDoc(doc(db, "users", u.uid), {
       displayName: f.displayName.value.trim(),
       email: u.email,
@@ -301,14 +311,28 @@ $("#form-onboarding").addEventListener("submit", async (e) => {
       bio: f.bio.value.trim(),
       role: "member",
       createdAt: serverTimestamp(),
-      ...(inv ? { status: "approved", memberNo: inv.memberNo, rosterId: inv.rosterId, approvedAt: serverTimestamp() } : { status: "pending" })
+      ...(inv ? { status: "approved", memberNo: inv.memberNo, rosterId: inv.rosterId, approvedAt: serverTimestamp(), ...(inv.phoneKey ? { phoneKey: inv.phoneKey } : {}) }
+              : { status: "pending", ...(key ? { phoneKey: key } : {}) })
     });
     if (inv) {
       await updateDoc(doc(db, "roster", inv.rosterId), { claimedBy: u.uid }).catch(() => {});
       toast(t("approved_msg", { no: memberNo(inv.memberNo) }));
       if (!isMemberRoute()) location.hash = "#/card";
     }
-  } catch (err) { fail(err); btn.disabled = false; }
+  } catch (err) {
+    // The rules refuse when that member record is already linked to another account.
+    if (err?.code === "permission-denied" && key) {
+      const choice = await showPhoneMismatch(f.whatsapp.value.trim(), true);
+      if (choice === "new") {
+        try {
+          await setDoc(doc(db, "users", u.uid), { displayName: f.displayName.value.trim(), email: u.email, photoURL: u.photoURL || "",
+            city: f.city.value.trim(), instagram: igHandle(f.instagram.value), whatsapp: f.whatsapp.value.trim(), bio: f.bio.value.trim(),
+            role: "member", createdAt: serverTimestamp(), status: "pending", phoneKey: key });
+        } catch (e2) { fail(e2); }
+      }
+    } else fail(err);
+    btn.disabled = false;
+  }
 });
 
 /* ---------------- routing ---------------- */
@@ -625,14 +649,25 @@ $("#member-profile").addEventListener("submit", async (e) => {
   if (e.target.id !== "f-invite") return;
   e.preventDefault();
   const f = e.target; const id = f.dataset.r; const r = (state.roster || []).find(x => x.id === id);
-  const email = f.email.value.trim().toLowerCase();
+  const phone = f.phone.value.trim();
   const btn = f.querySelector("[type=submit]"); btn.disabled = true;
   try {
-    await setInviteEmail(r, email);
+    await setInvitePhone(r, phone);
     toast(t("saved"));
   } catch (err) { fail(err); }
   btn.disabled = false;
 });
+// Save a member's phone: private copy for admins + a phone invite used for automatic activation.
+async function setInvitePhone(r, phone) {
+  const oldKey = phoneKey((state.rosterPrivate[r.id] || {}).phone);
+  const key = phoneKey(phone);
+  const batch = writeBatch(db);
+  if (oldKey && oldKey !== key) batch.delete(doc(db, "phoneInvites", oldKey));
+  if (key && r.memberNo) batch.set(doc(db, "phoneInvites", key), { rosterId: r.id, memberNo: r.memberNo, name: r.name || "", city: r.city || "" });
+  batch.set(doc(db, "rosterPrivate", r.id), { phone }, { merge: true });
+  await batch.commit();
+  state.rosterPrivate[r.id] = { ...(state.rosterPrivate[r.id] || {}), phone };
+}
 // Save a member's Google email: private copy for admins + an invite the member can read at sign-in.
 async function setInviteEmail(r, email) {
   const old = (state.rosterPrivate[r.id] || {}).email || "";
@@ -683,12 +718,12 @@ async function renderProfile(id) {
           ${priv.shirtSize ? `${t("shirt")}: ${esc(priv.shirtSize)} × ${priv.shirtQty || 1} — ${priv.shirtPaid ? t("paid") : t("unpaid")}<br>` : ""}
           <span id="profile-dues"></span>
           <form class="invite-form" id="f-invite" data-r="${esc(r.id)}">
-            <label for="invite-email">${t("gmail_label")}</label>
+            <label for="invite-phone">${t("phone_label_admin")}</label>
             <div class="invite-row">
-              <input id="invite-email" type="email" name="email" value="${esc(priv.email || "")}" placeholder="nama@gmail.com" autocomplete="off">
+              <input id="invite-phone" type="tel" name="phone" value="${esc(priv.phone || "")}" placeholder="08…" autocomplete="off" inputmode="tel">
               <button class="btn btn-sm btn-mat" type="submit">${t("save")}</button>
             </div>
-            <small class="muted">${r.claimedBy ? t("gmail_linked") : t("gmail_hint")}</small>
+            <small class="muted">${r.claimedBy ? t("gmail_linked") : t("phone_hint_admin")}</small>
           </form>
         </div>` : ""}
         <div id="profile-extra"></div>
@@ -1077,6 +1112,7 @@ async function importRoster(file) {
     batch.set(doc(db, "roster", rid(m.no)), { memberNo: m.no, name: m.name, city: m.city || "", province: m.province || "", joined: m.joined || "", status: "member" }, { merge: true });
     batch.set(doc(db, "rosterPrivate", rid(m.no)), { phone: m.phone || "", shirtSize: m.shirt?.size || "", shirtQty: m.shirt?.qty || 0, shirtPaid: !!m.shirt?.paid, ...(m.email ? { email: m.email.toLowerCase() } : {}) }, { merge: true });
     if (m.email) batch.set(doc(db, "invites", m.email.toLowerCase()), { rosterId: rid(m.no), memberNo: m.no, name: m.name, city: m.city || "" });
+    if (phoneKey(m.phone)) batch.set(doc(db, "phoneInvites", phoneKey(m.phone)), { rosterId: rid(m.no), memberNo: m.no, name: m.name, city: m.city || "" });
   }
   for (const a of data.applicants || []) {
     batch.set(doc(db, "roster", `a-${a.key}`), { memberNo: null, name: a.name, city: a.city || "", province: a.province || "", status: "applicant", applied: a.applied || "" }, { merge: true });

@@ -40,8 +40,13 @@ When an existing member signs in, the **Admin** tab suggests their record by nam
 
 **What's imported and who sees it:** member number, name, city, province and registration date are visible to approved members. Phone numbers and T-shirt orders are admin-only (`rosterPrivate`). Home addresses, birthdates and payment proofs are **not** imported. `data/roster.json` contains phone numbers, so it is git-ignored.
 
-### Auto-approve by Google email
-Add a member's Gmail on their profile (**Anggota → member → "Email Google anggota"**, admin only), or put `"email": "name@gmail.com"` on their entry in `data/roster.json` and re-import. When that member signs in with that Gmail, their account activates immediately, linked to their member number — no approval needed. Anyone signing in with an email that isn't registered sees a pop-up asking them to switch to their registered Google account, or to continue as a new member (which goes to admin approval). Emails are stored in `rosterPrivate` (admins only) and `invites/{email}` (readable only by the person signed in with that email).
+### Auto-approve by phone number
+When a member signs up they enter their phone number first. If it matches a number on the RCMI list (from the Google Form import), the account activates immediately as that member — no admin approval. "0812-…", "+62 812…" and "812…" all match. If it doesn't match, a pop-up asks them to change to the number they registered, or continue as a new member (admin approval). Each member record can be claimed only once; a second account using the same number is refused and told to contact an admin.
+
+- Phone matches are created by the member import (**Admin → Impor data**, or *Actions → Import members*). **Re-run the import once** after this update so the phone list exists.
+- Admins can change a member's number on their profile (**Anggota → member → "No. HP anggota"**).
+- Trade-off (chosen on purpose): the number isn't verified by SMS, so someone who knows a member's number could claim that member. If that happens, fix it in the Firebase console and tell the member to sign up again.
+- Numbers are stored in `rosterPrivate` (admins only) and `phoneInvites/{62812…}`, which can be read only by exact number, never listed.
 
 ### Gallery photos and videos
 The landing-page gallery (`public/js/gallery-data.js`) shows the 74 photos and videos from the RCMI Drive folder directly from Google Drive. Each file has to be shared **Anyone with the link → Viewer**, or its tile stays blank. Share the media files individually — **not the whole folder**, which also holds the registration responses and payment proofs.

@@ -128,10 +128,10 @@
         <p class="muted" data-i18n="onb_lead"></p>
         <p class="invite-note" id="invite-note" hidden></p>
         <form id="form-onboarding" class="form">
+          <label><span data-i18n="f_phone"></span><input name="whatsapp" required maxlength="20" inputmode="tel" autocomplete="tel" placeholder="08…"><small class="muted" data-i18n="f_phone_hint"></small></label>
           <label><span data-i18n="f_name"></span><input name="displayName" required maxlength="80" autocomplete="name"></label>
           <label><span data-i18n="f_city"></span><input name="city" required maxlength="60" autocomplete="address-level2"></label>
           <label><span data-i18n="f_instagram"></span><input name="instagram" required maxlength="40" placeholder="@username"></label>
-          <label><span data-i18n="f_whatsapp"></span><input name="whatsapp" maxlength="20" inputmode="tel" placeholder="08…"></label>
           <label><span data-i18n="f_bio"></span><textarea name="bio" rows="3" maxlength="400"></textarea></label>
           <button class="btn btn-mat" type="submit" data-i18n="send_request"></button>
         </form>

@@ -23,6 +23,10 @@ service cloud.firestore {
     function invitePath() { return /databases/$(database)/documents/invites/$(myEmail()); }
     function hasInvite() { return signedIn() && request.auth.token.email_verified == true && exists(invitePath()); }
     function invite() { return get(invitePath()).data; }
+    // Phone matching: phoneInvites/{62812…} → { rosterId, memberNo }. The member types the number they registered.
+    function phoneInvite(key) { return get(/databases/$(database)/documents/phoneInvites/$(key)).data; }
+    function rosterDoc(id) { return get(/databases/$(database)/documents/roster/$(id)).data; }
+    function rosterFree(id) { return !('claimedBy' in rosterDoc(id)) || rosterDoc(id).claimedBy == null; }
 
     // ---------- Members ----------
     match /users/{uid} {
@@ -35,15 +39,25 @@ service cloud.firestore {
         && str(request.resource.data.city, 60)
         && (
           // Normal sign-up: waits for an admin.
-          (request.resource.data.keys().hasOnly(['displayName','email','photoURL','city','instagram','whatsapp','bio','status','role','createdAt'])
+          (request.resource.data.keys().hasOnly(['displayName','email','photoURL','city','instagram','whatsapp','bio','status','role','createdAt','phoneKey'])
             && request.resource.data.status == 'pending')
           ||
-          // Invited member: active straight away, with the number from their invite.
+          // Registered phone number: active straight away as that member (each record can be claimed once).
+          (request.resource.data.keys().hasOnly(['displayName','email','photoURL','city','instagram','whatsapp','bio','status','role','createdAt','memberNo','rosterId','approvedAt','phoneKey'])
+            && request.resource.data.status == 'approved'
+            && request.resource.data.phoneKey is string
+            && exists(/databases/$(database)/documents/phoneInvites/$(request.resource.data.phoneKey))
+            && request.resource.data.rosterId == phoneInvite(request.resource.data.phoneKey).rosterId
+            && request.resource.data.memberNo == phoneInvite(request.resource.data.phoneKey).memberNo
+            && rosterFree(request.resource.data.rosterId))
+          ||
+          // Registered Google email: same, keyed by the verified email.
           (hasInvite()
             && request.resource.data.keys().hasOnly(['displayName','email','photoURL','city','instagram','whatsapp','bio','status','role','createdAt','memberNo','rosterId','approvedAt'])
             && request.resource.data.status == 'approved'
             && request.resource.data.memberNo == invite().memberNo
-            && request.resource.data.rosterId == invite().rosterId)
+            && request.resource.data.rosterId == invite().rosterId
+            && rosterFree(invite().rosterId))
         );
 
       // Members can edit their own profile details, never their status, role or number.
@@ -60,11 +74,16 @@ service cloud.firestore {
     match /roster/{id} {
       allow read: if approved();
       allow write: if admin();
-      // An invited member links their account to their own (still unclaimed) record.
-      allow update: if hasInvite() && invite().rosterId == id
+      // A member activated by phone/email links their account to their own (still unclaimed) record.
+      allow update: if approved() && me().rosterId == id
         && (!('claimedBy' in resource.data) || resource.data.claimedBy == null)
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['claimedBy'])
         && request.resource.data.claimedBy == request.auth.uid;
+    }
+    // Phone invites: looked up by the exact number someone types; never listable except by admins.
+    match /phoneInvites/{phone} {
+      allow get: if signedIn();
+      allow list, write: if admin();
     }
     // Email invites: the signed-in person can read only the invite for their own verified email.
     match /invites/{email} {

@@ -28,6 +28,7 @@ const db = getFirestore();
 const roster = JSON.parse(readFileSync(resolve(here, "../data/roster.json"), "utf8"));
 const events = JSON.parse(readFileSync(resolve(here, "../data/events.json"), "utf8"));
 const rid = (no) => `m${String(no).padStart(3, "0")}`;
+const phoneKey = (p) => { let d = String(p || "").replace(/\D/g, ""); if (d.startsWith("0")) d = "62" + d.slice(1); else if (d.startsWith("8")) d = "62" + d; return d; };
 
 const batch = db.batch();
 
@@ -42,6 +43,9 @@ for (const m of roster.members) {
   }, { merge: true });
   // Members with a known Google email activate themselves when they sign in with it.
   if (m.email) batch.set(db.doc(`invites/${m.email.toLowerCase()}`), { rosterId: rid(m.no), memberNo: m.no, name: m.name, city: m.city || "" });
+  // Members who sign up with their registered phone number activate automatically.
+  const pk = phoneKey(m.phone);
+  if (pk) batch.set(db.doc(`phoneInvites/${pk}`), { rosterId: rid(m.no), memberNo: m.no, name: m.name, city: m.city || "" });
 }
 
 // Applicants who filled the Google Form but have no number yet
