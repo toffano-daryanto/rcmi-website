@@ -745,3 +745,4 @@ img[src*="drive.google.com"] { -webkit-user-drag: none; user-select: none; -webk
 .lay-more { margin-top: 14px; }
 .migrate { margin: 24px 0; padding: 16px 18px; border-left: 5px solid var(--red); }
 .migrate p { margin: 6px 0 12px; }
+.topnav a[hidden] { display: none !important; }

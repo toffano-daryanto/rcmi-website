@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792605813";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792605964";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792605813";
-import { SEED_EVENTS } from "./seed-events.js?v=1792605813";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792605813";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792605813";
+import { GALLERY } from "./gallery-data.js?v=1792605964";
+import { SEED_EVENTS } from "./seed-events.js?v=1792605964";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792605964";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792605964";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -354,7 +354,9 @@ function show(screen) {
   $("#landing").hidden = screen !== "landing";
   $("#feedpage").hidden = screen !== "feed";
   $("#marketpage").hidden = screen !== "market";
-  $("#landing-nav").hidden = !["landing", "feed", "market"].includes(screen);
+  // The main-site menu stays in the top bar everywhere; "How to join" only on the public pages.
+  $("#landing-nav").hidden = false;
+  const joinLink = $('#landing-nav a[href="#join"]'); if (joinLink) joinLink.hidden = screen === "app" || screen === "gate";
   $$("#landing-nav a").forEach(a => a.classList.toggle("on", a.getAttribute("href") === "#/" + screen));
   $("#gate").hidden = screen !== "gate";
   $("#app").hidden = screen !== "app";
