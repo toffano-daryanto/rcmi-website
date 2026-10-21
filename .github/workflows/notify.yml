@@ -1,0 +1,47 @@
+name: Email notifications
+
+# Every 10 minutes: emails the admin about new sign-ups (members and general users),
+# joining-fee payment proofs and Contact-form messages. Free on GitHub Actions.
+#
+# Needs repo secrets:
+#   FIREBASE_SERVICE_ACCOUNT  - already set (used for deploys)
+#   GMAIL_USER                - the Gmail address that sends the email
+#   GMAIL_APP_PASSWORD        - a Google app password for that address
+#   NOTIFY_TO (optional)      - where to send; defaults to GMAIL_USER
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: notify
+  cancel-in-progress: false
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Check for new activity and email the admin
+        working-directory: scripts
+        env:
+          SA_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          NOTIFY_TO: ${{ secrets.NOTIFY_TO }}
+        run: |
+          if [ -z "$GMAIL_USER" ] || [ -z "$GMAIL_APP_PASSWORD" ]; then
+            echo "::notice::Email notifications are off: add the GMAIL_USER and GMAIL_APP_PASSWORD secrets."
+            exit 0
+          fi
+          printf '%s' "$SA_JSON" > "$RUNNER_TEMP/sa.json"
+          npm install --no-audit --no-fund --silent
+          SA_JSON_PATH="$RUNNER_TEMP/sa.json" node notify.mjs
+      - name: Clean up
+        if: always()
+        run: rm -f "$RUNNER_TEMP/sa.json"

@@ -83,6 +83,17 @@ The **Contact** section on the main website has a form (name, WhatsApp/email, to
 ### Language
 The site opens in **English** by default; visitors can switch to Bahasa Indonesia with the ID/EN toggle (the choice is remembered on their device).
 
+### Email notifications (admins)
+Every 10 minutes a GitHub Action (`.github/workflows/notify.yml`, `scripts/notify.mjs`) checks for **new accounts** (members and general users), **joining-fee payment proofs** and **Contact messages**, and emails a summary with a button to the Admin page. Free — no paid Firebase plan needed. The first run only starts the clock; it doesn't email about older sign-ups.
+
+Setup (once):
+1. Turn on 2-Step Verification for the Google account that will send the email: myaccount.google.com/signinoptions/two-step-verification.
+2. Create an app password: myaccount.google.com/apppasswords → name it `RCMI website` → copy the 16-character password.
+3. GitHub repo → *Settings → Secrets and variables → Actions → New repository secret*: `GMAIL_USER` = that Gmail address, `GMAIL_APP_PASSWORD` = the app password. Optional: `NOTIFY_TO` = other address(es) to send to, comma-separated.
+4. *Actions → Email notifications → Run workflow* once to start.
+
+Emails may arrive a few minutes late (GitHub schedules can lag). GitHub pauses scheduled workflows after 60 days with no commits to the repo; re-enable it from the Actions tab if that happens. The run logs are public, so the script only prints counts.
+
 ### Custom domain (optional)
 *Hosting → Add custom domain*, then add the domain under *Authentication → Settings → Authorized domains* so Google sign-in works there too.
 

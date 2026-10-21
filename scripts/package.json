@@ -3,9 +3,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "seed": "node seed.mjs"
+    "seed": "node seed.mjs",
+    "notify": "node notify.mjs"
   },
   "dependencies": {
-    "firebase-admin": "^13.0.0"
+    "firebase-admin": "^13.0.0",
+    "nodemailer": "^6.9.16"
   }
 }
