@@ -918,3 +918,4 @@ input.autofilled { box-shadow: 0 0 0 3px rgba(31, 138, 76, .35); transition: box
 .act-claim { background: #FFF4D6; }
 .act-body small { display: block; color: var(--muted); margin-top: 3px; font-size: .8rem; }
 .post-del { font-size: 1.05rem; }
+#view-admin.mod-view .admin-only { display: none !important; }

@@ -309,10 +309,11 @@ function startNotifs() {
   notif.pending = []; notif.messages = []; notif.delReqs = []; notif.recent = []; notif.proofs = {}; notif.notices = [];
   // Everyone: notices from the admins (post hidden / removed / visible again).
   on(query(collection(db, "notices"), where("uid", "==", state.user.uid)), s => { notif.notices = s.docs.map(d => ({ id: d.id, ...d.data() })); renderBell(); if (state.tab === "activity") renderActivity(); });
-  if (!isAdmin()) return;
-  on(query(collection(db, "users"), where("status", "==", "pending")), s => { notif.pending = s.docs.map(d => ({ id: d.id, ...d.data() })); renderBell(); });
-  on(query(collection(db, "messages"), where("status", "==", "new")), s => { notif.messages = s.docs.map(d => ({ id: d.id, ...d.data() })); renderBell(); });
+  if (!isStaff()) return;
+  on(query(collection(db, "users"), where("status", "==", "pending")), s => { notif.pending = s.docs.map(d => ({ id: d.id, ...d.data() })).filter(u => isAdmin() || u.accountType === "general"); renderBell(); });
   on(query(collection(db, "listings"), where("delReq", "==", true)), s => { notif.delReqs = s.docs.map(d => ({ id: d.id, ...d.data() })); renderBell(); if (state.tab === "admin" && !$("#app").hidden) loadDelRequests(); });
+  if (!isAdmin()) return;
+  on(query(collection(db, "messages"), where("status", "==", "new")), s => { notif.messages = s.docs.map(d => ({ id: d.id, ...d.data() })); renderBell(); });
   on(query(collection(db, "users"), where("createdAt", ">", since)), s => { notif.recent = s.docs.map(d => ({ id: d.id, ...d.data() })).filter(u => u.status === "approved"); renderBell(); });
   on(collection(db, "joinPayments"), s => { notif.proofs = Object.fromEntries(s.docs.map(d => [d.id, d.data()])); renderBell(); });
 }
@@ -569,7 +570,8 @@ onAuthStateChanged(auth, (user) => {
         deleteDoc(doc(db, "users", user.uid)).then(() => toast(t("rejected_again"))).catch(() => {});
       }
       state.gate = ["pending", "blocked", "deactivated"].includes(state.profile.status) ? state.profile.status : state.profile.status === "rejected" ? "onboarding" : null;
-      $("#tab-admin").hidden = state.profile.role !== "admin";
+      $("#tab-admin").hidden = !isStaff();
+      { const ta = $("#tab-admin"); ta.dataset.i18n = isMod() ? "tab_mod" : "tab_admin"; ta.textContent = t(ta.dataset.i18n); }
       $("#tab-finance").hidden = state.profile.accountType === "general";
       if (state.profile.role === "admin") refreshInboxCount();
       // The bell: admins get sign-ups/messages too; everyone gets notices about their own posts.
@@ -832,7 +834,7 @@ function route() {
   const [h, sub = ""] = location.hash.replace(/^#\/?/, "").split("/");
   let tab = TABS.includes(h) ? h : "collection";
   state.sub = decodeURIComponent(sub);
-  if (tab === "admin" && state.profile.role !== "admin") tab = "collection";
+  if (tab === "admin" && !isStaff()) tab = "collection";
   if (tab === "finance" && isGeneral()) tab = "events";
   if (isGeneral() && (tab === "members" || tab === "dues")) tab = "events";
   state.tab = tab;
@@ -845,6 +847,10 @@ function rerender() {
   ({ collection: renderCars, events: renderEvents, members: showMembers, dues: renderDues, activity: renderActivity, finance: renderFinance, card: renderCard, admin: loadAdmin })[state.tab]();
 }
 const isAdmin = () => state.profile?.role === "admin";
+// Moderator: approves/rejects general users, handles listing delete requests, deletes posts, deactivates accounts.
+const isMod = () => state.profile?.role === "moderator";
+const isStaff = () => isAdmin() || isMod();
+const isStaffRole = (u) => u?.role === "admin" || u?.role === "moderator";
 // Two account types: RCMI members, and general users (non-members). Older accounts without the field are members.
 const isGeneral = () => state.profile?.accountType === "general";
 // Seller contact for the market, readable by any approved account (members and general users).
@@ -1070,7 +1076,7 @@ function postHTML(c) {
     <header class="post-head" data-owner="${esc(c.ownerUid || "")}" role="link" tabindex="0">
       <span class="post-av">${c.ownerPhoto ? `<img src="${esc(c.ownerPhoto)}" alt="" referrerpolicy="no-referrer">` : esc(initials(c.ownerName))}</span>
       <div><strong>${esc(c.ownerName || "RCMI")}</strong>${c.ownerCity ? `<small>${esc(c.ownerCity)}</small>` : ""}</div>
-      ${isAdmin() ? `<button type="button" class="post-mod" data-mod-post="${esc(c.id)}" aria-label="${t("mod_title")}" title="${t("mod_title")}">⋯</button>`
+      ${isStaff() ? `<button type="button" class="post-mod" data-mod-post="${esc(c.id)}" aria-label="${t("mod_title")}" title="${t("mod_title")}">⋯</button>`
         : state.user && c.ownerUid === state.user.uid ? `<button type="button" class="post-mod post-del" data-del-post="${esc(c.id)}" aria-label="${t("delete")}" title="${t("delete")}">🗑</button>` : ""}
     </header>
     <div class="post-media">
@@ -1785,7 +1791,7 @@ function openListing(l) {
     ${l.description ? `<p>${tagify(l.description, "market")}</p>` : ""}
     <p class="muted">${esc(l.ownerName)} · ${fmtDate(l.createdAt, { day: "numeric", month: "short" })}</p>
     ${l.modHidden ? `<p class="mod-note">🚫 ${t(isAdmin() && l.ownerUid !== state.user?.uid ? "mod_hidden_admin" : "mod_hidden_owner")}${l.modNote ? `<br><strong>${t("mod_reason")}:</strong> ${esc(l.modNote)}` : ""}</p>` : ""}
-    ${l.delReq && (l.ownerUid === state.user?.uid || isAdmin()) ? `<p class="mod-note">🗑 ${t("del_req_pending")}${l.delReason ? `<br><strong>${t("del_reason")}:</strong> ${esc(l.delReason)}` : ""}</p>` : ""}
+    ${l.delReq && (l.ownerUid === state.user?.uid || isStaff()) ? `<p class="mod-note">🗑 ${t("del_req_pending")}${l.delReason ? `<br><strong>${t("del_reason")}:</strong> ${esc(l.delReason)}` : ""}</p>` : ""}
     <p class="listing-risk">⚠️ ${t("mn_short")}</p>
     ${l.status === "sold" ? `<p class="sold-note">✅ ${t(isArchived(l) ? "sold_archived" : "sold_note", { days: Math.max(1, Math.ceil((soldTime(l) + ARCHIVE_DAYS * 864e5 - Date.now()) / 864e5)) })}</p>` : ""}
     ${l.war ? `<section class="war-box" data-war="${esc(l.id)}"></section>` : ""}
@@ -1798,8 +1804,8 @@ function openListing(l) {
       <span class="like-count">${(l.likedBy || []).length ? t((l.likedBy || []).length === 1 ? "likes_one" : "likes_n", { n: (l.likedBy || []).length }) : ""}</span>
     </div>
     <section class="cmt-inline" data-cmt-inline="listings:${esc(l.id)}"></section>
-    ${isAdmin() ? `<div class="mod-bar"><small>${t("admin_only")}</small>
-      ${l.modHidden ? `<button type="button" class="btn btn-sm btn-mat" data-act="unhide">${t("mod_unhide")}</button>` : `<button type="button" class="btn btn-sm btn-ghost" data-act="modhide">${t("mod_hide")}</button>`}
+    ${isStaff() ? `<div class="mod-bar"><small>${t(isAdmin() ? "admin_only" : "mod_only")}</small>
+      ${!isAdmin() ? "" : l.modHidden ? `<button type="button" class="btn btn-sm btn-mat" data-act="unhide">${t("mod_unhide")}</button>` : `<button type="button" class="btn btn-sm btn-ghost" data-act="modhide">${t("mod_hide")}</button>`}
       <button type="button" class="btn btn-sm btn-danger" data-act="moddel">${t("mod_delete")}</button></div>` : ""}
     <div class="form-actions">
       <button type="button" class="btn btn-ghost" data-act="report">${t("mn_report_listing")}</button>
@@ -1923,7 +1929,7 @@ async function fetchRoster(force = false) {
     getDocs(query(collection(db, "users"), where("status", "==", "approved")))
   ]);
   state.siteUsers = Object.fromEntries(us.docs.map(d => [d.id, { id: d.id, ...d.data() }]));
-  if (isAdmin()) {
+  if (isStaff()) {
     const ds = await getDocs(query(collection(db, "users"), where("status", "==", "deactivated"))).catch(() => null);
     state.deactUsers = Object.fromEntries((ds?.docs || []).map(d => [d.id, { id: d.id, ...d.data() }]));
   } else state.deactUsers = {};
@@ -2135,7 +2141,7 @@ async function renderProfile(id) {
     box.innerHTML = `<a class="btn btn-ghost profile-back" href="#/members">← ${t("back_members")}</a><p class="empty">${t("member_not_found")}</p>`;
     return;
   }
-  const deact = isAdmin() && r.claimedBy ? (state.deactUsers || {})[r.claimedBy] : null;
+  const deact = isStaff() && r.claimedBy ? (state.deactUsers || {})[r.claimedBy] : null;
   const u = r.claimedBy ? state.siteUsers[r.claimedBy] || deact : null;
   const name = u?.displayName || r.name;
   const city = u?.city || r.city;
@@ -2172,7 +2178,7 @@ async function renderProfile(id) {
             <small class="muted">${r.claimedBy ? t("gmail_linked") : t("phone_hint_admin")}</small>
           </form>
         </div>` : ""}
-        ${isAdmin() && u && u.id !== state.user.uid && u.role !== "admin" ? `<div class="deact-box">
+        ${isStaff() && u && u.id !== state.user.uid && (isAdmin() ? u.role !== "admin" : !isStaffRole(u)) ? `<div class="deact-box">
           ${deact ? `<p class="muted">${t("deact_is")}</p><button type="button" class="btn btn-mat" data-reactivate="${esc(u.id)}">${t("reactivate")}</button>`
                   : `<button type="button" class="btn btn-danger" data-deactivate="${esc(u.id)}">${t("deactivate")}</button><small class="muted">${t("deact_hint")}</small>`}
         </div>` : ""}
@@ -2879,7 +2885,9 @@ $("#admin-inbox").addEventListener("click", async (e) => {
 
 /* ================= Admin ================= */
 async function loadAdmin() {
-  if (!isAdmin()) return;
+  if (!isStaff()) return;
+  $("#view-admin").classList.toggle("mod-view", !isAdmin());
+  if (!isAdmin()) return loadModerator();
   refreshMigrate(); loadModHidden(); loadDelRequests(); loadDelLog();
   loadInbox();
   try {
@@ -2921,12 +2929,14 @@ async function loadAdmin() {
     $("#admin-general").innerHTML = generals.length ? generals.map(u => `
       <div class="row">
         <img src="${esc(u.photoURL)}" alt="" referrerpolicy="no-referrer">
-        <div class="grow"><strong>${esc(u.displayName)}</strong><span class="type-tag general">${t("type_general")}</span>
+        <div class="grow"><strong>${esc(u.displayName)}</strong><span class="type-tag general">${t("type_general")}</span>${u.role === "moderator" ? `<span class="type-tag">${t("role_mod")}</span>` : ""}
           <small>${esc(u.city)}${u.instagram ? " · @" + esc(u.instagram) : ""}${u.email ? " · " + esc(u.email) : ""}${u.whatsapp ? " · " + esc(u.whatsapp) : ""}</small>
           ${since(u) ? `<small>${t("registered_on", { date: since(u) })}</small>` : ""}</div>
         <div class="actions">
           ${waNumber(u.whatsapp) ? `<a class="btn btn-sm btn-ghost" target="_blank" rel="noopener" href="https://wa.me/${waNumber(u.whatsapp)}">WhatsApp</a>` : ""}
+          ${u.role !== "admin" ? `<button class="btn btn-sm btn-ghost" data-mkmod="${esc(u.id)}" data-on="${u.role === "moderator" ? 0 : 1}">${t(u.role === "moderator" ? "remove_mod" : "make_mod")}</button>` : ""}
           ${u.role !== "admin" ? `<button class="btn btn-sm btn-ghost" data-mkadmin="${esc(u.id)}">${t("make_admin")}</button>` : ""}
+          ${u.role !== "admin" ? `<button class="btn btn-sm btn-danger" data-deactivate="${esc(u.id)}">${t("deactivate")}</button>` : ""}
         </div>
       </div>`).join("") : `<p class="muted">${t("no_general")}</p>`;
     $("#admin-pending").innerHTML = pending.length ? pending.map(u => `
@@ -2946,8 +2956,8 @@ async function loadAdmin() {
       <div class="row">
         <img src="${esc(u.photoURL)}" alt="" referrerpolicy="no-referrer">
         <div class="grow"><strong>${u.accountType === "general" ? "" : memberNo(u.memberNo) + " · "}${esc(u.displayName)}</strong>${u.accountType === "general" ? `<span class="type-tag general">${t("type_general")}</span>` : ""}
-          <small>${esc(u.city)} · ${u.instagram ? "@" + esc(u.instagram) : ""}${u.role === "admin" ? " · admin" : ""}</small></div>
-        ${u.role !== "admin" ? `<div class="actions"><button class="btn btn-sm btn-ghost" data-mkadmin="${esc(u.id)}">${t("make_admin")}</button></div>` : ""}
+          <small>${esc(u.city)} · ${u.instagram ? "@" + esc(u.instagram) : ""}${u.role === "admin" ? " · admin" : u.role === "moderator" ? " · " + t("role_mod") : ""}</small></div>
+        ${u.role !== "admin" ? `<div class="actions"><button class="btn btn-sm btn-ghost" data-mkmod="${esc(u.id)}" data-on="${u.role === "moderator" ? 0 : 1}">${t(u.role === "moderator" ? "remove_mod" : "make_mod")}</button><button class="btn btn-sm btn-ghost" data-mkadmin="${esc(u.id)}">${t("make_admin")}</button></div>` : ""}
       </div>`).join("");
     $("#admin-import").innerHTML = `
       <details class="panel-flat dues-settings" ${state.roster?.some(r => r.id === "m001") ? "" : "open"}>
@@ -2968,6 +2978,51 @@ async function loadAdmin() {
   } catch (e) { fail(e); }
 }
 
+/* Moderator page: pending general users (approve/reject), general users + deactivated accounts,
+   listing delete requests and the deleted-collection log. */
+async function loadModerator() {
+  loadDelRequests(); loadDelLog();
+  try {
+    const [pend, gen, ds] = await Promise.all([
+      getDocs(query(collection(db, "users"), where("status", "==", "pending"))),
+      getDocs(query(collection(db, "users"), where("status", "==", "approved"), where("accountType", "==", "general"))),
+      getDocs(query(collection(db, "users"), where("status", "==", "deactivated")))
+    ]);
+    const pending = state.pending = pend.docs.map(d => ({ id: d.id, ...d.data() })).filter(u => u.accountType === "general");
+    const generals = gen.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => String(a.displayName).localeCompare(String(b.displayName)));
+    generals.forEach(u => { state.siteUsers[u.id] = u; });
+    const deact = Object.fromEntries(ds.docs.map(d => [d.id, { id: d.id, ...d.data() }]));
+    state.deactUsers = { ...(state.deactUsers || {}), ...deact };
+    $("#admin-pending").innerHTML = pending.length ? pending.map(u => `
+      <div class="row">
+        <img src="${esc(u.photoURL)}" alt="" referrerpolicy="no-referrer">
+        <div class="grow"><strong>${esc(u.displayName)}</strong><span class="type-tag general">${t("type_general")}</span>
+          <small>${esc(u.city)} · ${u.instagram ? "@" + esc(u.instagram) : ""} · ${esc(u.email)}</small>${u.bio ? `<small>${esc(u.bio)}</small>` : ""}</div>
+        <div class="actions">
+          <button class="btn btn-sm btn-mat" data-approve="${esc(u.id)}">${t("approve")}</button>
+          <button class="btn btn-sm btn-ghost" data-reject="${esc(u.id)}">${t("reject")}</button>
+        </div>
+      </div>`).join("") : `<p class="muted">${t("no_pending")}</p>`;
+    $("#admin-general-count").textContent = `(${generals.length})`;
+    $("#admin-general").innerHTML = generals.length ? generals.map(u => `
+      <div class="row">
+        <img src="${esc(u.photoURL)}" alt="" referrerpolicy="no-referrer">
+        <div class="grow"><strong>${esc(u.displayName)}</strong><span class="type-tag general">${t("type_general")}</span>
+          <small>${esc(u.city)}${u.instagram ? " · @" + esc(u.instagram) : ""}${u.email ? " · " + esc(u.email) : ""}</small></div>
+        <div class="actions">${!isStaffRole(u) && u.id !== state.user.uid ? `<button class="btn btn-sm btn-danger" data-deactivate="${esc(u.id)}">${t("deactivate")}</button>` : ""}</div>
+      </div>`).join("") : `<p class="muted">${t("no_general")}</p>`;
+    const dl = Object.values(deact);
+    $("#admin-deact-count").textContent = `(${dl.length})`;
+    $("#admin-deact").innerHTML = dl.length ? dl.map(u => `
+      <div class="row">
+        <img src="${esc(u.photoURL)}" alt="" referrerpolicy="no-referrer">
+        <div class="grow"><strong>${u.memberNo && u.accountType !== "general" ? memberNo(u.memberNo) + " · " : ""}${esc(u.displayName)}</strong><span class="type-tag blocked">${t("deact_tag")}</span>
+          <small>${[u.city, u.email].filter(Boolean).map(esc).join(" · ")}</small></div>
+        <div class="actions"><button class="btn btn-sm btn-mat" data-reactivate="${esc(u.id)}">${t("reactivate")}</button></div>
+      </div>`).join("") : `<p class="muted">${t("no_deact")}</p>`;
+  } catch (e) { fail(e); }
+}
+
 /* Deactivate: no access to the site, and all their collection cars and market posts are hidden.
    Reactivate undoes both. */
 async function setActive(uid, active) {
@@ -2984,9 +3039,10 @@ async function setActive(uid, active) {
 document.addEventListener("click", async (e) => {
   const d = e.target.closest("[data-deactivate]"), r = e.target.closest("[data-reactivate]");
   if (!d && !r) return;
-  if (!isAdmin()) return;
+  if (!isStaff()) return;
   const uid = (d || r).dataset[d ? "deactivate" : "reactivate"];
   const u = state.siteUsers[uid] || (state.deactUsers || {})[uid];
+  if (!isAdmin() && isStaffRole(u)) return;
   if (!confirm(t(d ? "deact_confirm" : "react_confirm", { name: u?.displayName || "" }))) return;
   (d || r).disabled = true;
   try {
@@ -2994,7 +3050,7 @@ document.addEventListener("click", async (e) => {
     toast(t(d ? "deact_done" : "react_done", { n }));
     state.roster = null; await fetchRoster(true);
     state.listingsLoaded = false; state.feedLoaded = false;
-    if (state.tab === "admin") loadAdmin(); else if (state.tab === "members") showMembers();
+    if (state.tab === "admin") loadAdmin(); else if (state.tab === "members") showMembers(); else if (modal.open) closeModal();
   } catch (err) { fail(err); (d || r).disabled = false; }
 });
 
@@ -3089,7 +3145,7 @@ document.addEventListener("click", (e) => {
 
 /* Admin: collection posts their owners deleted, with the reason they gave (newest first). */
 async function loadDelLog() {
-  if (!isAdmin()) return;
+  if (!isStaff()) return;
   try {
     const s = await getDocs(query(collection(db, "deleteLog"), orderBy("at", "desc"), limit(100)));
     const list = state.delLog = s.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -3110,7 +3166,7 @@ $("#admin-dellog").addEventListener("click", async (e) => {
 
 /* Admin: market delete requests — approve (delete) or reject; the seller gets a notice either way. */
 async function loadDelRequests() {
-  if (!isAdmin()) return;
+  if (!isStaff()) return;
   try {
     const s = await getDocs(query(collection(db, "listings"), where("delReq", "==", true)));
     const list = state.delReqs = s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => ms(b.delReqAt) - ms(a.delReqAt));
@@ -3148,19 +3204,20 @@ $("#admin-delreq").addEventListener("click", async (e) => {
 
 /* ================= Admin moderation: hide or delete a post with a reason; the owner gets a notice ================= */
 document.addEventListener("click", (e) => {
-  const b = e.target.closest("[data-mod-post]"); if (!b || !isAdmin()) return;
+  const b = e.target.closest("[data-mod-post]"); if (!b || !isStaff()) return;
   e.stopPropagation();
   const id = b.dataset.modPost;
   const c = state.feed.find(x => x.id === id) || (state.feedProfile?.posts || []).find(x => x.id === id) || state.searchPosts.find(x => x.id === id) || state.deepPost;
-  if (c) openModerate("cars", c, "hide");
+  if (c) openModerate("cars", c, isAdmin() ? "hide" : "delete");
 });
 function openModerate(col, item, mode) {
+  if (!isAdmin()) mode = "delete";   // moderators can delete, not hide
   const title = item.name || item.title || "";
   openModal(`
     <h2>${t("mod_title")}</h2>
     <p class="muted">${esc(title)} · ${esc(item.ownerName || "")}</p>
     <form class="form" id="f-mod">
-      <div class="seg" role="group">
+      <div class="seg" role="group" ${isAdmin() ? "" : "hidden"}>
         <button type="button" data-mmode="hide" aria-pressed="${mode === "hide"}">${t("mod_hide")}</button>
         <button type="button" data-mmode="delete" aria-pressed="${mode === "delete"}">${t("mod_delete")}</button>
       </div>
@@ -3399,5 +3456,12 @@ $("#view-admin").addEventListener("click", async (e) => {
       toast(t("unblocked_done")); loadAdmin();
     }
     if (m) { await updateDoc(doc(db, "users", m.dataset.mkadmin), { role: "admin" }); toast(t("saved")); loadAdmin(); }
+    const mm = e.target.closest("[data-mkmod]");
+    if (mm && isAdmin()) {
+      const on = mm.dataset.on === "1", u = state.siteUsers[mm.dataset.mkmod];
+      if (!confirm(t(on ? "make_mod_confirm" : "remove_mod_confirm", { name: u?.displayName || "" }))) return;
+      await updateDoc(doc(db, "users", mm.dataset.mkmod), { role: on ? "moderator" : "member" });
+      toast(t("saved")); state.roster = null; loadAdmin();
+    }
   } catch (err) { fail(err); }
 });

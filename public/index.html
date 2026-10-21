@@ -382,12 +382,12 @@
       </div>
 
       <div class="view" id="view-admin" hidden>
-        <h2><span data-i18n="inbox_title">Pesan masuk</span> <span class="inbox-count" id="inbox-count"></span></h2>
-        <div class="rows inbox" id="admin-inbox"></div>
+        <h2 class="admin-only"><span data-i18n="inbox_title">Pesan masuk</span> <span class="inbox-count" id="inbox-count"></span></h2>
+        <div class="admin-only rows inbox" id="admin-inbox"></div>
         <h2 data-i18n="pending_requests"></h2>
         <div class="rows" id="admin-pending"></div>
-        <h2><span data-i18n="members"></span> <span class="inbox-count" id="admin-members-count"></span></h2>
-        <div class="rows" id="admin-members"></div>
+        <h2 class="admin-only"><span data-i18n="members"></span> <span class="inbox-count" id="admin-members-count"></span></h2>
+        <div class="admin-only rows" id="admin-members"></div>
         <h2><span data-i18n="general_users"></span> <span class="inbox-count" id="admin-general-count"></span></h2>
         <div class="rows" id="admin-general"></div>
         <h2><span data-i18n="del_req_list"></span> <span class="inbox-count" id="admin-delreq-count"></span></h2>
@@ -395,18 +395,18 @@
         <h2><span data-i18n="del_log_list"></span> <span class="inbox-count" id="admin-dellog-count"></span></h2>
         <p class="muted" data-i18n="del_log_lead"></p>
         <div class="rows" id="admin-dellog"></div>
-        <h2><span data-i18n="mod_hidden_list"></span> <span class="inbox-count" id="admin-modhidden-count"></span></h2>
-        <div class="rows" id="admin-modhidden"></div>
+        <h2 class="admin-only"><span data-i18n="mod_hidden_list"></span> <span class="inbox-count" id="admin-modhidden-count"></span></h2>
+        <div class="admin-only rows" id="admin-modhidden"></div>
         <h2><span data-i18n="deact_users"></span> <span class="inbox-count" id="admin-deact-count"></span></h2>
         <div class="rows" id="admin-deact"></div>
-        <h2><span data-i18n="blocked_users"></span> <span class="inbox-count" id="admin-blocked-count"></span></h2>
-        <div class="rows" id="admin-blocked"></div>
+        <h2 class="admin-only"><span data-i18n="blocked_users"></span> <span class="inbox-count" id="admin-blocked-count"></span></h2>
+        <div class="admin-only rows" id="admin-blocked"></div>
         <div class="panel-flat migrate" id="admin-migrate" hidden>
           <strong data-i18n="mig_title"></strong>
           <p class="muted" id="mig-status"></p>
           <button type="button" class="btn btn-mat" id="mig-run" data-i18n="mig_run"></button>
         </div>
-        <div id="admin-import"></div>
+        <div id="admin-import" class="admin-only"></div>
       </div>
     </section>
   </main>

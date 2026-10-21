@@ -18,6 +18,10 @@ service cloud.firestore {
     function hasProfile() { return signedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)); }
     function approved() { return hasProfile() && me().status == 'approved'; }
     function admin() { return approved() && me().role == 'admin'; }
+    // Moderator: approve/reject general users, approve listing delete requests, delete posts, deactivate accounts.
+    function mod() { return approved() && me().role == 'moderator'; }
+    function staff() { return admin() || mod(); }
+    function onlyKeys(keys) { return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys); }
     function member() { return approved() && me().get('accountType', 'member') == 'member'; }
     function str(v, max) { return v is string && v.size() <= max; }
     function photosOk(p) { return p is list && p.size() <= 3; }
@@ -36,7 +40,7 @@ service cloud.firestore {
 
     // ---------- Members ----------
     match /users/{uid} {
-      allow read: if (signedIn() && request.auth.uid == uid) || member() || admin();
+      allow read: if (signedIn() && request.auth.uid == uid) || member() || staff();
 
       allow create: if signedIn() && request.auth.uid == uid
         // Blocked by an admin (by Google email or phone number): can't register again.
@@ -82,16 +86,24 @@ service cloud.firestore {
           && request.resource.data.diff(resource.data).affectedKeys()
                .hasOnly(['displayName','city','instagram','whatsapp','bio','photoURL','updatedAt'])
           && str(request.resource.data.displayName, 80))
-        || admin();
+        || admin()
+        // Moderator: approve a pending general user …
+        || (mod() && resource.data.get('accountType', 'member') == 'general' && resource.data.status == 'pending'
+            && request.resource.data.status == 'approved' && onlyKeys(['status', 'approvedAt']))
+        // … or deactivate / reactivate an account that isn't an admin or moderator.
+        || (mod() && uid != request.auth.uid && resource.data.get('role', 'member') == 'member'
+            && resource.data.status in ['approved', 'deactivated'] && request.resource.data.status in ['approved', 'deactivated']
+            && onlyKeys(['status', 'deactivatedAt', 'reactivatedAt']));
 
       // Admins; or the person themselves after a rejection, so they can sign up again.
-      allow delete: if admin() || (signedIn() && request.auth.uid == uid && resource.data.status == 'rejected');
+      allow delete: if admin() || (signedIn() && request.auth.uid == uid && resource.data.status == 'rejected')
+        || (mod() && resource.data.get('accountType', 'member') == 'general' && resource.data.status == 'pending');
     }
 
     // Seller contact (name + WhatsApp) for the market — readable by any approved account, written by its owner.
     match /contacts/{uid} {
       allow read: if approved();
-      allow delete: if admin();
+      allow delete: if staff();
       allow write: if signedIn() && request.auth.uid == uid
         && request.resource.data.keys().hasOnly(['name', 'whatsapp', 'instagram'])
         && str(request.resource.data.name, 80) && str(request.resource.data.whatsapp, 20);
@@ -194,7 +206,7 @@ service cloud.firestore {
 
     // Owner deletes a collection post: the reason is kept for the admins.
     match /deleteLog/{id} {
-      allow read, delete: if admin();
+      allow read, delete: if staff();
       allow create: if approved()
         && request.resource.data.keys().hasOnly(['uid', 'name', 'target', 'postId', 'title', 'reason', 'at'])
         && request.resource.data.uid == request.auth.uid && request.resource.data.at == request.time
@@ -222,7 +234,8 @@ service cloud.firestore {
     // Notices to a user from the admins (e.g. "your post was hidden", with the reason).
     match /notices/{id} {
       allow read: if (signedIn() && resource.data.uid == request.auth.uid) || admin();
-      allow create: if admin() || commentNotice();
+      allow create: if admin() || commentNotice()
+        || (mod() && request.resource.data.kind in ['deleted', 'delapproved', 'delrejected']);
       allow update: if (signedIn() && resource.data.uid == request.auth.uid
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read'])) || admin();
       allow delete: if (signedIn() && resource.data.uid == request.auth.uid) || admin();
@@ -275,8 +288,8 @@ service cloud.firestore {
           && request.resource.data.ownerUid == request.auth.uid
           && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['hidden', 'modHidden', 'modNote', 'modBy', 'modAt'])
           && carPhotosOk(request.resource.data.photos)) || admin()
-        || likeOnly();
-      allow delete: if (approved() && resource.data.ownerUid == request.auth.uid) || admin();
+        || likeOnly() || (mod() && onlyKeys(['hidden']));
+      allow delete: if (approved() && resource.data.ownerUid == request.auth.uid) || staff();
     }
 
     // Likes (collection posts & market listings): any active account can add or remove only its own uid in likedBy.
@@ -364,9 +377,10 @@ service cloud.firestore {
       allow update: if (approved() && resource.data.ownerUid == request.auth.uid
           && request.resource.data.ownerUid == request.auth.uid
           && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['hidden', 'modHidden', 'modNote', 'modBy', 'modAt'])
-          && photosOk(request.resource.data.photos)) || admin() || likeOnly() || warClaim(listingId);
-      // Sellers can't delete a listing themselves: they send a delete request (delReq + a reason) and an admin approves it.
-      allow delete: if admin();
+          && photosOk(request.resource.data.photos)) || admin() || likeOnly() || warClaim(listingId)
+        || (mod() && onlyKeys(['hidden', 'delReq', 'delReason']));
+      // Sellers can't delete a listing themselves: they send a delete request (delReq + a reason) and an admin or moderator approves it.
+      allow delete: if staff();
 
       // War buy slots: one per account; the listing's 'claimed' counter moves by exactly one in the same transaction.
       match /claims/{uid} {
