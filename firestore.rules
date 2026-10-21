@@ -210,10 +210,13 @@ service cloud.firestore {
       allow read: if approved();
       allow create: if member()
         && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.get('hidden', false) == false
         && str(request.resource.data.name, 100)
         && photosOk(request.resource.data.photos);
+      // Owners can't change 'hidden' (set by admins when an account is deactivated).
       allow update: if (approved() && resource.data.ownerUid == request.auth.uid
           && request.resource.data.ownerUid == request.auth.uid
+          && request.resource.data.get('hidden', false) == resource.data.get('hidden', false)
           && photosOk(request.resource.data.photos)) || admin();
       allow delete: if (approved() && resource.data.ownerUid == request.auth.uid) || admin();
     }
@@ -235,12 +238,15 @@ service cloud.firestore {
       allow read: if true;
       allow create: if approved()
         && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.get('hidden', false) == false
         && request.resource.data.type in ['sell','trade','wanted']
         && !('ownerWhatsapp' in request.resource.data)
         && str(request.resource.data.title, 100)
         && photosOk(request.resource.data.photos);
+      // Owners can't change 'hidden' (set by admins when an account is deactivated).
       allow update: if (approved() && resource.data.ownerUid == request.auth.uid
           && request.resource.data.ownerUid == request.auth.uid
+          && request.resource.data.get('hidden', false) == resource.data.get('hidden', false)
           && photosOk(request.resource.data.photos)) || admin();
       allow delete: if (approved() && resource.data.ownerUid == request.auth.uid) || admin();
     }

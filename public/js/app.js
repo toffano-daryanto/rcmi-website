@@ -7,12 +7,12 @@ import {
   getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, collection, query, where,
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig } from "./config.js?v=1792603237";
+import { firebaseConfig } from "./config.js?v=1792604003";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792603237";
-import { SEED_EVENTS } from "./seed-events.js?v=1792603237";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792603237";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792603237";
+import { GALLERY } from "./gallery-data.js?v=1792604003";
+import { SEED_EVENTS } from "./seed-events.js?v=1792604003";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792604003";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792604003";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -307,7 +307,7 @@ function show(screen) {
 }
 function showGate(which) {
   show("gate");
-  ["onboarding", "pending", "rejected", "blocked"].forEach(w => { $(`#gate-${w}`).hidden = w !== which; });
+  ["onboarding", "pending", "rejected", "blocked", "deactivated"].forEach(w => { $(`#gate-${w}`).hidden = w !== which; });
   if (which === "pending" && state.joinPayFor !== state.user?.uid) { state.joinPayFor = state.user?.uid; renderJoinPay(); }
 }
 
@@ -418,7 +418,7 @@ onAuthStateChanged(auth, (user) => {
       if (state.profile.status === "rejected") {
         deleteDoc(doc(db, "users", user.uid)).then(() => toast(t("rejected_again"))).catch(() => {});
       }
-      state.gate = ["pending", "blocked"].includes(state.profile.status) ? state.profile.status : state.profile.status === "rejected" ? "onboarding" : null;
+      state.gate = ["pending", "blocked", "deactivated"].includes(state.profile.status) ? state.profile.status : state.profile.status === "rejected" ? "onboarding" : null;
       $("#tab-admin").hidden = state.profile.role !== "admin";
       $("#tab-finance").hidden = state.profile.accountType === "general";
       if (state.profile.role === "admin") { refreshInboxCount(); if (state.profile.status === "approved") { startNotifs(); renderBell(); } } else stopNotifs();
@@ -572,7 +572,7 @@ const canEdit = (ownerUid) => ownerUid === state.user?.uid || isAdmin();
 async function loadCars() {
   try {
     const snap = await getDocs(query(collection(db, "cars"), orderBy("createdAt", "desc"), limit(120)));
-    state.cars = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    state.cars = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(c => !c.hidden);
     renderCars();
   } catch (e) { fail(e); }
 }
@@ -722,7 +722,7 @@ $("#btn-add-event").addEventListener("click", () => {
 async function loadListings() {
   try {
     const snap = await getDocs(query(collection(db, "listings"), orderBy("createdAt", "desc"), limit(120)));
-    state.listings = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    state.listings = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(l => !l.hidden);
     renderListings();
   } catch (e) { fail(e); }
 }
@@ -829,6 +829,10 @@ async function fetchRoster(force = false) {
     getDocs(query(collection(db, "users"), where("status", "==", "approved")))
   ]);
   state.siteUsers = Object.fromEntries(us.docs.map(d => [d.id, { id: d.id, ...d.data() }]));
+  if (isAdmin()) {
+    const ds = await getDocs(query(collection(db, "users"), where("status", "==", "deactivated"))).catch(() => null);
+    state.deactUsers = Object.fromEntries((ds?.docs || []).map(d => [d.id, { id: d.id, ...d.data() }]));
+  } else state.deactUsers = {};
   const roster = rs.docs.map(d => ({ id: d.id, ...d.data() }));
   // Members who joined on the site without a roster record still get a profile.
   const linked = new Set(roster.map(r => r.claimedBy).filter(Boolean));
@@ -896,7 +900,8 @@ function renderRoster() {
           <small>${[u.city, u.instagram && "@" + u.instagram].filter(Boolean).map(esc).join(" · ") || "—"}</small>
           <small>${[u.whatsapp, u.email].filter(Boolean).map(esc).join(" · ")}</small>
           ${since ? `<small class="muted">${t("registered_on", { date: since })}</small>` : ""}
-          ${wa ? `<a class="r-wa" href="https://wa.me/${wa}" target="_blank" rel="noopener">WhatsApp</a>` : ""}</span>
+          ${wa ? `<a class="r-wa" href="https://wa.me/${wa}" target="_blank" rel="noopener">WhatsApp</a>` : ""}
+          ${u.role !== "admin" ? `<button type="button" class="r-deact" data-deactivate="${esc(u.id)}">${t("deactivate")}</button>` : ""}</span>
       </div>`;
     }).join("") || `<p class="empty">${t(all.length ? "no_results" : "no_general")}</p>`;
   }
@@ -1036,7 +1041,8 @@ async function renderProfile(id) {
     box.innerHTML = `<a class="btn btn-ghost profile-back" href="#/members">← ${t("back_members")}</a><p class="empty">${t("member_not_found")}</p>`;
     return;
   }
-  const u = r.claimedBy ? state.siteUsers[r.claimedBy] : null;
+  const deact = isAdmin() && r.claimedBy ? (state.deactUsers || {})[r.claimedBy] : null;
+  const u = r.claimedBy ? state.siteUsers[r.claimedBy] || deact : null;
   const name = u?.displayName || r.name;
   const city = u?.city || r.city;
   const place = [city, r.province].filter(Boolean).join(", ");
@@ -1056,7 +1062,7 @@ async function renderProfile(id) {
           ${since ? `<dt>${t("registered")}</dt><dd>${fmtDate(since, { day: "numeric", month: "long", year: "numeric" })}</dd>` : ""}
           ${ig ? `<dt>Instagram</dt><dd><a href="https://instagram.com/${encodeURIComponent(ig)}" target="_blank" rel="noopener">@${esc(ig)}</a></dd>` : ""}
           ${wa ? `<dt>WhatsApp</dt><dd><a href="https://wa.me/${wa}" target="_blank" rel="noopener">${esc(u.whatsapp)}</a></dd>` : ""}
-          <dt>Status</dt><dd>${u ? "✓ " + t("on_site") : t("not_on_site")}</dd>
+          <dt>Status</dt><dd>${deact ? `<span class="type-tag blocked">${t("deact_tag")}</span>` : u ? "✓ " + t("on_site") : t("not_on_site")}</dd>
         </dl>
         ${priv ? `<div class="admin-box"><small>${t("admin_only")}</small>
           ${priv.phone ? `${t("phone")}: <a href="https://wa.me/${waNumber(priv.phone)}" target="_blank" rel="noopener">${esc(priv.phone)}</a><br>` : ""}
@@ -1070,6 +1076,10 @@ async function renderProfile(id) {
             </div>
             <small class="muted">${r.claimedBy ? t("gmail_linked") : t("phone_hint_admin")}</small>
           </form>
+        </div>` : ""}
+        ${isAdmin() && u && u.id !== state.user.uid && u.role !== "admin" ? `<div class="deact-box">
+          ${deact ? `<p class="muted">${t("deact_is")}</p><button type="button" class="btn btn-mat" data-reactivate="${esc(u.id)}">${t("reactivate")}</button>`
+                  : `<button type="button" class="btn btn-danger" data-deactivate="${esc(u.id)}">${t("deactivate")}</button><small class="muted">${t("deact_hint")}</small>`}
         </div>` : ""}
         <div id="profile-extra"></div>
       </div>
@@ -1088,8 +1098,8 @@ async function renderProfile(id) {
       getDocs(query(collection(db, "listings"), where("ownerUid", "==", u.id)))
     ]);
     if (state.sub !== id) return;
-    const cars = cs.docs.map(d => ({ id: d.id, ...d.data() }));
-    const listings = ls.docs.map(d => ({ id: d.id, ...d.data() })).filter(l => l.status !== "sold");
+    const cars = cs.docs.map(d => ({ id: d.id, ...d.data() })).filter(c => !c.hidden || isAdmin());
+    const listings = ls.docs.map(d => ({ id: d.id, ...d.data() })).filter(l => l.status !== "sold" && (!l.hidden || isAdmin()));
     const tile = (x, title) => `<div class="item">${x.photos?.[0] ? `<img class="ph" src="${x.photos[0]}" alt="" loading="lazy">` : `<div class="ph ph-empty">1:64</div>`}<div class="meta"><h3>${esc(title)}</h3>${x.price ? `<p class="price">${fmtIDR(x.price)}</p>` : x.maker ? `<p>${esc(x.maker)}</p>` : ""}</div></div>`;
     $("#profile-extra").innerHTML = `
       <h2>${t("their_cars")}</h2>
@@ -1757,6 +1767,16 @@ async function loadAdmin() {
       fetchRoster(true)
     ]);
     const pending = state.pending = pend.docs.map(d => ({ id: d.id, ...d.data() }));
+    const deactList = Object.values(state.deactUsers || {});
+    $("#admin-deact-count").textContent = `(${deactList.length})`;
+    $("#admin-deact").innerHTML = deactList.length ? deactList.map(u => `
+      <div class="row">
+        <img src="${esc(u.photoURL)}" alt="" referrerpolicy="no-referrer">
+        <div class="grow"><strong>${u.memberNo && u.accountType !== "general" ? memberNo(u.memberNo) + " · " : ""}${esc(u.displayName)}</strong><span class="type-tag blocked">${t("deact_tag")}</span>
+          <small>${[u.city, u.email].filter(Boolean).map(esc).join(" · ")}</small>
+          ${u.deactivatedAt ? `<small class="muted">${t("deact_on", { date: fmtDate(u.deactivatedAt, { day: "numeric", month: "short", year: "numeric" }) })}</small>` : ""}</div>
+        <div class="actions"><button class="btn btn-sm btn-mat" data-reactivate="${esc(u.id)}">${t("reactivate")}</button></div>
+      </div>`).join("") : `<p class="muted">${t("no_deact")}</p>`;
     getDocs(collection(db, "blocked")).then(s => {
       const list = state.blocked = s.docs.map(d => ({ id: d.id, ...d.data() }));
       $("#admin-blocked-count").textContent = `(${list.length})`;
@@ -1826,6 +1846,36 @@ async function loadAdmin() {
     });
   } catch (e) { fail(e); }
 }
+
+/* Deactivate: no access to the site, and all their collection cars and market posts are hidden.
+   Reactivate undoes both. */
+async function setActive(uid, active) {
+  const [cs, ls] = await Promise.all([
+    getDocs(query(collection(db, "cars"), where("ownerUid", "==", uid))),
+    getDocs(query(collection(db, "listings"), where("ownerUid", "==", uid)))
+  ]);
+  const batch = writeBatch(db);
+  batch.update(doc(db, "users", uid), active ? { status: "approved", reactivatedAt: serverTimestamp() } : { status: "deactivated", deactivatedAt: serverTimestamp() });
+  [...cs.docs, ...ls.docs].forEach(d => batch.update(d.ref, { hidden: !active }));
+  await batch.commit();
+  return cs.size + ls.size;
+}
+document.addEventListener("click", async (e) => {
+  const d = e.target.closest("[data-deactivate]"), r = e.target.closest("[data-reactivate]");
+  if (!d && !r) return;
+  if (!isAdmin()) return;
+  const uid = (d || r).dataset[d ? "deactivate" : "reactivate"];
+  const u = state.siteUsers[uid] || (state.deactUsers || {})[uid];
+  if (!confirm(t(d ? "deact_confirm" : "react_confirm", { name: u?.displayName || "" }))) return;
+  (d || r).disabled = true;
+  try {
+    const n = await setActive(uid, !!r);
+    toast(t(d ? "deact_done" : "react_done", { n }));
+    state.roster = null; await fetchRoster(true);
+    state.listingsLoaded = false;
+    if (state.tab === "admin") loadAdmin(); else if (state.tab === "members") showMembers();
+  } catch (err) { fail(err); (d || r).disabled = false; }
+});
 
 /* Reject: remove the request entirely, so the person goes back to the start and can sign up again. */
 async function rejectRequest(uid) {

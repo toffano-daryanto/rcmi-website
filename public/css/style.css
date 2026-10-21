@@ -603,3 +603,8 @@ img[src*="drive.google.com"] { -webkit-user-drag: none; user-select: none; -webk
 .choose-note { margin: 16px 0 0; font-size: .85rem; }
 @media (max-width: 560px) { .choose-grid { grid-template-columns: 1fr; } }
 .intent-note { background: #FFF4D6; color: #6B4E00; border-left-color: var(--yellow); }
+
+.deact-box { margin: 18px 0; padding: 14px 16px; border: 1px dashed var(--line); border-radius: var(--radius-m); display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.deact-box p { margin: 0; flex-basis: 100%; }
+.r-deact { margin-top: 6px; margin-left: 10px; background: none; border: 0; padding: 0; color: var(--muted); font: inherit; font-size: .8rem; text-decoration: underline; cursor: pointer; }
+.r-deact:hover { color: var(--red); }
