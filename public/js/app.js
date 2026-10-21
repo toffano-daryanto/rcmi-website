@@ -178,31 +178,61 @@ async function signIn() {
     } else if (e.code !== "auth/popup-closed-by-user") fail(e);
   }
 }
-$$("#btn-signin, .js-signin").forEach(b => b.addEventListener("click", signIn));
-$("#btn-signout").addEventListener("click", () => signOut(auth));
+// Sign-in buttons: signed out → sign in and go to the members area; signed in → just open the members area.
+const ENTER_KEY = "rcmi-enter";
+const setEnter = (v) => { try { v ? sessionStorage.setItem(ENTER_KEY, "1") : sessionStorage.removeItem(ENTER_KEY); } catch (e) {} };
+const wantsEnter = () => { try { return sessionStorage.getItem(ENTER_KEY) === "1"; } catch (e) { return false; } };
+$$("#btn-signin, .js-signin").forEach(b => b.addEventListener("click", () => {
+  if (state.user) { location.hash = "#/collection"; return; }
+  setEnter(true); signIn();
+}));
+$("#btn-signout").addEventListener("click", async () => { await signOut(auth); location.hash = "#/"; });
 getRedirectResult(auth).catch(fail);
 
 /* ---------------- state + screens ---------------- */
 const state = { user: null, profile: null, tab: "collection", sub: "", carFilter: "all", marketFilter: "all", cars: [], listings: [], events: [], roster: null, rosterPrivate: {}, siteUsers: {}, memberSearch: "" };
 let unsubProfile = null;
 
+let lastScreen = "";
 function show(screen) {
   $("#landing").hidden = screen !== "landing";
   $("#landing-nav").hidden = screen !== "landing";
   $("#gate").hidden = screen !== "gate";
   $("#app").hidden = screen !== "app";
+  if (screen !== lastScreen && screen !== "landing") window.scrollTo(0, 0);
+  lastScreen = screen;
 }
 function showGate(which) {
   show("gate");
   ["onboarding", "pending", "rejected"].forEach(w => { $(`#gate-${w}`).hidden = w !== which; });
 }
+// The main website is "#/" and its anchors (#about, #gallery…); the members area is "#/collection", "#/members/…" etc.
+const isMemberRoute = () => TABS.includes(location.hash.replace(/^#\/?/, "").split("/")[0]);
+
+function render() {
+  const user = state.user, member = isMemberRoute();
+  $("#btn-signin").hidden = !!user;
+  $("#btn-area").hidden = !user || member;
+  $("#btn-home").hidden = !user || !member;
+  $$(".js-signin").forEach(b => { b.dataset.i18n = user ? "open_member_area" : "sign_in"; b.textContent = t(b.dataset.i18n); });
+  if (!member) {
+    const wasApp = lastScreen !== "landing";
+    show("landing");
+    const id = location.hash.slice(1);
+    if (id && !id.startsWith("/")) requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView());
+    else if (wasApp) window.scrollTo(0, 0);
+    return;
+  }
+  if (!user) { show("landing"); history.replaceState(null, "", "#/"); return; }
+  if (state.gate) return showGate(state.gate);
+  if (state.profile?.status === "approved") { show("app"); route(); }
+}
 
 onAuthStateChanged(auth, (user) => {
   state.user = user;
   if (unsubProfile) { unsubProfile(); unsubProfile = null; }
-  $("#btn-signin").hidden = !!user;
   $("#user-chip").hidden = !user;
-  if (!user) { state.profile = null; show("landing"); return; }
+  if (!user) { state.profile = null; state.gate = null; render(); return; }
   $("#user-avatar").src = user.photoURL || "";
   $("#user-avatar").hidden = !user.photoURL;
 
@@ -211,15 +241,16 @@ onAuthStateChanged(auth, (user) => {
     if (!snap.exists()) {
       const f = $("#form-onboarding");
       if (!f.displayName.value) f.displayName.value = user.displayName || "";
-      showGate("onboarding"); return;
+      state.profile = null; state.gate = "onboarding";
+    } else {
+      state.profile = { id: snap.id, ...snap.data() };
+      state.gate = ["pending", "rejected"].includes(state.profile.status) ? state.profile.status : null;
+      $("#tab-admin").hidden = state.profile.role !== "admin";
+      $("#btn-add-event").hidden = state.profile.role !== "admin";
     }
-    state.profile = { id: snap.id, ...snap.data() };
-    if (state.profile.status === "pending") return showGate("pending");
-    if (state.profile.status === "rejected") return showGate("rejected");
-    $("#tab-admin").hidden = state.profile.role !== "admin";
-    $("#btn-add-event").hidden = state.profile.role !== "admin";
-    show("app");
-    route();
+    // Just signed in from a "Masuk" button → open the members area; otherwise stay where they are.
+    if (wantsEnter()) { setEnter(false); if (!isMemberRoute()) { location.hash = "#/collection"; return; } }
+    render();
   }, fail);
 });
 
@@ -244,9 +275,9 @@ $("#form-onboarding").addEventListener("submit", async (e) => {
 
 /* ---------------- routing ---------------- */
 const TABS = ["collection", "events", "market", "members", "dues", "card", "admin"];
-window.addEventListener("hashchange", route);
+window.addEventListener("hashchange", render);
 function route() {
-  if (!state.profile || state.profile.status !== "approved") return;
+  if (!state.profile || state.profile.status !== "approved" || !isMemberRoute()) return;
   const [h, sub = ""] = location.hash.replace(/^#\/?/, "").split("/");
   let tab = TABS.includes(h) ? h : "collection";
   state.sub = decodeURIComponent(sub);
