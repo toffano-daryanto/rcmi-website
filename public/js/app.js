@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792614922";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792615215";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792614922";
-import { SEED_EVENTS } from "./seed-events.js?v=1792614922";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792614922";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792614922";
+import { GALLERY } from "./gallery-data.js?v=1792615215";
+import { SEED_EVENTS } from "./seed-events.js?v=1792615215";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792615215";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792615215";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -1805,6 +1805,8 @@ function renderDM() {
   const m = location.hash.match(/^#\/dm\/([^/]+)/);
   const id = m ? decodeURIComponent(m[1]) : "";
   $("#dmpage").classList.toggle("in-chat", !!id);
+  document.body.classList.toggle("dm-open", !!id);
+  fitChat();
   const list = dm.chats.filter(c => c.lastFrom || c.id === id);
   $("#dm-list").innerHTML = list.length ? list.map(c => {
     const o = otherOf(c), nm = c.names?.[o] || "RCMI", ph = c.photos?.[o] || "";
@@ -1822,8 +1824,8 @@ function renderDM() {
     dm.open = id; dm.footKey = ""; dm.unsubMsgs?.();
     $("#dm-chat").innerHTML = `
       <header class="dm-head">
-        <a class="dm-back" href="#/dm" aria-label="${t("dm_back")}">←</a>
-        <a class="dm-who" href="#/feed/u/${encodeURIComponent(o)}"><strong>${esc(nm)}</strong></a>
+        <a class="dm-back" href="#/dm" aria-label="${t("dm_back")}"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+        <a class="dm-who" href="#/feed/u/${encodeURIComponent(o)}"><span class="cmt-av">${c.photos?.[o] ? `<img src="${esc(c.photos[o])}" alt="" referrerpolicy="no-referrer">` : esc(initials(nm))}</span><strong>${esc(nm)}</strong></a>
         <button type="button" class="post-mod" data-dm-menu aria-label="${t("dm_menu")}">⋯</button>
       </header>
       <div class="dm-msgs" id="dm-msgs"><p class="empty">…</p></div>
@@ -1840,18 +1842,29 @@ function renderDM() {
   $("#dm-foot").innerHTML = blocked
     ? `<p class="muted dm-blocked">${t(iBlocked ? "dm_you_blocked" : "dm_blocked")}</p>`
     : `<form class="dm-form" id="f-dm">
-        <label class="dm-photo" title="${esc(t("photos"))}"><input type="file" name="photo" accept="image/*" hidden>📷</label>
+        <label class="dm-photo" title="${esc(t("photos"))}" aria-label="${esc(t("photos"))}"><input type="file" name="photo" accept="image/*" hidden><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="13.5" r="3.5" fill="none" stroke="currentColor" stroke-width="2"/></svg></label>
         <textarea name="text" rows="1" maxlength="1000" placeholder="${esc(t("dm_ph"))}"></textarea>
-        <button class="btn btn-mat" type="submit">${t("dm_send")}</button>
+        <button class="dm-send" type="submit" aria-label="${esc(t("dm_send"))}" title="${esc(t("dm_send"))}"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M21 3 10 14M21 3l-7 18-4-7-7-4 18-7Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></button>
       </form>`;
   const f = $("#f-dm");
   if (f) {
     if (dm.draft) { f.text.value = dm.draft; dm.draft = ""; }
     f.text.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && !matchMedia("(pointer: coarse)").matches) { e.preventDefault(); f.requestSubmit(); } });
     f.photo.addEventListener("change", () => { f.querySelector(".dm-photo").classList.toggle("on", !!f.photo.files.length); });
+    const grow = () => { f.text.style.height = "auto"; f.text.style.height = Math.min(f.text.scrollHeight, 120) + "px"; };
+    f.text.addEventListener("input", grow);
+    f.text.addEventListener("focus", () => setTimeout(() => { fitChat(); const b = $("#dm-msgs"); if (b) b.scrollTop = b.scrollHeight; }, 300));
     f.addEventListener("submit", (e) => { e.preventDefault(); sendDM(c, f); });
   }
 }
+// On phones an open chat fills the screen between the top bar and the keyboard, like a messaging app.
+function fitChat() {
+  const r = document.documentElement.style, vv = window.visualViewport;
+  r.setProperty("--tb", ($(".topbar")?.offsetHeight || 0) + "px");
+  r.setProperty("--vvh", (vv ? vv.height : innerHeight) + "px");
+}
+window.visualViewport?.addEventListener("resize", fitChat);
+addEventListener("resize", fitChat);
 function paintMsgs() {
   const box = $("#dm-msgs"); if (!box) return;
   const me = state.user.uid;
@@ -1871,17 +1884,17 @@ function markChatRead(id) {
 async function sendDM(c, f) {
   const text = f.text.value.trim();
   if (!text && !f.photo.files.length) return;
-  const btn = f.querySelector("[type=submit]"); btn.disabled = true;
+  const btn = f.querySelector("[type=submit]"); btn.disabled = true; btn.classList.add("busy");
   try {
-    const photos = f.photo.files.length ? await storePhotos(f.photo, "market", 1, 0, btn) : [];
+    const photos = f.photo.files.length ? await storePhotos(f.photo, "market", 1, 0) : [];
     const batch = writeBatch(db);
     batch.set(doc(collection(db, "chats", c.id, "messages")), { from: state.user.uid, text: text.slice(0, 1000), photo: photos[0] || "", at: serverTimestamp() });
     batch.update(doc(db, "chats", c.id), { lastText: (text || "📷").slice(0, 120), lastAt: serverTimestamp(), lastFrom: state.user.uid,
       [`readAt.${state.user.uid}`]: serverTimestamp(), [`names.${state.user.uid}`]: String(state.profile.displayName || "").slice(0, 80) });
     await batch.commit();
-    f.text.value = ""; f.photo.value = ""; f.querySelector(".dm-photo").classList.remove("on");
+    f.text.value = ""; f.text.style.height = ""; f.photo.value = ""; f.querySelector(".dm-photo").classList.remove("on");
   } catch (err) { fail(err); }
-  btn.disabled = false; btn.textContent = t("dm_send"); f.text.focus();
+  btn.disabled = false; btn.classList.remove("busy"); f.text.focus();
 }
 $("#dmpage").addEventListener("click", async (e) => {
   const u = e.target.closest("[data-unsend]");
