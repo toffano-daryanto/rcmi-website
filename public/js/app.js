@@ -7,12 +7,12 @@ import {
   getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, collection, query, where,
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig } from "./config.js?v=1792600706";
+import { firebaseConfig } from "./config.js?v=1792601451";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792600706";
-import { SEED_EVENTS } from "./seed-events.js?v=1792600706";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792600706";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792600706";
+import { GALLERY } from "./gallery-data.js?v=1792601451";
+import { SEED_EVENTS } from "./seed-events.js?v=1792601451";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792601451";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792601451";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -214,6 +214,58 @@ getRedirectResult(auth).catch(fail);
 const state = { user: null, profile: null, tab: "collection", sub: "", carFilter: "all", marketFilter: "all", cars: [], listings: [], events: [], roster: null, rosterPrivate: {}, siteUsers: {}, memberSearch: "" };
 let unsubProfile = null;
 
+/* ================= Admin notifications (bell in the top bar, live) ================= */
+const notif = { unsubs: [], pending: [], messages: [], recent: [], proofs: {}, seenAt: 0, lastCount: null, uid: null };
+function stopNotifs() { notif.unsubs.forEach(u => u()); notif.unsubs = []; notif.uid = null; notif.lastCount = null; $("#bell-wrap").hidden = true; }
+function startNotifs() {
+  if (notif.uid === state.user.uid) return;
+  stopNotifs(); notif.uid = state.user.uid; notif.startedAt = Date.now();
+  $("#bell-wrap").hidden = false;
+  const since = Timestamp.fromDate(new Date(Date.now() - 30 * 864e5));
+  const on = (q, fn) => notif.unsubs.push(onSnapshot(q, fn, () => {}));
+  on(query(collection(db, "users"), where("status", "==", "pending")), s => { notif.pending = s.docs.map(d => ({ id: d.id, ...d.data() })); renderBell(); });
+  on(query(collection(db, "messages"), where("status", "==", "new")), s => { notif.messages = s.docs.map(d => ({ id: d.id, ...d.data() })); renderBell(); });
+  on(query(collection(db, "users"), where("createdAt", ">", since)), s => { notif.recent = s.docs.map(d => ({ id: d.id, ...d.data() })).filter(u => u.status === "approved"); renderBell(); });
+  on(collection(db, "joinPayments"), s => { notif.proofs = Object.fromEntries(s.docs.map(d => [d.id, d.data()])); renderBell(); });
+}
+const ms = (ts) => toDate(ts)?.getTime() || 0;
+function bellItems() {
+  const seen = ms(state.profile?.notifSeenAt);
+  const items = [];
+  for (const u of notif.pending) items.push({ at: ms(notif.proofs[u.id]?.createdAt) || ms(u.createdAt), unread: true, href: "#/admin",
+    text: t(u.accountType === "general" ? "notif_pending_general" : notif.proofs[u.id] ? "notif_pending_paid" : "notif_pending_member", { name: esc(u.displayName) }) });
+  for (const m of notif.messages) items.push({ at: ms(m.createdAt), unread: true, href: "#/admin",
+    text: t("notif_message", { name: esc(m.name), msg: esc(String(m.message).slice(0, 80)) }) });
+  for (const u of notif.recent) items.push({ at: ms(u.approvedAt || u.createdAt), unread: ms(u.createdAt) > seen, href: u.accountType === "general" ? "#/admin" : `#/members/${encodeURIComponent(u.rosterId || "")}`,
+    text: t(u.accountType === "general" ? "notif_new_general" : "notif_new_member", { name: esc(u.displayName), no: u.memberNo ? memberNo(u.memberNo) : "" }) });
+  return items.sort((a, b) => b.at - a.at);
+}
+function renderBell() {
+  const items = bellItems();
+  const n = items.filter(i => i.unread).length;
+  const c = $("#bell-count"); c.hidden = !n; c.textContent = n > 99 ? "99+" : String(n);
+  $("#btn-bell").setAttribute("aria-label", t("notif_title") + (n ? ` (${n})` : ""));
+  $("#bell-list").innerHTML = items.length ? items.slice(0, 30).map(i => `
+    <a class="bell-item ${i.unread ? "unread" : ""}" href="${i.href}">
+      <span>${i.text}</span><small>${i.at ? new Date(i.at).toLocaleString(locale(), { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : ""}</small>
+    </a>`).join("") : `<p class="muted bell-empty">${t("notif_empty")}</p>`;
+  // Pop a toast only for things that arrive while the admin has the site open (not the first load).
+  if (notif.lastCount !== null && Date.now() - notif.startedAt > 4000 && n > notif.lastCount) toast(t("notif_toast", { n: n - notif.lastCount }));
+  notif.lastCount = n;
+}
+function toggleBell(open) {
+  const p = $("#bell-panel"); open = open ?? p.hidden;
+  p.hidden = !open; $("#btn-bell").setAttribute("aria-expanded", String(open));
+}
+$("#btn-bell").addEventListener("click", (e) => { e.stopPropagation(); toggleBell(); });
+$("#bell-panel").addEventListener("click", (e) => { if (e.target.closest("a")) toggleBell(false); });
+document.addEventListener("click", (e) => { if (!e.target.closest("#bell-wrap")) toggleBell(false); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") toggleBell(false); });
+$("#bell-seen").addEventListener("click", async (e) => {
+  e.stopPropagation();
+  try { await updateDoc(doc(db, "users", state.user.uid), { notifSeenAt: serverTimestamp() }); } catch (err) { fail(err); }
+});
+
 let lastScreen = "";
 function show(screen) {
   $("#landing").hidden = screen !== "landing";
@@ -297,7 +349,7 @@ onAuthStateChanged(auth, (user) => {
   state.user = user;
   if (unsubProfile) { unsubProfile(); unsubProfile = null; }
   $("#user-chip").hidden = !user;
-  if (!user) { state.profile = null; state.gate = null; render(); return; }
+  if (!user) { state.profile = null; state.gate = null; stopNotifs(); render(); return; }
   state.listingsLoaded = false;
   $("#user-avatar").src = user.photoURL || "";
   $("#user-avatar").hidden = !user.photoURL;
@@ -322,7 +374,7 @@ onAuthStateChanged(auth, (user) => {
       state.gate = ["pending", "rejected"].includes(state.profile.status) ? state.profile.status : null;
       $("#tab-admin").hidden = state.profile.role !== "admin";
       $("#tab-finance").hidden = state.profile.accountType === "general";
-      if (state.profile.role === "admin") refreshInboxCount();
+      if (state.profile.role === "admin") { refreshInboxCount(); if (state.profile.status === "approved") { startNotifs(); renderBell(); } } else stopNotifs();
       $("#btn-add-event").hidden = state.profile.role !== "admin";
       const general = isGeneral();
       $$('.tabs a[data-tab="members"], .tabs a[data-tab="dues"]').forEach(a => { a.hidden = general; });

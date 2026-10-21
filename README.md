@@ -83,6 +83,9 @@ The **Contact** section on the main website has a form (name, WhatsApp/email, to
 ### Language
 The site opens in **English** by default; visitors can switch to Bahasa Indonesia with the ID/EN toggle (the choice is remembered on their device).
 
+### Notification bell (admins)
+When an admin is signed in, a bell in the top bar shows a live count (no reload needed) of: pending sign-up requests (and whether the new member has uploaded the payment proof), unread Contact messages, and new accounts (members who activated and general users) since the admin last pressed **Mark all as seen**. A toast pops up when something new arrives while the site is open. Clicking an item opens the Admin page (or the member's profile). "Seen" is saved on the admin's account (`users/{uid}.notifSeenAt`), so it's the same on phone and computer.
+
 ### Email notifications (admins)
 Every 10 minutes a GitHub Action (`.github/workflows/notify.yml`, `scripts/notify.mjs`) checks for **new accounts** (members and general users), **joining-fee payment proofs** and **Contact messages**, and emails a summary with a button to the Admin page. Free — no paid Firebase plan needed. The first run only starts the clock; it doesn't email about older sign-ups.
 

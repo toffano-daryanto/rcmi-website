@@ -553,3 +553,31 @@ img[src*="drive.google.com"] { -webkit-user-drag: none; user-select: none; -webk
 .lb-shield { position: absolute; top: 0; right: 0; width: 72px; height: 64px; background: transparent; z-index: 2; }
 .row .actions a.btn { text-decoration: none; }
 @media (max-width: 400px) { #btn-signin { font-size: .8rem; padding-left: 10px; padding-right: 10px; } }
+
+/* ---------- Admin notification bell ---------- */
+.bell-wrap { position: relative; }
+.bell { position: relative; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 8px; border: 1px solid rgba(255,255,255,.25); background: transparent; color: #fff; cursor: pointer; }
+.bell:hover, .bell[aria-expanded="true"] { background: rgba(255,255,255,.1); }
+.bell-count { position: absolute; top: -6px; right: -6px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 99px; background: var(--red); color: #fff; font-size: .72rem; font-weight: 700; display: grid; place-items: center; box-shadow: 0 0 0 2px var(--navy); }
+.bell-count[hidden] { display: none; }
+.bell-panel { position: absolute; right: 0; top: calc(100% + 10px); width: min(380px, calc(100vw - 32px)); background: var(--surface); color: var(--ink); border-radius: var(--radius-m); box-shadow: 0 12px 40px rgba(0,0,0,.3); z-index: 50; overflow: hidden; border-top: 4px solid var(--red); }
+.bell-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.bell-head .btn-link { color: var(--red); font-size: .85rem; }
+.bell-list { max-height: 60vh; overflow-y: auto; }
+.bell-item { display: block; padding: 10px 16px; border-bottom: 1px solid var(--line); color: inherit; text-decoration: none; font-size: .9rem; line-height: 1.35; }
+.bell-item:hover { background: rgba(0,0,0,.04); }
+.bell-item.unread { background: rgba(214,16,43,.06); box-shadow: inset 3px 0 0 var(--red); }
+.bell-item small { display: block; color: var(--muted); margin-top: 3px; font-size: .78rem; }
+.bell-empty { padding: 16px; margin: 0; }
+.bell-foot { display: block; padding: 11px 16px; text-align: center; font-weight: 700; color: var(--red); text-decoration: none; }
+@media (max-width: 600px) { .bell { width: 36px; height: 36px; } .bell-panel { position: fixed; right: 16px; top: 64px; } }
+@media (max-width: 480px) {
+  .topbar { gap: 8px; padding-left: 12px; padding-right: 12px; }
+  .top-actions { gap: 6px; flex-shrink: 0; }
+  .wordmark { min-width: 0; flex-shrink: 1; }
+  .wordmark .logo { height: 24px; }
+  .lang button { padding: 4px 6px; font-size: .78rem; }
+  #btn-area, #btn-home, #btn-signin { font-size: .78rem; padding: .3em .55em; min-height: 34px; }
+  .user-chip .btn-link { font-size: .8rem; white-space: nowrap; }
+  .bell { width: 34px; height: 34px; }
+}

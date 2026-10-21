@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;1,600;1,700;1,800&family=Barlow:wght@400;500;600;700&family=Noto+Serif:wght@700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/style.css?v=1792600706">
+  <link rel="stylesheet" href="/css/style.css?v=1792601451">
   <link rel="icon" type="image/png" href="/img/icon-64.png">
   <link rel="apple-touch-icon" href="/img/icon-192.png">
   <meta property="og:image" content="/img/icon-512.png">
@@ -36,6 +36,18 @@
       <button type="button" class="btn btn-amber" id="btn-signin" data-i18n="sign_in">Masuk dengan Google</button>
       <a class="btn btn-amber" id="btn-area" href="#/collection" hidden data-i18n="member_area">Area Anggota</a>
       <a class="btn btn-ghost-light" id="btn-home" href="#/" hidden data-i18n="home">Beranda</a>
+      <div class="bell-wrap" id="bell-wrap" hidden>
+        <button type="button" class="bell" id="btn-bell" aria-haspopup="true" aria-expanded="false" aria-label="Notifications">
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22Zm7-6V11a7 7 0 0 0-5.5-6.84V3.5a1.5 1.5 0 0 0-3 0v.66A7 7 0 0 0 5 11v5l-2 2v1h18v-1Z"/></svg>
+          <span class="bell-count" id="bell-count" hidden></span>
+        </button>
+        <div class="bell-panel" id="bell-panel" hidden>
+          <div class="bell-head"><strong data-i18n="notif_title">Notifikasi</strong>
+            <button type="button" class="btn-link" id="bell-seen" data-i18n="notif_mark_seen"></button></div>
+          <div class="bell-list" id="bell-list"></div>
+          <a class="bell-foot" href="#/admin" data-i18n="notif_open_admin"></a>
+        </div>
+      </div>
       <div class="user-chip" id="user-chip" hidden>
         <img id="user-avatar" alt="" width="32" height="32" referrerpolicy="no-referrer">
         <button type="button" class="btn-link" id="btn-signout" data-i18n="sign_out">Keluar</button>
@@ -325,6 +337,6 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="/js/app.js?v=1792600706"></script>
+  <script type="module" src="/js/app.js?v=1792601451"></script>
 </body>
 </html>
