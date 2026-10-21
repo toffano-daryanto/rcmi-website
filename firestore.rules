@@ -89,7 +89,7 @@ service cloud.firestore {
       // Members can edit their own profile details, never their status, role or number.
       allow update: if (signedIn() && request.auth.uid == uid
           && request.resource.data.diff(resource.data).affectedKeys()
-               .hasOnly(['displayName','city','instagram','whatsapp','bio','photoURL','updatedAt'])
+               .hasOnly(['displayName','city','instagram','whatsapp','bio','photoURL','updatedAt','emailOff'])
           && str(request.resource.data.displayName, 80))
         || admin()
         // Moderator: approve a pending general user …

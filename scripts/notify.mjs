@@ -4,7 +4,7 @@
 //   SA_JSON_PATH        path to the Firebase service-account JSON
 //   GMAIL_USER          Gmail address that sends the email
 //   GMAIL_APP_PASSWORD  16-character Google app password for that address
-//   NOTIFY_TO           where to send (optional, defaults to GMAIL_USER; comma-separated for several)
+//   NOTIFY_TO           extra addresses for the admin alerts (optional, comma-separated); every admin account's email always gets them
 //
 // The repo is public, so this script never prints names, emails or phone numbers — only counts.
 
@@ -14,7 +14,7 @@ import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import nodemailer from "nodemailer";
 
 const { SA_JSON_PATH, GMAIL_USER, GMAIL_APP_PASSWORD } = process.env;
-const NOTIFY_TO = process.env.NOTIFY_TO || GMAIL_USER;
+const NOTIFY_TO = process.env.NOTIFY_TO || "";
 const SITE = "https://rcmi-website.web.app";
 
 if (!SA_JSON_PATH || !GMAIL_USER || !GMAIL_APP_PASSWORD) {
@@ -93,8 +93,12 @@ const html = `<div style="font-family:Arial,sans-serif;max-width:600px;color:#12
   <p style="margin-top:20px"><a href="${SITE}/#/admin" style="background:#D6102B;color:#fff;padding:10px 16px;border-radius:6px;text-decoration:none;font-weight:bold">Open the Admin page</a></p>
 </div>`;
 
+// Admin alerts go to every admin account's email, plus any extra address in NOTIFY_TO.
+const admins = (await db.collection("users").where("role", "==", "admin").get()).docs.map(d => d.data())
+  .filter(u => u.status === "approved" && u.email).map(u => u.email.toLowerCase());
+const to = [...new Set([...String(NOTIFY_TO || "").split(",").map(x => x.trim().toLowerCase()).filter(Boolean), ...admins])];
 const mail = nodemailer.createTransport({ service: "gmail", auth: { user: GMAIL_USER, pass: GMAIL_APP_PASSWORD } });
-await mail.sendMail({ from: `"RCMI website" <${GMAIL_USER}>`, to: NOTIFY_TO, subject: `RCMI: ${parts.join(", ")}`, html });
+await mail.sendMail({ from: `"RCMI website" <${GMAIL_USER}>`, to: GMAIL_USER, bcc: to, subject: `RCMI: ${parts.join(", ")}`, html });
 // Only move forward once the email has gone out, so nothing is missed if sending fails.
 await stateRef.set({ lastCheck: now });
 console.log("Email sent.");

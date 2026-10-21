@@ -1,0 +1,87 @@
+// Email each registered user about THEIR OWN activity: comments & replies on their posts, likes,
+// war-sell slots, sales / reviews, admin notices about their posts, and unread private messages.
+// One email per person per run (every 10 minutes), only for things they haven't already seen on the site.
+// People can switch this off in their profile ("Email me my notifications" → users.emailOff).
+//
+//   SA_JSON_PATH, GMAIL_USER, GMAIL_APP_PASSWORD   (same secrets as notify.mjs)
+//
+// The repo is public: logs show counts only, never names or addresses.
+
+import { readFileSync } from "node:fs";
+import { initializeApp, cert } from "firebase-admin/app";
+import { getFirestore, Timestamp } from "firebase-admin/firestore";
+import nodemailer from "nodemailer";
+
+const { SA_JSON_PATH, GMAIL_USER, GMAIL_APP_PASSWORD } = process.env;
+const SITE = "https://rcmi-website.web.app";
+if (!SA_JSON_PATH || !GMAIL_USER || !GMAIL_APP_PASSWORD) { console.log("User emails are off (no Gmail secrets)."); process.exit(0); }
+
+initializeApp({ credential: cert(JSON.parse(readFileSync(SA_JSON_PATH, "utf8"))) });
+const db = getFirestore();
+const stateRef = db.doc("notify/userState");
+const now = Timestamp.now();
+const st = await stateRef.get();
+if (!st.exists) { await stateRef.set({ lastCheck: now }); console.log("User emails: first run, starting from now."); process.exit(0); }
+const since = st.data().lastCheck;
+
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const ms = (ts) => ts?.toMillis ? ts.toMillis() : 0;
+const where = (n) => n.target === "market" ? "Market" : "Collection";
+const link = (n) => n.target === "market" ? `${SITE}/#/market/${encodeURIComponent(n.postId || "")}` : `${SITE}/#/feed/p/${encodeURIComponent(n.postId || "")}`;
+const TEXT = {
+  comment: (n) => `<b>${esc(n.fromName)}</b> commented on your post <b>${esc(n.title)}</b>: “${esc(n.note)}”`,
+  reply: (n) => `<b>${esc(n.fromName)}</b> replied to your comment on <b>${esc(n.title)}</b>: “${esc(n.note)}”`,
+  like: (n) => `<b>${esc(n.fromName)}</b> liked your ${n.target === "market" ? "listing" : "post"} <b>${esc(n.title)}</b>`,
+  claim: (n) => `<b>${esc(n.fromName)}</b> got slot ${esc(n.note)} in your war sell <b>${esc(n.title)}</b>`,
+  rate: (n) => `Please rate <b>${esc(n.fromName)}</b> for <b>${esc(n.title)}</b>`,
+  review: (n) => `<b>${esc(n.fromName)}</b> left a ${esc(n.note)} review for <b>${esc(n.title)}</b>`,
+  hidden: (n) => `Your post <b>${esc(n.title)}</b> in ${where(n)} was hidden by an admin.`,
+  deleted: (n) => `Your post <b>${esc(n.title)}</b> in ${where(n)} was removed by an admin.`,
+  unhidden: (n) => `Your post <b>${esc(n.title)}</b> in ${where(n)} is visible again.`,
+  delapproved: (n) => `Your request to delete <b>${esc(n.title)}</b> was approved.`,
+  delrejected: (n) => `Your request to delete <b>${esc(n.title)}</b> was rejected by an admin.`
+};
+
+// What happened since the last run.
+const [noticeSnap, chatSnap] = await Promise.all([
+  db.collection("notices").where("at", ">", since).where("at", "<=", now).get(),
+  db.collection("chats").where("lastAt", ">", since).where("lastAt", "<=", now).get()
+]);
+const per = new Map();   // uid → [{ at, html, href }]
+const add = (uid, item) => { if (!uid) return; if (!per.has(uid)) per.set(uid, []); per.get(uid).push(item); };
+for (const d of noticeSnap.docs) {
+  const n = d.data();
+  if (n.read || !TEXT[n.kind]) continue;
+  const note = n.note && !["comment", "reply", "claim", "review"].includes(n.kind) ? `<br><span style="color:#555">Reason: ${esc(n.note)}</span>` : "";
+  add(n.uid, { at: ms(n.at), html: TEXT[n.kind](n) + note, href: ["delapproved", "deleted"].includes(n.kind) ? `${SITE}/#/activity` : link(n) });
+}
+for (const d of chatSnap.docs) {
+  const c = d.data();
+  if ((c.blockedBy || []).length) continue;
+  const to = (c.members || []).find(m => m !== c.lastFrom);
+  if (!to || ms(c.readAt?.[to]) >= ms(c.lastAt)) continue;   // already read on the site
+  add(to, { at: ms(c.lastAt), html: `✉️ New message from <b>${esc(c.names?.[c.lastFrom] || "a member")}</b>: “${esc(String(c.lastText || "").slice(0, 120))}”`, href: `${SITE}/#/dm/${encodeURIComponent(d.id)}` });
+}
+if (!per.size) { await stateRef.set({ lastCheck: now }); console.log("User emails: nothing new."); process.exit(0); }
+
+const users = await db.getAll(...[...per.keys()].map(uid => db.doc(`users/${uid}`)));
+const mail = nodemailer.createTransport({ service: "gmail", auth: { user: GMAIL_USER, pass: GMAIL_APP_PASSWORD } });
+let sent = 0, skipped = 0, failed = 0;
+for (const u of users) {
+  const p = u.exists ? u.data() : null;
+  if (!p || p.status !== "approved" || p.emailOff || !p.email) { skipped++; continue; }
+  const items = per.get(u.id).sort((a, b) => b.at - a.at).slice(0, 30);
+  const rows = items.map(i => `<div style="border:1px solid #ddd;border-left:4px solid #D6102B;border-radius:6px;padding:10px 14px;margin:0 0 8px">${i.html}<br><a href="${i.href}" style="color:#D6102B;font-weight:bold;text-decoration:none">Open →</a></div>`).join("");
+  const html = `<div style="font-family:Arial,sans-serif;max-width:600px;color:#12141C">
+    <h2 style="margin:0 0 4px">RCMI</h2>
+    <p style="margin:0 0 16px;color:#555">Hi ${esc(p.displayName || "")}, here's what's new for you.</p>
+    ${rows}
+    <p style="margin-top:20px;color:#888;font-size:12px">You get these emails because you have an account on ${SITE}. To stop them, open Members area → My profile and untick "Email me my notifications".</p>
+  </div>`;
+  const subject = items.length === 1 ? `RCMI: ${items[0].html.replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&lt;/g, "<").replace(/&gt;/g, ">").slice(0, 90)}` : `RCMI: ${items.length} new notifications`;
+  try { await mail.sendMail({ from: `"RCMI" <${GMAIL_USER}>`, to: p.email, subject, html }); sent++; }
+  catch (e) { failed++; }
+}
+await stateRef.set({ lastCheck: now });
+console.log(`User emails: ${sent} sent, ${skipped} skipped (off / inactive), ${failed} failed.`);
+if (failed && !sent) process.exit(1);

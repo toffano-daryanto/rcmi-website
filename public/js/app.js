@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792616326";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792616753";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792616326";
-import { SEED_EVENTS } from "./seed-events.js?v=1792616326";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792616326";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792616326";
+import { GALLERY } from "./gallery-data.js?v=1792616753";
+import { SEED_EVENTS } from "./seed-events.js?v=1792616753";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792616753";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792616753";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -2961,6 +2961,7 @@ function renderCard() {
   const f = $("#form-profile");
   ["displayName", "city", "instagram", "whatsapp", "bio"].forEach(k => { if (document.activeElement !== f[k]) f[k].value = p[k] || ""; });
   f._syncSame?.();
+  $("#email-on").checked = !p.emailOff;
   // Read-only until "Edit" — except when the address is still missing, then open for editing.
   if (!state.profEditing) lockProfile(state.myAddr !== null);   // still loading (undefined) or saved → read-only
 }
@@ -2977,6 +2978,11 @@ function lockProfile(locked) {
   $("#prof-edit").hidden = !locked;
   f.querySelector(".prof-actions").hidden = locked;
 }
+$("#email-on").addEventListener("change", async (e) => {
+  const on = e.target.checked;
+  try { await updateDoc(doc(db, "users", state.user.uid), { emailOff: !on }); state.profile.emailOff = !on; toast(t(on ? "email_on_t" : "email_off_t")); }
+  catch (err) { e.target.checked = !on; fail(err); }
+});
 $("#prof-edit").addEventListener("click", () => { lockProfile(false); $("#form-profile").displayName.focus(); });
 $("#prof-cancel").addEventListener("click", () => { state.profEditing = false; renderCard(); writeAddr($("#form-profile"), state.myAddr); lockProfile(true); });
 $("#form-profile").addEventListener("submit", async (e) => {

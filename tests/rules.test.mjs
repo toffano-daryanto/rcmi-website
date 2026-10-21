@@ -51,6 +51,8 @@ test("address: owner writes & reads; others can't read; admin can", async () => 
 });
 test("profile update by owner", async () => {
   await assertSucceeds(updateDoc(doc(as(U.m1), "users", U.m1), { city: "Bogor", updatedAt: serverTimestamp() }));
+  await assertSucceeds(updateDoc(doc(as(U.m1), "users", U.m1), { emailOff: true }));
+  await assertFails(updateDoc(doc(as(U.m2), "users", U.m1), { emailOff: false }));
 });
 
 // ---------- Collection ----------
