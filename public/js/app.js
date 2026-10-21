@@ -7,12 +7,12 @@ import {
   getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, collection, query, where,
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig } from "./config.js?v=1792599528";
+import { firebaseConfig } from "./config.js?v=1792599626";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792599528";
-import { SEED_EVENTS } from "./seed-events.js?v=1792599528";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792599528";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792599528";
+import { GALLERY } from "./gallery-data.js?v=1792599626";
+import { SEED_EVENTS } from "./seed-events.js?v=1792599626";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792599626";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792599626";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -80,7 +80,7 @@ function bindPhotoPreview(form) {
 }
 
 /* ---------------- language + scale ruler (work without Firebase) ---------------- */
-$$("[data-lang]").forEach(b => b.addEventListener("click", () => { setLang(b.dataset.lang); updateRuler(); renderGallery(); rerender(); }));
+$$("[data-lang]").forEach(b => b.addEventListener("click", () => { setLang(b.dataset.lang); updateRuler(); renderGallery(); if (typeof renderStats === "function") renderStats(); rerender(); }));
 
 const range = $("#real-length");
 function updateRuler() {
@@ -171,6 +171,16 @@ if (!configured) {
 const fbApp = initializeApp(firebaseConfig);
 const auth = getAuth(fbApp);
 const db = getFirestore(fbApp);
+
+// Home page member count: public/stats is kept up to date by admins' member syncs and approvals.
+let publicStats = null;
+function renderStats() {
+  const el = $("#stats");
+  if (!publicStats?.members) { el.hidden = true; return; }
+  el.textContent = t("stats", { n: publicStats.members, p: publicStats.provinces || 0 });
+  el.hidden = false;
+}
+getDoc(doc(db, "public", "stats")).then(snap => { publicStats = snap.exists() ? snap.data() : null; renderStats(); }).catch(() => {});
 const provider = new GoogleAuthProvider();
 provider.setCustomParameters({ prompt: "select_account" });
 
@@ -660,6 +670,14 @@ async function fetchRoster(force = false) {
   });
   roster.sort((a, b) => (a.memberNo ?? 1e9) - (b.memberNo ?? 1e9) || String(a.name).localeCompare(b.name));
   state.roster = roster;
+  if (isAdmin()) {
+    const numbered = roster.filter(r => r.memberNo && r.status !== "applicant");
+    const stats = { members: numbered.length, provinces: new Set(numbered.map(r => String(r.province || "").trim().toLowerCase()).filter(Boolean)).size };
+    if (stats.members && (stats.members !== publicStats?.members || stats.provinces !== publicStats?.provinces)) {
+      publicStats = { ...stats };
+      setDoc(doc(db, "public", "stats"), { ...stats, updatedAt: serverTimestamp() }).then(renderStats).catch(() => {});
+    }
+  }
   if (isAdmin()) {
     const ps = await getDocs(collection(db, "rosterPrivate"));
     state.rosterPrivate = Object.fromEntries(ps.docs.map(d => [d.id, d.data()]));

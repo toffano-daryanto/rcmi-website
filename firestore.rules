@@ -143,6 +143,12 @@ service cloud.firestore {
       allow write: if admin();
     }
 
+    // Public numbers for the home page (total members, provinces). Anyone reads; admins write.
+    match /public/{id} {
+      allow read: if true;
+      allow write: if admin();
+    }
+
     // Links to the admin's private Google Sheets used for syncing (members). Admins only.
     match /sources/{id} {
       allow read, write: if admin();
