@@ -7,12 +7,12 @@ import {
   getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, collection, query, where,
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig } from "./config.js?v=1792598982";
+import { firebaseConfig } from "./config.js?v=1792599016";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792598982";
-import { SEED_EVENTS } from "./seed-events.js?v=1792598982";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792598982";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792598982";
+import { GALLERY } from "./gallery-data.js?v=1792599016";
+import { SEED_EVENTS } from "./seed-events.js?v=1792599016";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792599016";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792599016";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -727,7 +727,11 @@ async function setInviteEmail(r, email) {
 
 /* ---------- Members: sync from the RCMI Membership Registration sheet (admins only) ---------- */
 async function syncMembersFromSheet(sheetId) {
-  const { members, applicants } = parseMemberSheets(await readSpreadsheet(sheetId));
+  // Only the "RCMI Member List" tab is used.
+  const tabs = (await readSpreadsheet(sheetId)).filter(x => /member\s*list/i.test(x.title));
+  if (!tabs.length) throw new Error(t("sheet_no_member_list"));
+  const { members } = parseMemberSheets(tabs);
+  const applicants = [];
   if (!members.length && !applicants.length) throw new Error(t("sheet_no_members"));
   await fetchRoster(true);
   const existing = new Map((state.roster || []).map(r => [r.id, r]));
@@ -753,10 +757,8 @@ async function syncMembersFromSheet(sheetId) {
   // unless an account was already linked to them.
   const memberPhones = new Set(members.map(m => sheetPhoneKey(m.phone)).filter(Boolean));
   const memberNames = new Set(members.map(m => m.name.toLowerCase().replace(/\s+/g, " ").trim()));
-  const removes = (state.roster || []).filter(r => r.id.startsWith("a-") && !r.claimedBy && (
-    memberNames.has(String(r.name || "").toLowerCase().replace(/\s+/g, " ").trim()) ||
-    memberPhones.has(sheetPhoneKey((state.rosterPrivate[r.id] || {}).phone))
-  )).map(r => r.id);
+  // Applicants aren't taken from the sheet any more: remove leftover applicant entries nobody has linked to.
+  const removes = (state.roster || []).filter(r => r.id.startsWith("a-") && !r.claimedBy).map(r => r.id);
   const skip = new Set(removes);
   const ops = [
     ...writes.filter(([c, id]) => !((c === "roster" || c === "rosterPrivate") && skip.has(id))).map(w => ["set", ...w]),
