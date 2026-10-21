@@ -581,3 +581,10 @@ img[src*="drive.google.com"] { -webkit-user-drag: none; user-select: none; -webk
   .user-chip .btn-link { font-size: .8rem; white-space: nowrap; }
   .bell { width: 34px; height: 34px; }
 }
+
+/* General users under the member list (admins) */
+.general-section { margin-top: 36px; padding-top: 24px; border-top: 1px solid var(--line); }
+.general-section > p { margin: -4px 0 14px; }
+.r-general { cursor: default; text-align: left; }
+.r-general small { display: block; overflow-wrap: anywhere; }
+.r-wa { display: inline-block; margin-top: 6px; font-size: .82rem; font-weight: 700; color: var(--red); }

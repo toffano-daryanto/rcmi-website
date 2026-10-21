@@ -55,7 +55,7 @@ It shows totals, the P&L by category, the IDS 2025 event result, the RCMI x Hell
 ### Two account types
 - **Anggota (member):** RCMI members. Sign up with the registered phone → active immediately (or admin approval). Full access: member list & profiles, member card, monthly dues, collection, events, market.
 - **Sign up:** the top-bar button is *Sign in or create account*. New accounts are asked "Create your account as an RCMI member?" — **Yes**: registered members (matching phone) are active right away; new members see the Rp150.000 joining fee (QRIS / bank from *Pengaturan iuran*), upload the payment proof (`joinPayments/{uid}`, visible to them and admins only) and wait for admin approval — admins see a *View payment proof* button on the request. **No**: general users just register and are active right away.
-- **Admin page** lists *Members* and *General users* separately, with counts.
+- **Admin page** lists *Members* and *General users* separately, with counts. Admins also see the *General users* list (with WhatsApp / email and a WhatsApp button) under the member list on the **Anggota** tab; members don't see it.
 - **Pengguna umum (general user):** non-members, active as soon as they register. Can post in the market, see sellers' WhatsApp, view events and RSVP, and view the collection. No member list, member card or dues; their "Kartu saya" tab is "Profil saya".
 - The **market is public**: anyone can browse it on the main website without signing in. Sellers' WhatsApp numbers live in `contacts/{uid}` and are shown only to signed-in, approved accounts; visitors see Instagram only.
 

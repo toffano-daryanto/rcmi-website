@@ -7,12 +7,12 @@ import {
   getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, collection, query, where,
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig } from "./config.js?v=1792601451";
+import { firebaseConfig } from "./config.js?v=1792601684";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792601451";
-import { SEED_EVENTS } from "./seed-events.js?v=1792601451";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792601451";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792601451";
+import { GALLERY } from "./gallery-data.js?v=1792601684";
+import { SEED_EVENTS } from "./seed-events.js?v=1792601684";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792601684";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792601684";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -815,6 +815,27 @@ function renderRoster() {
         ${u ? `<small class="r-on">✓ ${t("on_site")}</small>` : ""}</span>
     </button>`;
   }).join("") || `<p class="empty">—</p>`;
+
+  // General users (non-members), below the member list — admins only, since it includes contact details.
+  const gs = $("#general-section"); gs.hidden = !isAdmin();
+  if (isAdmin()) {
+    const all = Object.values(state.siteUsers).filter(u => u.accountType === "general");
+    const gens = all.filter(u => !q || norm(`${u.displayName} ${u.city} ${u.instagram} ${u.email}`).includes(q))
+      .sort((a, b) => String(a.displayName).localeCompare(String(b.displayName)));
+    $("#general-count").textContent = `(${all.length})`;
+    $("#general-roster").innerHTML = gens.map(u => {
+      const wa = waNumber(u.whatsapp);
+      const since = fmtDate(u.approvedAt || u.createdAt, { day: "numeric", month: "short", year: "numeric" });
+      return `<div class="r-item r-general">
+        <span class="r-no">${u.photoURL ? `<img src="${esc(u.photoURL)}" alt="" referrerpolicy="no-referrer">` : esc(initials(u.displayName))}</span>
+        <span><strong>${esc(u.displayName)}</strong>
+          <small>${[u.city, u.instagram && "@" + u.instagram].filter(Boolean).map(esc).join(" · ") || "—"}</small>
+          <small>${[u.whatsapp, u.email].filter(Boolean).map(esc).join(" · ")}</small>
+          ${since ? `<small class="muted">${t("registered_on", { date: since })}</small>` : ""}
+          ${wa ? `<a class="r-wa" href="https://wa.me/${wa}" target="_blank" rel="noopener">WhatsApp</a>` : ""}</span>
+      </div>`;
+    }).join("") || `<p class="empty">${t(all.length ? "no_results" : "no_general")}</p>`;
+  }
 }
 $("#member-profile").addEventListener("submit", async (e) => {
   if (e.target.id !== "f-invite") return;
