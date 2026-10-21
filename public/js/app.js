@@ -649,12 +649,44 @@ $$("[data-dmode]").forEach(b => b.addEventListener("click", () => { state.duesMo
 
 function payInfoHTML() {
   const p = state.pay;
+  const hasBank = p.bank && p.accountNo;
+  const qris = typeof p.qris === "string" && p.qris.startsWith("data:image/") ? p.qris : "";
   return `<div class="dues-how">
-    <h3>${t("dues_how")}</h3>
+    <h3>${qris ? t("qris_title") : t("dues_how")}</h3>
     <p>${t("dues_amount_line", { amount: fmtIDR(p.amount), day: p.dueDay })}</p>
-    ${p.bank && p.accountNo ? `<p class="muted">${t("dues_transfer_to")}</p>
-      <p class="acct"><strong>${esc(p.bank)} ${esc(p.accountNo)}</strong><br>${esc(p.accountName)}</p>` : `<p class="muted">${t("dues_bank_missing")}</p>`}
+    ${qris ? `
+      <div class="qris">
+        <img src="${qris}" alt="QRIS RCMI">
+        <div>
+          <p>${t("qris_hint", { amount: `<strong>${fmtIDR(p.amount)}</strong>` })}</p>
+          <p class="muted">${t("qris_mobile")}</p>
+          <a class="btn btn-ghost btn-sm" href="${qris}" download="QRIS-RCMI.png">${t("qris_save")}</a>
+          <p class="muted qris-then">${t("qris_then")}</p>
+        </div>
+      </div>` : ""}
+    ${hasBank ? `<p class="muted">${qris ? t("or_transfer") : t("dues_transfer_to")}</p>
+      <p class="acct"><strong>${esc(p.bank)} ${esc(p.accountNo)}</strong><br>${esc(p.accountName)}</p>` : ""}
+    ${!qris && !hasBank ? `<p class="muted">${t("dues_bank_missing")}</p>` : ""}
   </div>`;
+}
+
+/* QR codes are flat images: keep them sharp as PNG, fall back to high-quality JPEG if large. */
+function compressQR(file, maxSide = 900) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file); const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+      const c = document.createElement("canvas");
+      c.width = Math.round(img.width * scale); c.height = Math.round(img.height * scale);
+      const ctx = c.getContext("2d"); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, c.width, c.height);
+      ctx.drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
+      let data = c.toDataURL("image/png");
+      if (data.length > 700000) data = c.toDataURL("image/jpeg", 0.92);
+      data.length > 900000 ? reject(new Error(t("err_photo"))) : resolve(data);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error(t("err_photo"))); };
+    img.src = url;
+  });
 }
 
 async function renderDuesMine() {
@@ -774,6 +806,9 @@ async function renderDuesAll() {
           <label><span>${t("ps_dueday")}</span><input name="dueDay" type="number" min="1" max="28" value="${Number(p.dueDay)}"></label>
         </div>
         <label><span>${t("ps_from")}</span><input name="trackFrom" type="month" value="${esc(p.trackFrom)}"><small class="muted">${t("ps_from_hint")}</small></label>
+        <label><span>${t("ps_qris")}</span><input type="file" name="qris" accept="image/*"><small class="muted">${t("ps_qris_hint")}</small></label>
+        <div class="thumbs qris-preview">${p.qris ? `<img src="${p.qris}" alt="">` : ""}</div>
+        ${p.qris ? `<label class="check"><input type="checkbox" name="qrisRemove"> ${t("ps_qris_remove")}</label>` : ""}
         <div class="form-actions"><button class="btn btn-mat" type="submit">${t("save")}</button></div>
       </form>
     </details>`;
@@ -787,16 +822,21 @@ async function renderDuesAll() {
     a.href = URL.createObjectURL(new Blob(["﻿" + csv], { type: "text/csv" }));
     a.download = `iuran-rcmi-${M}.csv`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   });
+  bindPhotoPreview($("#f-pay"));
   $("#f-pay").addEventListener("submit", async (e) => {
-    e.preventDefault(); const f = e.target;
+    e.preventDefault(); const f = e.target; const btn = f.querySelector('[type="submit"]'); btn.disabled = true;
     try {
+      const extra = {};
+      if (f.qris.files[0]) extra.qris = await compressQR(f.qris.files[0]);
+      else if (f.qrisRemove?.checked) extra.qris = "";
       await setDoc(doc(db, "settings", "payment"), {
+        ...extra,
         bank: f.bank.value.trim(), accountNo: f.accountNo.value.trim(), accountName: f.accountName.value.trim(),
         amount: Number(f.amount.value) || 0, dueDay: Math.min(28, Math.max(1, Number(f.dueDay.value) || 10)),
         trackFrom: f.trackFrom.value || ym()
       }, { merge: true });
       await loadPaySettings(true); toast(t("saved")); renderDuesAll();
-    } catch (err) { fail(err); }
+    } catch (err) { fail(err); btn.disabled = false; }
   });
 }
 

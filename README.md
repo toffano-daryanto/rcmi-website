@@ -46,6 +46,7 @@ The landing-page gallery (`public/js/gallery-data.js`) shows the 74 photos and v
 ### Monthly dues (Iuran)
 - **Members** see this month's status, where to transfer (Rp50.000, due by the 10th), their history, and upload a transfer receipt.
 - **Admins** switch to *Semua anggota*: pick a month, confirm or reject receipts, mark paid / waive, and download a CSV.
+- **QRIS:** upload RCMI's QRIS image under *Pengaturan iuran*. Members see it on the Iuran page, scan it (or save it and upload from their gallery on mobile), pay Rp50.000 and send the screenshot. QRIS payments up to Rp500.000 to micro-business merchants have a 0% fee.
 - Set the bank account, amount, due day and the month to start tracking from under **Iuran → Semua anggota → Pengaturan iuran**. The joining month counts as paid (it's covered by the Rp150.000 registration fee).
 - Each member sees only their own payments; admins see everyone's (`dues/{rosterId}_{YYYY-MM}`).
 
