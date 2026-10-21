@@ -7,12 +7,12 @@ import {
   getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, collection, query, where,
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig } from "./config.js?v=1792599626";
+import { firebaseConfig } from "./config.js?v=1792599814";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792599626";
-import { SEED_EVENTS } from "./seed-events.js?v=1792599626";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792599626";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792599626";
+import { GALLERY } from "./gallery-data.js?v=1792599814";
+import { SEED_EVENTS } from "./seed-events.js?v=1792599814";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792599814";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792599814";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -176,6 +176,8 @@ const db = getFirestore(fbApp);
 let publicStats = null;
 function renderStats() {
   const el = $("#stats");
+  const lu = $("#lead-users");
+  lu.textContent = publicStats?.members ? t("lead_users", { total: publicStats.members + (publicStats.general || 0), m: publicStats.members, g: publicStats.general || 0 }) : "";
   if (!publicStats?.members) { el.hidden = true; return; }
   el.textContent = t("stats", { n: publicStats.members, p: publicStats.provinces || 0 });
   el.hidden = false;
@@ -672,8 +674,12 @@ async function fetchRoster(force = false) {
   state.roster = roster;
   if (isAdmin()) {
     const numbered = roster.filter(r => r.memberNo && r.status !== "applicant");
-    const stats = { members: numbered.length, provinces: new Set(numbered.map(r => String(r.province || "").trim().toLowerCase()).filter(Boolean)).size };
-    if (stats.members && (stats.members !== publicStats?.members || stats.provinces !== publicStats?.provinces)) {
+    const stats = {
+      members: numbered.length,
+      provinces: new Set(numbered.map(r => String(r.province || "").trim().toLowerCase()).filter(Boolean)).size,
+      general: Object.values(state.siteUsers).filter(u => u.accountType === "general").length
+    };
+    if (stats.members && (stats.members !== publicStats?.members || stats.provinces !== publicStats?.provinces || stats.general !== publicStats?.general)) {
       publicStats = { ...stats };
       setDoc(doc(db, "public", "stats"), { ...stats, updatedAt: serverTimestamp() }).then(renderStats).catch(() => {});
     }
