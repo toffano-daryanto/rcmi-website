@@ -21,6 +21,8 @@ service cloud.firestore {
     function member() { return approved() && me().get('accountType', 'member') == 'member'; }
     function str(v, max) { return v is string && v.size() <= max; }
     function photosOk(p) { return p is list && p.size() <= 3; }
+    // Collection posts: up to 10 photos you can swipe through (all inside the 1 MB document).
+    function carPhotosOk(p) { return p is list && p.size() <= 10; }
     // Pre-registered members: admins add invites/{gmail} → { rosterId, memberNo }.
     // A verified Google account with that email activates itself without waiting for approval.
     function myEmail() { return request.auth.token.email.lower(); }
@@ -213,12 +215,12 @@ service cloud.firestore {
         && request.resource.data.ownerUid == request.auth.uid
         && request.resource.data.get('hidden', false) == false
         && str(request.resource.data.name, 100)
-        && photosOk(request.resource.data.photos);
+        && carPhotosOk(request.resource.data.photos);
       // Owners can't change 'hidden' (set by admins when an account is deactivated).
       allow update: if (approved() && resource.data.ownerUid == request.auth.uid
           && request.resource.data.ownerUid == request.auth.uid
           && request.resource.data.get('hidden', false) == resource.data.get('hidden', false)
-          && photosOk(request.resource.data.photos)) || admin()
+          && carPhotosOk(request.resource.data.photos)) || admin()
         // Likes: any active account can add or remove only its own uid in likedBy.
         || (approved()
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likedBy'])

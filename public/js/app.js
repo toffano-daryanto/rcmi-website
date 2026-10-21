@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig } from "./config.js?v=1792604911";
+import { firebaseConfig } from "./config.js?v=1792605150";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792604911";
-import { SEED_EVENTS } from "./seed-events.js?v=1792604911";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792604911";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792604911";
+import { GALLERY } from "./gallery-data.js?v=1792605150";
+import { SEED_EVENTS } from "./seed-events.js?v=1792605150";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792605150";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792605150";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -62,10 +62,14 @@ function compressPhoto(file, maxSide = 1000, maxChars = 280000) {
     img.src = url;
   });
 }
-async function readPhotos(input) {
-  const files = [...(input.files || [])].slice(0, 3);
+// Photos live inside the Firestore document (max 1 MB), so more photos = smaller each.
+async function readPhotos(input, max = 3) {
+  const files = [...(input.files || [])].slice(0, max);
+  const n = files.length;
+  const budget = Math.min(280000, Math.floor(800000 / Math.max(1, n)));
+  const side = n <= 3 ? 1000 : n <= 6 ? 900 : 800;
   const out = [];
-  for (const f of files) out.push(await compressPhoto(f));
+  for (const f of files) out.push(await compressPhoto(f, side, budget));
   return out;
 }
 function bindPhotoPreview(form) {
@@ -74,7 +78,7 @@ function bindPhotoPreview(form) {
   if (!input || !box) return;
   input.addEventListener("change", () => {
     box.innerHTML = "";
-    [...input.files].slice(0, 3).forEach(f => {
+    [...input.files].slice(0, Number(input.dataset.max || 3)).forEach(f => {
       const img = document.createElement("img"); img.alt = ""; img.src = URL.createObjectURL(f); box.appendChild(img);
     });
   });
@@ -641,19 +645,48 @@ function openAddCar(after) {
       <label><span>${t("car_name")}</span><input name="name" required maxlength="100" placeholder="Toyota Celica GT-Four ST185"></label>
       <label><span>${t("car_maker")}</span><input name="maker" maxlength="80"></label>
       <label><span>${t("car_notes")}</span><textarea name="notes" rows="3" maxlength="600"></textarea></label>
-      <label><span>${t("photos")} (${t("feed_max3")})</span><input type="file" name="photos" accept="image/*" multiple required></label>
-      <div class="thumbs"></div>
+      <div class="seg post-mode" role="group">
+        <button type="button" data-pmode="photos" aria-pressed="true">${t("pm_photos")}</button>
+        <button type="button" data-pmode="layout" aria-pressed="false">▦ ${t("pm_layout")}</button>
+      </div>
+      <div class="pm-photos">
+        <label><span>${t("photos")} (${t("feed_max10")})</span><input type="file" name="photos" accept="image/*" multiple required data-max="10"></label>
+        <div class="thumbs"></div>
+      </div>
+      <div class="pm-layout" hidden>
+        <label><span>${t("lay_pick")}</span><input type="file" name="lphotos" accept="image/*" multiple></label>
+        <div class="lay-choices" id="lay-choices"></div>
+        <div class="lay-stage"><canvas id="lay-canvas" width="1080" height="1080"></canvas><p class="muted lay-empty" id="lay-empty">${t("lay_empty")}</p></div>
+        <div class="lay-tools">
+          <label class="lay-check"><input type="checkbox" name="lborder" checked> ${t("lay_border")}</label>
+          <button type="button" class="btn btn-sm btn-ghost" data-act="lshuffle">⟳ ${t("lay_shuffle")}</button>
+        </div>
+        <small class="muted">${t("lay_hint")}</small>
+      </div>
       <div class="form-actions">
         <button type="button" class="btn btn-ghost" data-act="close">${t("cancel")}</button>
         <button class="btn btn-mat" type="submit">${t("feed_share")}</button>
       </div>
     </form>`);
   const f = $("#f-car"); bindPhotoPreview(f);
-  $("#modal-body").onclick = (ev) => { if (ev.target.dataset.act === "close") closeModal(); };
+  const lay = bindLayout(f);
+  $("#modal-body").onclick = (ev) => {
+    if (ev.target.dataset.act === "close") closeModal();
+    const pm = ev.target.closest("[data-pmode]");
+    if (pm) {
+      const isLay = pm.dataset.pmode === "layout";
+      f.querySelectorAll("[data-pmode]").forEach(b => b.setAttribute("aria-pressed", String(b === pm)));
+      f.querySelector(".pm-photos").hidden = isLay; f.querySelector(".pm-layout").hidden = !isLay;
+      f.photos.required = !isLay; f.lphotos.required = isLay;
+    }
+  };
   f.addEventListener("submit", async (e) => {
     e.preventDefault(); const btn = f.querySelector('[type="submit"]'); btn.disabled = true;
     try {
-      const photos = await readPhotos(f.photos);
+      const useLayout = !f.querySelector(".pm-layout").hidden;
+      if (useLayout && lay.count() < 2) { toast(t("lay_need2")); btn.disabled = false; return; }
+      if (!useLayout && f.photos.files.length > 10) toast(t("feed_max10_note"));
+      const photos = useLayout ? [await lay.export()] : await readPhotos(f.photos, 10);
       await addDoc(collection(db, "cars"), {
         name: f.name.value.trim(), maker: f.maker.value.trim(), notes: f.notes.value.trim(), photos,
         ownerUid: state.user.uid, ownerName: state.profile.displayName, ownerPhoto: state.profile.photoURL || state.user.photoURL || "",
@@ -662,6 +695,70 @@ function openAddCar(after) {
       closeModal(); toast(t("feed_posted")); state.feedLoaded = false; after?.();
     } catch (err) { fail(err); btn.disabled = false; }
   });
+}
+
+/* ---- Layout: several photos in one square image, like Instagram's Layout ---- */
+// Each template: list of cells [x, y, w, h] in a 6×6 grid.
+const LAYOUTS = {
+  2: [[[0,0,3,6],[3,0,3,6]], [[0,0,6,3],[0,3,6,3]]],
+  3: [[[0,0,4,6],[4,0,2,3],[4,3,2,3]], [[0,0,6,4],[0,4,3,2],[3,4,3,2]], [[0,0,2,6],[2,0,2,6],[4,0,2,6]], [[0,0,6,2],[0,2,6,2],[0,4,6,2]]],
+  4: [[[0,0,3,3],[3,0,3,3],[0,3,3,3],[3,3,3,3]], [[0,0,6,4],[0,4,2,2],[2,4,2,2],[4,4,2,2]], [[0,0,4,6],[4,0,2,2],[4,2,2,2],[4,4,2,2]]],
+  5: [[[0,0,3,3],[3,0,3,3],[0,3,2,3],[2,3,2,3],[4,3,2,3]], [[0,0,4,3],[4,0,2,3],[0,3,2,3],[2,3,2,3],[4,3,2,3]], [[0,0,2,3],[2,0,2,3],[4,0,2,3],[0,3,3,3],[3,3,3,3]]],
+  6: [[[0,0,2,3],[2,0,2,3],[4,0,2,3],[0,3,2,3],[2,3,2,3],[4,3,2,3]], [[0,0,3,2],[3,0,3,2],[0,2,3,2],[3,2,3,2],[0,4,3,2],[3,4,3,2]], [[0,0,4,4],[4,0,2,2],[4,2,2,2],[0,4,2,2],[2,4,2,2],[4,4,2,2]]]
+};
+function bindLayout(form) {
+  const input = form.lphotos, cv = form.querySelector("#lay-canvas"), ctx = cv.getContext("2d");
+  const st = { imgs: [], tpl: 0, sel: -1 };
+  const loadImg = (file) => new Promise((res, rej) => { const u = URL.createObjectURL(file); const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = u; });
+  const cells = () => (LAYOUTS[st.imgs.length] || [])[st.tpl] || [];
+  function choices() {
+    const box = form.querySelector("#lay-choices"); const list = LAYOUTS[st.imgs.length] || [];
+    box.innerHTML = list.map((tpl, k) => `<button type="button" class="lay-opt" data-tpl="${k}" aria-pressed="${k === st.tpl}">
+      ${tpl.map(([x, y, w, h]) => `<i style="left:${x / 6 * 100}%;top:${y / 6 * 100}%;width:${w / 6 * 100}%;height:${h / 6 * 100}%"></i>`).join("")}</button>`).join("");
+  }
+  function draw() {
+    const S = 1080, unit = S / 6, gap = form.lborder.checked ? 12 : 0;
+    ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, S, S);
+    form.querySelector("#lay-empty").hidden = st.imgs.length >= 2;
+    cells().forEach(([x, y, w, h], i) => {
+      const img = st.imgs[i]; if (!img) return;
+      const dx = x * unit + (x ? gap / 2 : gap), dy = y * unit + (y ? gap / 2 : gap);
+      const dw = w * unit - (x ? gap / 2 : gap) - (x + w < 6 ? gap / 2 : gap), dh = h * unit - (y ? gap / 2 : gap) - (y + h < 6 ? gap / 2 : gap);
+      const r = Math.max(dw / img.width, dh / img.height), sw = dw / r, sh = dh / r;   // cover crop, centred
+      ctx.drawImage(img, (img.width - sw) / 2, (img.height - sh) / 2, sw, sh, dx, dy, dw, dh);
+      if (i === st.sel) { ctx.strokeStyle = "#D6102B"; ctx.lineWidth = 10; ctx.strokeRect(dx + 5, dy + 5, dw - 10, dh - 10); }
+    });
+  }
+  input.addEventListener("change", async () => {
+    const files = [...input.files].slice(0, 6);
+    if (input.files.length > 6) toast(t("lay_max6"));
+    st.imgs = await Promise.all(files.map(loadImg)); st.tpl = 0; st.sel = -1;
+    if (st.imgs.length === 1) toast(t("lay_need2"));
+    choices(); draw();
+  });
+  form.addEventListener("click", (e) => {
+    const o = e.target.closest("[data-tpl]");
+    if (o) { st.tpl = Number(o.dataset.tpl); st.sel = -1; choices(); draw(); }
+    if (e.target.closest("[data-act=lshuffle]") && st.imgs.length > 1) { st.imgs.push(st.imgs.shift()); st.sel = -1; draw(); }
+  });
+  form.lborder.addEventListener("change", draw);
+  // Tap one photo, then another, to swap them.
+  cv.addEventListener("click", (e) => {
+    const r = cv.getBoundingClientRect(), gx = (e.clientX - r.left) / r.width * 6, gy = (e.clientY - r.top) / r.height * 6;
+    const i = cells().findIndex(([x, y, w, h]) => gx >= x && gx < x + w && gy >= y && gy < y + h);
+    if (i < 0 || !st.imgs[i]) return;
+    if (st.sel < 0) st.sel = i;
+    else { if (st.sel !== i) [st.imgs[st.sel], st.imgs[i]] = [st.imgs[i], st.imgs[st.sel]]; st.sel = -1; }
+    draw();
+  });
+  return {
+    count: () => st.imgs.length,
+    export: async () => {
+      st.sel = -1; draw();
+      for (let q = 0.85; q >= 0.4; q -= 0.08) { const d = cv.toDataURL("image/jpeg", q); if (d.length <= 300000) return d; }
+      throw new Error(t("err_photo"));
+    }
+  };
 }
 
 /* ================= Collection feed on the main website (Instagram-style) ================= */
@@ -702,6 +799,7 @@ function postHTML(c) {
     </header>
     <div class="post-media">
       ${photos.length ? `<div class="post-track">${photos.map(p => `<img src="${p}" alt="${esc(c.name)}" loading="lazy" draggable="false">`).join("")}</div>
+        ${photos.length > 1 ? `<button type="button" class="post-nav prev" data-slide="-1" aria-label="Previous">‹</button><button type="button" class="post-nav next" data-slide="1" aria-label="Next">›</button>` : ""}
         ${photos.length > 1 ? `<div class="post-dots">${photos.map((_, i) => `<i class="${i ? "" : "on"}"></i>`).join("")}</div><span class="post-count">1/${photos.length}</span>` : ""}`
         : `<div class="post-empty">1:64</div>`}
       <span class="post-heart" aria-hidden="true">♥</span>
@@ -745,6 +843,12 @@ function paintLike(c) {
     post.querySelector(".like-count").textContent = n ? t(n === 1 ? "likes_one" : "likes_n", { n }) : "";
   });
 }
+// Arrows to slide through a post's photos (for computers; phones just swipe).
+document.addEventListener("click", (e) => {
+  const b = e.target.closest(".post-nav[data-slide]"); if (!b) return;
+  const tr = b.closest(".post-media").querySelector(".post-track");
+  tr.scrollBy({ left: Number(b.dataset.slide) * tr.clientWidth, behavior: "smooth" });
+});
 // Likes and double-tap work in the feed, on profiles and in an opened post.
 document.addEventListener("click", (e) => {
   const b = e.target.closest(".post [data-like]"); if (b) toggleLike(b.dataset.like);
@@ -913,7 +1017,10 @@ function wireCarousels(root) {
     const post = tr.closest(".post");
     post.querySelectorAll(".post-dots i").forEach((d, k) => d.classList.toggle("on", k === i));
     const cnt = post.querySelector(".post-count"); if (cnt) cnt.textContent = `${i + 1}/${tr.children.length}`;
+    const pv = post.querySelector(".post-nav.prev"), nx = post.querySelector(".post-nav.next");
+    if (pv) pv.hidden = i === 0; if (nx) nx.hidden = i >= tr.children.length - 1;
   }, { passive: true }));
+  root.querySelectorAll(".post-nav.prev").forEach(b => { b.hidden = true; });
 }
 
 // "+" new post: sign in first; general users can't post to the collection (members only).
