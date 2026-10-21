@@ -24,4 +24,14 @@ jobs:
         working-directory: tests
         run: npm install --no-audit --no-fund --silent
       - name: Run rule checks in the Firestore emulator
-        run: tests/node_modules/.bin/firebase emulators:exec --only firestore --project demo-rcmi "node --test --test-concurrency=1 tests/rules.test.mjs"
+        run: |
+          set +e
+          tests/node_modules/.bin/firebase emulators:exec --only firestore --project demo-rcmi \
+            "node --test --test-concurrency=1 --test-reporter=spec tests/rules.test.mjs" > rules-test.log 2>&1
+          code=$?
+          cat rules-test.log
+          # Show each failing check as an annotation (visible on the run page).
+          grep -E '^\s*✖' rules-test.log | sed 's/^\s*//' | head -20 | while read -r line; do echo "::error::$line"; done
+          grep -E 'FirebaseError|PERMISSION_DENIED|Error:' rules-test.log | sort | uniq -c | head -8 | while read -r line; do echo "::warning::$line"; done
+          { echo '## Database rule checks'; echo '```'; grep -E '✔|✖|^ℹ' rules-test.log; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          exit $code
