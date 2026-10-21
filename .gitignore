@@ -5,3 +5,4 @@ node_modules/
 service-account*.json
 data/roster.json
 scripts/node_modules/
+tests/node_modules/
