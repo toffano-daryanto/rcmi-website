@@ -176,6 +176,15 @@ service cloud.firestore {
       allow delete: if admin();
     }
 
+    // Notices to a user from the admins (e.g. "your post was hidden", with the reason).
+    match /notices/{id} {
+      allow read: if (signedIn() && resource.data.uid == request.auth.uid) || admin();
+      allow create: if admin();
+      allow update: if (signedIn() && resource.data.uid == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read'])) || admin();
+      allow delete: if (signedIn() && resource.data.uid == request.auth.uid) || admin();
+    }
+
     // Contact form: signed-in users can send a message (tied to their account); only admins can read and manage them.
     match /messages/{id} {
       allow create: if signedIn()
@@ -214,12 +223,13 @@ service cloud.firestore {
       allow create: if member()
         && request.resource.data.ownerUid == request.auth.uid
         && request.resource.data.get('hidden', false) == false
+        && !request.resource.data.keys().hasAny(['modHidden', 'modNote', 'modBy', 'modAt'])
         && str(request.resource.data.name, 100)
         && carPhotosOk(request.resource.data.photos);
-      // Owners can't change 'hidden' (set by admins when an account is deactivated).
+      // Owners can't change 'hidden' (deactivated account) or the admin moderation fields.
       allow update: if (approved() && resource.data.ownerUid == request.auth.uid
           && request.resource.data.ownerUid == request.auth.uid
-          && request.resource.data.get('hidden', false) == resource.data.get('hidden', false)
+          && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['hidden', 'modHidden', 'modNote', 'modBy', 'modAt'])
           && carPhotosOk(request.resource.data.photos)) || admin()
         // Likes: any active account can add or remove only its own uid in likedBy.
         || (approved()
@@ -250,14 +260,15 @@ service cloud.firestore {
       allow create: if approved()
         && request.resource.data.ownerUid == request.auth.uid
         && request.resource.data.get('hidden', false) == false
+        && !request.resource.data.keys().hasAny(['modHidden', 'modNote', 'modBy', 'modAt'])
         && request.resource.data.type in ['sell','trade','wanted']
         && !('ownerWhatsapp' in request.resource.data)
         && str(request.resource.data.title, 100)
         && photosOk(request.resource.data.photos);
-      // Owners can't change 'hidden' (set by admins when an account is deactivated).
+      // Owners can't change 'hidden' (deactivated account) or the admin moderation fields.
       allow update: if (approved() && resource.data.ownerUid == request.auth.uid
           && request.resource.data.ownerUid == request.auth.uid
-          && request.resource.data.get('hidden', false) == resource.data.get('hidden', false)
+          && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['hidden', 'modHidden', 'modNote', 'modBy', 'modAt'])
           && photosOk(request.resource.data.photos)) || admin();
       allow delete: if (approved() && resource.data.ownerUid == request.auth.uid) || admin();
     }

@@ -751,3 +751,13 @@ img[src*="drive.google.com"] { -webkit-user-drag: none; user-select: none; -webk
 section[id], [id="contact"], [id="join"] { scroll-margin-top: 96px; }
 @media (max-width: 600px) { section[id] { scroll-margin-top: 120px; } }
 #view-collection .view-head a.btn { text-decoration: none; display: inline-flex; align-items: center; }
+
+/* Moderation */
+.post-head { position: relative; }
+.post-mod { margin-left: auto; background: none; border: 0; font-size: 1.4rem; line-height: 1; padding: 4px 8px; cursor: pointer; color: var(--ink); border-radius: 8px; }
+.post-mod:hover { background: rgba(0,0,0,.06); }
+.mod-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 12px; margin: 10px 0; border: 1px dashed var(--red); border-radius: var(--radius-s); }
+.mod-bar small { flex-basis: 100%; color: var(--red); font-weight: 700; }
+.mod-note { background: #FDECEE; color: #7A0A18; padding: 10px 12px; border-radius: var(--radius-s); border-left: 4px solid var(--red); }
+.tag-hidden { background: var(--ink) !important; color: #fff !important; }
+.bell-note { display: block; font-style: normal; color: var(--muted); font-size: .82rem; margin-top: 2px; }

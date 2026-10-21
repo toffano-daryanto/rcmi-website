@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792606139";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792606413";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792606139";
-import { SEED_EVENTS } from "./seed-events.js?v=1792606139";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792606139";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792606139";
+import { GALLERY } from "./gallery-data.js?v=1792606413";
+import { SEED_EVENTS } from "./seed-events.js?v=1792606413";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792606413";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792606413";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -298,7 +298,7 @@ if (/\/index\.html$/i.test(location.pathname)) history.replaceState(null, "", lo
 let unsubProfile = null;
 
 /* ================= Admin notifications (bell in the top bar, live) ================= */
-const notif = { unsubs: [], pending: [], messages: [], recent: [], proofs: {}, seenAt: 0, lastCount: null, uid: null };
+const notif = { unsubs: [], pending: [], messages: [], recent: [], proofs: {}, notices: [], seenAt: 0, lastCount: null, uid: null };
 function stopNotifs() { notif.unsubs.forEach(u => u()); notif.unsubs = []; notif.uid = null; notif.lastCount = null; $("#bell-wrap").hidden = true; }
 function startNotifs() {
   if (notif.uid === state.user.uid) return;
@@ -306,6 +306,10 @@ function startNotifs() {
   $("#bell-wrap").hidden = false;
   const since = Timestamp.fromDate(new Date(Date.now() - 30 * 864e5));
   const on = (q, fn) => notif.unsubs.push(onSnapshot(q, fn, () => {}));
+  notif.pending = []; notif.messages = []; notif.recent = []; notif.proofs = {}; notif.notices = [];
+  // Everyone: notices from the admins (post hidden / removed / visible again).
+  on(query(collection(db, "notices"), where("uid", "==", state.user.uid)), s => { notif.notices = s.docs.map(d => ({ id: d.id, ...d.data() })); renderBell(); });
+  if (!isAdmin()) return;
   on(query(collection(db, "users"), where("status", "==", "pending")), s => { notif.pending = s.docs.map(d => ({ id: d.id, ...d.data() })); renderBell(); });
   on(query(collection(db, "messages"), where("status", "==", "new")), s => { notif.messages = s.docs.map(d => ({ id: d.id, ...d.data() })); renderBell(); });
   on(query(collection(db, "users"), where("createdAt", ">", since)), s => { notif.recent = s.docs.map(d => ({ id: d.id, ...d.data() })).filter(u => u.status === "approved"); renderBell(); });
@@ -315,6 +319,9 @@ const ms = (ts) => toDate(ts)?.getTime() || 0;
 function bellItems() {
   const seen = ms(state.profile?.notifSeenAt);
   const items = [];
+  for (const n of notif.notices) items.push({ at: ms(n.at), unread: !n.read, href: "#", notice: n.id,
+    text: t({ hidden: "nt_hidden", deleted: "nt_deleted", unhidden: "nt_unhidden" }[n.kind] || "nt_hidden", { title: esc(n.title), where: t(n.target === "market" ? "nav_market" : "nav_feed") })
+      + (n.note ? `<em class="bell-note">${t("mod_reason")}: ${esc(n.note)}</em>` : "") });
   for (const u of notif.pending) items.push({ at: ms(notif.proofs[u.id]?.createdAt) || ms(u.createdAt), unread: true, href: "#/admin",
     text: t(u.accountType === "general" ? "notif_pending_general" : notif.proofs[u.id] ? "notif_pending_paid" : "notif_pending_member", { name: esc(u.displayName) }) });
   for (const m of notif.messages) items.push({ at: ms(m.createdAt), unread: true, href: "#/admin",
@@ -329,7 +336,7 @@ function renderBell() {
   const c = $("#bell-count"); c.hidden = !n; c.textContent = n > 99 ? "99+" : String(n);
   $("#btn-bell").setAttribute("aria-label", t("notif_title") + (n ? ` (${n})` : ""));
   $("#bell-list").innerHTML = items.length ? items.slice(0, 30).map(i => `
-    <a class="bell-item ${i.unread ? "unread" : ""}" href="${i.href}">
+    <a class="bell-item ${i.unread ? "unread" : ""}" href="${i.href}"${i.notice ? ` data-notice="${esc(i.notice)}"` : ""}>
       <span>${i.text}</span><small>${i.at ? new Date(i.at).toLocaleString(locale(), { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : ""}</small>
     </a>`).join("") : `<p class="muted bell-empty">${t("notif_empty")}</p>`;
   // Pop a toast only for things that arrive while the admin has the site open (not the first load).
@@ -341,12 +348,35 @@ function toggleBell(open) {
   p.hidden = !open; $("#btn-bell").setAttribute("aria-expanded", String(open));
 }
 $("#btn-bell").addEventListener("click", (e) => { e.stopPropagation(); toggleBell(); });
-$("#bell-panel").addEventListener("click", (e) => { if (e.target.closest("a")) toggleBell(false); });
+$("#bell-panel").addEventListener("click", (e) => {
+  const nt = e.target.closest("[data-notice]");
+  if (nt) { e.preventDefault(); openNotice(nt.dataset.notice); }
+  if (e.target.closest("a")) toggleBell(false);
+});
+function openNotice(id) {
+  const n = notif.notices.find(x => x.id === id); if (!n) return;
+  if (!n.read) updateDoc(doc(db, "notices", id), { read: true }).catch(() => {});
+  const where = t(n.target === "market" ? "nav_market" : "nav_feed");
+  openModal(`
+    <h2>${t({ hidden: "nt_hidden_title", deleted: "nt_deleted_title", unhidden: "nt_unhidden_title" }[n.kind] || "nt_hidden_title")}</h2>
+    <p>${t({ hidden: "nt_hidden", deleted: "nt_deleted", unhidden: "nt_unhidden" }[n.kind] || "nt_hidden", { title: `<strong>${esc(n.title)}</strong>`, where })}</p>
+    ${n.note ? `<p class="mod-note"><strong>${t("mod_reason")}:</strong> ${esc(n.note)}</p>` : ""}
+    ${n.kind !== "unhidden" ? `<p class="muted">${t("nt_contact")}</p>` : ""}
+    <p class="muted">${fmtDate(n.at, { day: "numeric", month: "long", year: "numeric" })}</p>
+    <div class="form-actions">
+      ${n.kind !== "unhidden" ? `<a class="btn btn-ghost" href="#contact" data-act="close">${t("nav_contact")}</a>` : ""}
+      <button type="button" class="btn btn-mat" data-act="close">${t("close")}</button>
+    </div>`);
+  $("#modal-body").onclick = (ev) => { if (ev.target.dataset.act === "close") closeModal(); };
+}
 document.addEventListener("click", (e) => { if (!e.target.closest("#bell-wrap")) toggleBell(false); });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") toggleBell(false); });
 $("#bell-seen").addEventListener("click", async (e) => {
   e.stopPropagation();
-  try { await updateDoc(doc(db, "users", state.user.uid), { notifSeenAt: serverTimestamp() }); } catch (err) { fail(err); }
+  try {
+    notif.notices.filter(n => !n.read).forEach(n => updateDoc(doc(db, "notices", n.id), { read: true }).catch(() => {}));
+    if (isAdmin()) await updateDoc(doc(db, "users", state.user.uid), { notifSeenAt: serverTimestamp() });
+  } catch (err) { fail(err); }
 });
 
 let lastScreen = "";
@@ -493,7 +523,9 @@ onAuthStateChanged(auth, (user) => {
       state.gate = ["pending", "blocked", "deactivated"].includes(state.profile.status) ? state.profile.status : state.profile.status === "rejected" ? "onboarding" : null;
       $("#tab-admin").hidden = state.profile.role !== "admin";
       $("#tab-finance").hidden = state.profile.accountType === "general";
-      if (state.profile.role === "admin") { refreshInboxCount(); if (state.profile.status === "approved") { startNotifs(); renderBell(); } } else stopNotifs();
+      if (state.profile.role === "admin") refreshInboxCount();
+      // The bell: admins get sign-ups/messages too; everyone gets notices about their own posts.
+      if (state.profile.status === "approved") { startNotifs(); renderBell(); } else stopNotifs();
       $("#btn-add-event").hidden = state.profile.role !== "admin";
       const general = isGeneral();
       $$('.tabs a[data-tab="members"], .tabs a[data-tab="dues"]').forEach(a => { a.hidden = general; });
@@ -650,7 +682,7 @@ async function loadCars() {
   try {
     // My Collection: only your own cars, newest first.
     const snap = await getDocs(query(collection(db, "cars"), where("ownerUid", "==", state.user.uid)));
-    state.cars = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(c => !c.hidden)
+    state.cars = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(c => !c.hidden)   // own posts hidden by an admin stay visible here, marked
       .sort((a, b) => (toDate(b.createdAt)?.getTime() || 0) - (toDate(a.createdAt)?.getTime() || 0));
     renderCars();
   } catch (e) { fail(e); }
@@ -660,7 +692,7 @@ function renderCars() {
   $("#cars").innerHTML = list.length ? list.map(c => `
     <button type="button" class="item" data-car="${esc(c.id)}">
       ${c.photos?.[0] ? `<img class="ph" src="${photoSrc(c.photos[0])}" alt="" loading="lazy">` : `<div class="ph ph-empty">1:64</div>`}
-      <div class="meta"><h3>${esc(c.name)}</h3><p>${esc(c.maker || "")}${c.maker ? " · " : ""}${t("by")} ${esc(c.ownerName)}</p></div>
+      <div class="meta">${c.modHidden ? `<span class="tag tag-hidden">${t("mod_hidden_tag")}</span>` : ""}<h3>${esc(c.name)}</h3><p>${esc(c.maker || "")}${c.maker ? " · " : ""}${t("by")} ${esc(c.ownerName)}</p></div>
     </button>`).join("") : `<p class="empty">${t("empty_collection")}</p>`;
 }
 $("#cars").addEventListener("click", (e) => {
@@ -671,6 +703,7 @@ $("#cars").addEventListener("click", (e) => {
     <h2>${esc(c.name)}</h2>
     ${c.maker ? `<p><strong>${t("car_maker")}:</strong> ${esc(c.maker)}</p>` : ""}
     ${c.notes ? `<p>${esc(c.notes)}</p>` : ""}
+    ${c.modHidden ? `<p class="mod-note">🚫 ${t("mod_hidden_owner")}${c.modNote ? `<br><strong>${t("mod_reason")}:</strong> ${esc(c.modNote)}` : ""}</p>` : ""}
     <p class="muted">${t("by")} ${esc(c.ownerName)} · ${fmtDate(c.createdAt, { day: "numeric", month: "short", year: "numeric" })}</p>
     <div class="form-actions">
       ${canEdit(c.ownerUid) ? `<button class="btn btn-danger" data-act="del">${t("delete")}</button>` : ""}
@@ -842,7 +875,7 @@ async function loadFeed(reset = false) {
     const snap = await getDocs(query(...parts));
     state.feedCursor = snap.docs[snap.docs.length - 1] || state.feedCursor;
     state.feedDone = snap.docs.length < FEED_PAGE;
-    state.feed.push(...snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(c => !c.hidden));
+    state.feed.push(...snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(c => !c.hidden && !c.modHidden));
     renderFeed();
   } catch (e) { console.warn(e); }
   state.feedLoading = false; $("#feed-more").disabled = false;
@@ -863,6 +896,7 @@ function postHTML(c) {
     <header class="post-head" data-owner="${esc(c.ownerUid || "")}" role="link" tabindex="0">
       <span class="post-av">${c.ownerPhoto ? `<img src="${esc(c.ownerPhoto)}" alt="" referrerpolicy="no-referrer">` : esc(initials(c.ownerName))}</span>
       <div><strong>${esc(c.ownerName || "RCMI")}</strong>${c.ownerCity ? `<small>${esc(c.ownerCity)}</small>` : ""}</div>
+      ${isAdmin() ? `<button type="button" class="post-mod" data-mod-post="${esc(c.id)}" aria-label="${t("mod_title")}" title="${t("mod_title")}">⋯</button>` : ""}
     </header>
     <div class="post-media">
       ${photos.length ? `<div class="post-track">${photos.map(p => `<img src="${photoSrc(p)}" alt="${esc(c.name)}" loading="lazy" draggable="false">`).join("")}</div>
@@ -995,7 +1029,7 @@ async function openDeepLink() {
     const id = decodeURIComponent(m[1]);
     let c = state.feed.find(x => x.id === id);
     if (!c) { try { const s = await getDoc(doc(db, "cars", id)); c = s.exists() ? { id: s.id, ...s.data() } : null; } catch (e) {} }
-    if (!c || c.hidden) { toast(t("not_found")); return; }
+    if (!c || c.hidden || (c.modHidden && !isAdmin() && c.ownerUid !== state.user?.uid)) { toast(t("not_found")); return; }
     state.deepPost = c;
     openModal(`<div class="post-modal">${postHTML(c)}</div>`); $("#modal-body").onclick = null;
     wireCarousels($("#modal-body"));
@@ -1008,7 +1042,7 @@ async function openDeepLink() {
     const id = decodeURIComponent(m[1]);
     let l = state.listings.find(x => x.id === id);
     if (!l) { try { const s = await getDoc(doc(db, "listings", id)); l = s.exists() ? { id: s.id, ...s.data() } : null; } catch (e) {} }
-    if (!l || l.hidden) { toast(t("not_found")); return; }
+    if (!l || l.hidden || (l.modHidden && !isAdmin() && l.ownerUid !== state.user?.uid)) { toast(t("not_found")); return; }
     openListing(l);
     modal.addEventListener("close", () => { state.deepOpened = null; history.replaceState(null, "", "#/market"); }, { once: true });
   }
@@ -1038,7 +1072,7 @@ async function renderFeedRoute() {
     try {
       const snap = await getDocs(query(collection(db, "cars"), where("ownerUid", "==", uid)));
       if (state.feedProfile?.uid !== uid) return;
-      state.feedProfile.posts = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(c => !c.hidden)
+      state.feedProfile.posts = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(c => !c.hidden && !c.modHidden)
         .sort((a, b) => ms(b.createdAt) - ms(a.createdAt));
     } catch (e) { state.feedProfile.posts = []; }
   }
@@ -1074,6 +1108,7 @@ $("#feed-profile").addEventListener("click", (e) => {
 });
 // Tap a name or avatar in a post to open that collector's profile.
 document.addEventListener("click", (e) => {
+  if (e.target.closest(".post-mod")) return;
   const h = e.target.closest(".post-head[data-owner]"); if (!h) return;
   if (modal.open) closeModal();
   location.hash = `#/feed/u/${encodeURIComponent(h.dataset.owner)}`;
@@ -1185,7 +1220,9 @@ $("#btn-add-event").addEventListener("click", () => {
 async function loadListings() {
   try {
     const snap = await getDocs(query(collection(db, "listings"), orderBy("createdAt", "desc"), limit(120)));
-    state.listings = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(l => !l.hidden);
+    // Hidden by an admin: only the seller (and admins) still see it, marked as hidden.
+    state.listings = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .filter(l => !l.hidden && (!l.modHidden || l.ownerUid === state.user?.uid || isAdmin()));
     renderListings();
   } catch (e) { fail(e); }
 }
@@ -1197,7 +1234,7 @@ function renderListings() {
     <button type="button" class="item" data-listing="${esc(l.id)}">
       ${l.photos?.[0] ? `<img class="ph" src="${photoSrc(l.photos[0])}" alt="" loading="lazy">` : `<div class="ph ph-empty">1:64</div>`}
       <div class="meta">
-        <span class="tag ${l.status === "sold" ? "tag-sold" : "tag-" + esc(l.type)}">${l.status === "sold" ? t("sold") : typeLabel(l.type)}</span>
+        <span class="tag ${l.status === "sold" ? "tag-sold" : "tag-" + esc(l.type)}">${l.status === "sold" ? t("sold") : typeLabel(l.type)}</span>${l.modHidden ? ` <span class="tag tag-hidden">${t("mod_hidden_tag")}</span>` : ""}
         <h3>${esc(l.title)}</h3>
         <p>${l.price ? `<span class="price">${fmtIDR(l.price)}</span> · ` : ""}${esc(l.ownerName)}</p>
       </div>
@@ -1223,7 +1260,11 @@ function openListing(l) {
     ${l.condition ? `<p><strong>${t("l_condition")}:</strong> ${esc(l.condition)}</p>` : ""}
     ${l.description ? `<p>${esc(l.description)}</p>` : ""}
     <p class="muted">${esc(l.ownerName)} · ${fmtDate(l.createdAt, { day: "numeric", month: "short" })}</p>
+    ${l.modHidden ? `<p class="mod-note">🚫 ${t(isAdmin() && l.ownerUid !== state.user?.uid ? "mod_hidden_admin" : "mod_hidden_owner")}${l.modNote ? `<br><strong>${t("mod_reason")}:</strong> ${esc(l.modNote)}` : ""}</p>` : ""}
     <p class="listing-risk">⚠️ ${t("mn_short")}</p>
+    ${isAdmin() ? `<div class="mod-bar"><small>${t("admin_only")}</small>
+      ${l.modHidden ? `<button type="button" class="btn btn-sm btn-mat" data-act="unhide">${t("mod_unhide")}</button>` : `<button type="button" class="btn btn-sm btn-ghost" data-act="modhide">${t("mod_hide")}</button>`}
+      <button type="button" class="btn btn-sm btn-danger" data-act="moddel">${t("mod_delete")}</button></div>` : ""}
     <div class="form-actions">
       <button type="button" class="btn btn-ghost share-btn" data-act="share">${SHARE_ICON} ${t("share")}</button>
       <button type="button" class="btn btn-ghost" data-act="report">${t("mn_report_listing")}</button>
@@ -1245,6 +1286,8 @@ function openListing(l) {
     if (act === "signin") { closeModal(); openSignInChooser(); return; }
     if (ev.target.closest("[data-act=share]")) { shareListing(l); return; }
     if (act === "report") { closeModal(); openReport(l); return; }
+    if (act === "modhide" || act === "moddel") { openModerate("listings", l, act === "moddel" ? "delete" : "hide"); return; }
+    if (act === "unhide") { await unhidePost("listings", l); closeModal(); return; }
     try {
       if (act === "sold") { await updateDoc(doc(db, "listings", l.id), { status: "sold" }); closeModal(); toast(t("saved")); loadListings(); }
       if (act === "del" && confirm(t("confirm_delete"))) { await deleteDoc(doc(db, "listings", l.id)); closeModal(); toast(t("deleted")); loadListings(); }
@@ -2230,7 +2273,7 @@ $("#admin-inbox").addEventListener("click", async (e) => {
 /* ================= Admin ================= */
 async function loadAdmin() {
   if (!isAdmin()) return;
-  refreshMigrate();
+  refreshMigrate(); loadModHidden();
   loadInbox();
   try {
     const [pend] = await Promise.all([
@@ -2386,6 +2429,105 @@ $("#mig-run").addEventListener("click", async () => {
   } catch (e) { fail(e); }
   btn.disabled = false; state.feedLoaded = false; state.listingsLoaded = false;
   refreshMigrate();
+});
+
+/* ================= Admin moderation: hide or delete a post with a reason; the owner gets a notice ================= */
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-mod-post]"); if (!b || !isAdmin()) return;
+  e.stopPropagation();
+  const id = b.dataset.modPost;
+  const c = state.feed.find(x => x.id === id) || (state.feedProfile?.posts || []).find(x => x.id === id) || state.deepPost;
+  if (c) openModerate("cars", c, "hide");
+});
+function openModerate(col, item, mode) {
+  const title = item.name || item.title || "";
+  openModal(`
+    <h2>${t("mod_title")}</h2>
+    <p class="muted">${esc(title)} · ${esc(item.ownerName || "")}</p>
+    <form class="form" id="f-mod">
+      <div class="seg" role="group">
+        <button type="button" data-mmode="hide" aria-pressed="${mode === "hide"}">${t("mod_hide")}</button>
+        <button type="button" data-mmode="delete" aria-pressed="${mode === "delete"}">${t("mod_delete")}</button>
+      </div>
+      <label><span>${t("mod_note_label")}</span><textarea name="note" rows="3" maxlength="500" required placeholder="${esc(t("mod_note_ph"))}"></textarea></label>
+      <small class="muted" id="mod-explain">${t(mode === "delete" ? "mod_delete_explain" : "mod_hide_explain")}</small>
+      <div class="form-actions">
+        <button type="button" class="btn btn-ghost" data-act="close">${t("cancel")}</button>
+        <button class="btn btn-danger" type="submit">${t(mode === "delete" ? "mod_delete" : "mod_hide")}</button>
+      </div>
+    </form>`);
+  const f = $("#f-mod"); let m = mode;
+  $("#modal-body").onclick = (ev) => {
+    if (ev.target.dataset.act === "close") closeModal();
+    const mb = ev.target.closest("[data-mmode]"); if (!mb) return;
+    m = mb.dataset.mmode;
+    f.querySelectorAll("[data-mmode]").forEach(x => x.setAttribute("aria-pressed", String(x === mb)));
+    $("#mod-explain").textContent = t(m === "delete" ? "mod_delete_explain" : "mod_hide_explain");
+    f.querySelector("[type=submit]").textContent = t(m === "delete" ? "mod_delete" : "mod_hide");
+  };
+  f.addEventListener("submit", async (e) => {
+    e.preventDefault(); const btn = f.querySelector("[type=submit]"); btn.disabled = true;
+    const note = f.note.value.trim();
+    try {
+      const batch = writeBatch(db);
+      const ref = doc(db, col, item.id);
+      if (m === "delete") batch.delete(ref);
+      else batch.update(ref, { modHidden: true, modNote: note, modBy: state.user.uid, modAt: serverTimestamp() });
+      if (item.ownerUid) batch.set(doc(collection(db, "notices")), {
+        uid: item.ownerUid, kind: m === "delete" ? "deleted" : "hidden", target: col === "cars" ? "collection" : "market",
+        postId: item.id, title: String(title).slice(0, 100), note, by: state.user.uid, at: serverTimestamp(), read: false
+      });
+      await batch.commit();
+      closeModal(); toast(t(m === "delete" ? "mod_deleted_done" : "mod_hidden_done"));
+      afterModeration(col);
+    } catch (err) { fail(err); btn.disabled = false; }
+  });
+}
+async function unhidePost(col, item) {
+  if (!confirm(t("mod_unhide_confirm", { title: item.name || item.title || "" }))) return;
+  try {
+    const batch = writeBatch(db);
+    batch.update(doc(db, col, item.id), { modHidden: false, modNote: "", modBy: state.user.uid, modAt: serverTimestamp() });
+    if (item.ownerUid) batch.set(doc(collection(db, "notices")), { uid: item.ownerUid, kind: "unhidden", target: col === "cars" ? "collection" : "market",
+      postId: item.id, title: String(item.name || item.title || "").slice(0, 100), note: "", by: state.user.uid, at: serverTimestamp(), read: false });
+    await batch.commit();
+    toast(t("mod_unhidden_done")); afterModeration(col);
+  } catch (e) { fail(e); }
+}
+function afterModeration(col) {
+  if (col === "cars") { state.feedLoaded = false; state.feedProfile = null; if (location.hash.startsWith("#/feed")) { state.feedLoaded = true; loadFeed(true); renderFeedRoute(); } }
+  else { state.listingsLoaded = false; if (location.hash.startsWith("#/market")) { state.listingsLoaded = true; loadListings(); } }
+  if (state.tab === "admin" && !$("#app").hidden) loadModHidden();
+}
+async function loadModHidden() {
+  if (!isAdmin()) return;
+  try {
+    const [cs, ls] = await Promise.all([
+      getDocs(query(collection(db, "cars"), where("modHidden", "==", true))),
+      getDocs(query(collection(db, "listings"), where("modHidden", "==", true)))
+    ]);
+    const list = state.modHiddenList = [...cs.docs.map(d => ({ col: "cars", id: d.id, ...d.data() })), ...ls.docs.map(d => ({ col: "listings", id: d.id, ...d.data() }))]
+      .sort((a, b) => ms(b.modAt) - ms(a.modAt));
+    $("#admin-modhidden-count").textContent = `(${list.length})`;
+    $("#admin-modhidden").innerHTML = list.length ? list.map(x => `
+      <div class="row">
+        ${x.photos?.[0] ? `<img src="${photoSrc(x.photos[0])}" alt="" style="border-radius:8px">` : ""}
+        <div class="grow"><strong>${esc(x.name || x.title || "")}</strong><span class="type-tag">${t(x.col === "cars" ? "nav_feed" : "nav_market")}</span>
+          <small>${esc(x.ownerName || "")}${x.modAt ? " · " + fmtDate(x.modAt, { day: "numeric", month: "short", year: "numeric" }) : ""}</small>
+          ${x.modNote ? `<small>${t("mod_reason")}: ${esc(x.modNote)}</small>` : ""}</div>
+        <div class="actions">
+          <button class="btn btn-sm btn-mat" data-unhide="${esc(x.col)}:${esc(x.id)}">${t("mod_unhide")}</button>
+          <button class="btn btn-sm btn-danger" data-moddel="${esc(x.col)}:${esc(x.id)}">${t("mod_delete")}</button>
+        </div>
+      </div>`).join("") : `<p class="muted">${t("mod_none")}</p>`;
+  } catch (e) { console.warn(e); }
+}
+$("#admin-modhidden").addEventListener("click", (e) => {
+  const u = e.target.closest("[data-unhide]"), d = e.target.closest("[data-moddel]");
+  const key = (u || d)?.dataset[u ? "unhide" : "moddel"]; if (!key) return;
+  const [col, id] = key.split(":");
+  const x = (state.modHiddenList || []).find(y => y.col === col && y.id === id); if (!x) return;
+  if (u) unhidePost(col, x); else openModerate(col, x, "delete");
 });
 
 /* Reject: remove the request entirely, so the person goes back to the start and can sign up again. */
