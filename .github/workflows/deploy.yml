@@ -17,6 +17,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      - name: Stamp a fresh version on CSS/JS links
+        run: sh scripts/bump-version.sh
       - name: Deploy hosting + Firestore rules
         env:
           SA_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}

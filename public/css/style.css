@@ -461,3 +461,53 @@ dialog::backdrop { background: rgba(18, 20, 28, .65); }
 .acct-opt small { display: block; color: var(--muted); font-weight: 400; font-size: .86rem; line-height: 1.4; }
 .type-tag { display: inline-block; font-size: .72rem; font-weight: 700; padding: 1px 7px; border-radius: 3px; background: var(--navy); color: #fff; margin-left: 6px; vertical-align: middle; }
 .type-tag.general { background: var(--yellow); color: var(--navy); }
+
+/* ---------- Finance (Laba Rugi) ---------- */
+.fin-head h2 { margin: 0; }
+.fin-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.fin-actions .search { width: auto; }
+.fin-import { display: inline-flex; align-items: center; cursor: pointer; }
+.fin-note { margin-top: -8px; font-size: .9rem; }
+.fin-empty { text-align: left; max-width: 640px; }
+.fin-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 20px; }
+.fin-tile { background: var(--surface); border-radius: var(--radius-m); padding: 14px 16px; box-shadow: 0 0 0 1px var(--line); border-top: 5px solid var(--navy); }
+.fin-tile span { display: block; color: var(--muted); font-size: .85rem; font-weight: 600; }
+.fin-tile b { display: block; font-family: var(--display); font-style: italic; font-weight: 800; font-size: 1.6rem; line-height: 1.15; }
+.fin-tile.pos { border-top-color: var(--good); } .fin-tile.pos b { color: var(--good); }
+.fin-tile.neg { border-top-color: var(--danger); } .fin-tile.neg b { color: var(--danger); }
+.fin-tile.dark { background: var(--navy); color: #fff; border-top-color: var(--red); } .fin-tile.dark span { color: rgba(255,255,255,.7); }
+.fin-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 20px; align-items: start; margin-bottom: 20px; }
+.fin-side { display: grid; gap: 16px; }
+.fin-pl h3, .fin-card h3, .fin-monthly h3 { margin-bottom: 2px; font-style: italic; }
+.fin-table { width: 100%; border-collapse: collapse; font-size: .95rem; font-variant-numeric: tabular-nums; }
+.fin-table td, .fin-table th { padding: 6px 4px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+.fin-table th { font-size: .8rem; color: var(--muted); font-weight: 700; }
+.fin-table .num { text-align: right; white-space: nowrap; }
+.fin-table tr.sec td { padding-top: 16px; font-family: var(--display); font-style: italic; font-weight: 800; font-size: 1.15rem; border-bottom: 2px solid var(--navy); }
+.fin-table tr.grp td { font-weight: 700; padding-top: 10px; }
+.fin-table tr.sub td:first-child { padding-left: 16px; color: var(--muted); }
+.fin-table tr.total td { font-weight: 700; border-top: 2px solid var(--navy); }
+.fin-table tr.net td { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 1.25rem; border-top: 3px double var(--navy); border-bottom: 0; }
+.fin-table td small { display: block; color: var(--muted); }
+.fin-table .neg { color: var(--danger); }
+.fin-card .net td.num { color: inherit; }
+.small { font-size: .85rem; }
+.fin-warn { background: #FFF6D9; border-left: 5px solid var(--yellow); border-radius: var(--radius-s); padding: 14px 16px; }
+.fin-warn h3 { font-size: 1.1rem; font-style: italic; margin-bottom: 6px; }
+.fin-warn p { margin: 0 0 .5em; font-size: .92rem; }
+.fin-monthly { margin-bottom: 20px; overflow-x: auto; }
+.fin-ledger { overflow-x: auto; }
+.fin-ledger summary { cursor: pointer; }
+.fin-ledger table { margin-top: 12px; }
+@media (max-width: 860px) {
+  .fin-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .fin-grid { grid-template-columns: 1fr; }
+  .fin-tile b { font-size: 1.3rem; }
+}
+@media print {
+  .topbar, .tabs, .foot, .fin-actions, .fin-note, .fin-ledger, #app > :not(#view-finance), .toast { display: none !important; }
+  body { background: #fff; }
+  #app { padding: 0; max-width: none; }
+  .panel-flat, .fin-tile { box-shadow: none; border: 1px solid #ccc; }
+  .fin-grid { grid-template-columns: 1fr 1fr; }
+}

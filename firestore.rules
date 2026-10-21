@@ -135,6 +135,12 @@ service cloud.firestore {
       allow delete: if admin();
     }
 
+    // ---------- Finance (Laba Rugi) ----------
+    // The treasurer's ledger (imported from the KEUANGAN RCMI sheet). Admins only.
+    match /finance/{id} {
+      allow read, write: if admin();
+    }
+
     // Member-number counter, managed by admins during approval.
     match /counters/{id} {
       allow read, write: if admin();

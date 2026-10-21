@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;1,600;1,700;1,800&family=Barlow:wght@400;500;600;700&family=Noto+Serif:wght@700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/style.css?v=1792596508">
+  <link rel="stylesheet" href="/css/style.css?v=1792596683">
   <link rel="icon" type="image/png" href="/img/icon-64.png">
   <link rel="apple-touch-icon" href="/img/icon-192.png">
   <meta property="og:image" content="/img/icon-512.png">
@@ -179,6 +179,7 @@
         <a href="#/members" data-tab="members" data-i18n="tab_members">Anggota</a>
         <a href="#/dues" data-tab="dues" data-i18n="tab_dues">Iuran</a>
         <a href="#/card" data-tab="card" data-i18n="tab_card" id="tab-card">Kartu saya</a>
+        <a href="#/finance" data-tab="finance" data-i18n="tab_finance" id="tab-finance" hidden>Keuangan</a>
         <a href="#/admin" data-tab="admin" data-i18n="tab_admin" id="tab-admin" hidden>Admin</a>
       </nav>
 
@@ -240,6 +241,19 @@
         </form>
       </div>
 
+      <div class="view" id="view-finance" hidden>
+        <div class="view-head fin-head">
+          <h2 data-i18n="fin_title"></h2>
+          <div class="fin-actions">
+            <select id="fin-period" class="search" aria-label="Periode"></select>
+            <label class="btn btn-ghost fin-import"><span data-i18n="fin_import"></span><input type="file" id="fin-file" accept=".csv,text/csv" hidden></label>
+            <button type="button" class="btn btn-ghost" id="fin-print" data-i18n="fin_print"></button>
+          </div>
+        </div>
+        <p class="muted fin-note"><span data-i18n="fin_only_admin"></span> <span id="fin-source"></span></p>
+        <div id="fin-body"></div>
+      </div>
+
       <div class="view" id="view-admin" hidden>
         <h2 data-i18n="pending_requests"></h2>
         <div class="rows" id="admin-pending"></div>
@@ -271,6 +285,6 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="/js/app.js?v=1792596508"></script>
+  <script type="module" src="/js/app.js?v=1792596683"></script>
 </body>
 </html>

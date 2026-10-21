@@ -7,10 +7,11 @@ import {
   getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, collection, query, where,
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig } from "./config.js?v=1792596508";
+import { firebaseConfig } from "./config.js?v=1792596683";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792596508";
-import { SEED_EVENTS } from "./seed-events.js?v=1792596508";
+import { GALLERY } from "./gallery-data.js?v=1792596683";
+import { SEED_EVENTS } from "./seed-events.js?v=1792596683";
+import { parseLedgerCSV, buildPL, balanceIssues } from "./finance.js?v=1792596683";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -263,6 +264,7 @@ onAuthStateChanged(auth, (user) => {
       state.profile = { id: snap.id, ...snap.data() };
       state.gate = ["pending", "rejected"].includes(state.profile.status) ? state.profile.status : null;
       $("#tab-admin").hidden = state.profile.role !== "admin";
+      $("#tab-finance").hidden = state.profile.role !== "admin";
       $("#btn-add-event").hidden = state.profile.role !== "admin";
       const general = isGeneral();
       $$('.tabs a[data-tab="members"], .tabs a[data-tab="dues"]').forEach(a => { a.hidden = general; });
@@ -360,23 +362,23 @@ $("#form-onboarding").addEventListener("submit", async (e) => {
 });
 
 /* ---------------- routing ---------------- */
-const TABS = ["collection", "events", "members", "dues", "card", "admin"];
+const TABS = ["collection", "events", "members", "dues", "card", "finance", "admin"];
 window.addEventListener("hashchange", render);
 function route() {
   if (!state.profile || state.profile.status !== "approved" || !isMemberRoute()) return;
   const [h, sub = ""] = location.hash.replace(/^#\/?/, "").split("/");
   let tab = TABS.includes(h) ? h : "collection";
   state.sub = decodeURIComponent(sub);
-  if (tab === "admin" && state.profile.role !== "admin") tab = "collection";
+  if ((tab === "admin" || tab === "finance") && state.profile.role !== "admin") tab = "collection";
   if (isGeneral() && (tab === "members" || tab === "dues")) tab = "events";
   state.tab = tab;
   $$(".tabs a").forEach(a => { if (a.dataset.tab === tab) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
   TABS.forEach(n => { $(`#view-${n}`).hidden = n !== tab; });
-  ({ collection: loadCars, events: loadEvents, members: loadMembers, dues: loadDues, card: () => fetchRoster().catch(() => {}).then(renderCard), admin: loadAdmin })[tab]();
+  ({ collection: loadCars, events: loadEvents, members: loadMembers, dues: loadDues, finance: loadFinance, card: () => fetchRoster().catch(() => {}).then(renderCard), admin: loadAdmin })[tab]();
 }
 function rerender() {
   if ($("#app").hidden) return;
-  ({ collection: renderCars, events: renderEvents, members: showMembers, dues: renderDues, card: renderCard, admin: loadAdmin })[state.tab]();
+  ({ collection: renderCars, events: renderEvents, members: showMembers, dues: renderDues, finance: renderFinance, card: renderCard, admin: loadAdmin })[state.tab]();
 }
 const isAdmin = () => state.profile?.role === "admin";
 // Two account types: RCMI members, and general users (non-members). Older accounts without the field are members.
@@ -1096,6 +1098,135 @@ $("#form-profile").addEventListener("submit", async (e) => {
     saveContact({ displayName: f.displayName.value.trim(), whatsapp: f.whatsapp.value.trim(), instagram: f.instagram.value });
     toast(t("profile_saved"));
   } catch (err) { fail(err); }
+});
+
+/* ================= Finance: Laba Rugi (admins only) ================= */
+state.finPeriod = "all";
+async function loadFinance() {
+  if (!isAdmin()) return;
+  try {
+    const snap = await getDoc(doc(db, "finance", "ledger"));
+    state.ledger = snap.exists() ? snap.data() : null;
+    renderFinance();
+  } catch (e) { fail(e); }
+}
+const idr = (n) => (n < 0 ? "(" : "") + "Rp" + Math.abs(Math.round(n)).toLocaleString("id-ID") + (n < 0 ? ")" : "");
+const monthName = (ym) => { const [y, m] = ym.split("-").map(Number); return new Date(y, m - 1, 1).toLocaleDateString(locale(), { month: "long", year: "numeric" }); };
+function periodRange(p) {
+  if (p === "all") return ["", "9999-12-31"];
+  if (/^\d{4}$/.test(p)) return [`${p}-01-01`, `${p}-12-31`];
+  return [`${p}-01`, `${p}-31`];
+}
+function renderFinance() {
+  const body = $("#fin-body"); if (!body) return;
+  const L = state.ledger;
+  $("#fin-source").textContent = L ? t("fin_imported", { n: L.rows.length, date: fmtDate(L.importedAt, { day: "numeric", month: "short", year: "numeric" }), file: L.fileName || "CSV" }) : "";
+  const sel = $("#fin-period");
+  if (!L || !L.rows?.length) {
+    sel.hidden = true; $("#fin-print").hidden = true;
+    body.innerHTML = `<div class="empty fin-empty"><p><strong>${t("fin_empty")}</strong></p><p>${t("fin_import_help")}</p></div>`;
+    return;
+  }
+  sel.hidden = false; $("#fin-print").hidden = false;
+  const rows = L.rows;
+  const years = [...new Set(rows.map(r => r.date.slice(0, 4)))].sort();
+  const months = [...new Set(rows.map(r => r.date.slice(0, 7)))].sort();
+  sel.innerHTML = `<option value="all">${t("fin_period_all")}</option>`
+    + years.map(y => `<option value="${y}">${y}</option>`).join("")
+    + `<optgroup label="${t("fin_month")}">${months.map(m => `<option value="${m}">${monthName(m)}</option>`).join("")}</optgroup>`;
+  sel.value = state.finPeriod;
+  const [from, to] = periodRange(state.finPeriod);
+  const pl = buildPL(rows, from, to);
+  const issues = balanceIssues(rows);
+  const periodLabel = state.finPeriod === "all" ? `${fmtDate(rows[0].date, { day: "numeric", month: "short", year: "numeric" })} – ${fmtDate(rows.at(-1).date, { day: "numeric", month: "short", year: "numeric" })}` : (/^\d{4}$/.test(state.finPeriod) ? state.finPeriod : monthName(state.finPeriod));
+  const line = (label, amt, cls = "") => `<tr class="${cls}"><td>${esc(label)}</td><td class="num">${idr(amt)}</td></tr>`;
+
+  body.innerHTML = `
+    <div class="fin-tiles">
+      <div class="fin-tile"><span>${t("fin_income")}</span><b>${idr(pl.totalIncome)}</b></div>
+      <div class="fin-tile"><span>${t("fin_expense")}</span><b>${idr(pl.totalExpense)}</b></div>
+      <div class="fin-tile ${pl.net < 0 ? "neg" : "pos"}"><span>${t(pl.net < 0 ? "fin_deficit" : "fin_surplus")}</span><b>${idr(pl.net)}</b></div>
+      <div class="fin-tile dark"><span>${t("fin_closing")}</span><b>${idr(pl.closing)}</b></div>
+    </div>
+
+    <div class="fin-grid">
+      <section class="panel-flat fin-pl">
+        <h3>${t("fin_pl_title")}</h3>
+        <p class="muted">${esc(periodLabel)} · ${t("fin_tx", { n: pl.count })}</p>
+        <table class="fin-table">
+          <tbody>
+            <tr class="sec"><td colspan="2">${t("fin_income")}</td></tr>
+            ${pl.income.map(l => line(l.label, l.amount)).join("")}
+            ${line(t("fin_total_income"), pl.totalIncome, "total")}
+            <tr class="sec"><td colspan="2">${t("fin_expense")}</td></tr>
+            ${pl.groups.map(g => `
+              <tr class="grp"><td>${esc(g.name)}</td><td class="num">${idr(g.total)}</td></tr>
+              ${g.lines.map(l => line(l.label, l.amount, "sub")).join("")}`).join("")}
+            ${line(t("fin_total_expense"), pl.totalExpense, "total")}
+            ${line(t(pl.net < 0 ? "fin_deficit" : "fin_surplus"), pl.net, "net")}
+            ${state.finPeriod !== "all" ? line(t("fin_opening"), pl.opening, "sub") + line(t("fin_closing"), pl.closing, "sub") : ""}
+          </tbody>
+        </table>
+      </section>
+
+      <div class="fin-side">
+        ${pl.ids.income || pl.ids.expense ? `
+        <section class="panel-flat fin-card">
+          <h3>${t("fin_ids_title")}</h3>
+          <table class="fin-table">
+            ${line(t("fin_ids_income"), pl.ids.income)}
+            ${line(t("fin_ids_expense"), -pl.ids.expense)}
+            ${line(t("fin_result"), pl.ids.net, "net")}
+          </table>
+          <p class="muted small">${t("fin_ids_note")}</p>
+        </section>` : ""}
+        ${pl.rims.sales || pl.rims.cost ? `
+        <section class="panel-flat fin-card">
+          <h3>${t("fin_rims_title")}</h3>
+          <table class="fin-table">
+            ${line(t("fin_rims_sales", { n: pl.rims.sets }), pl.rims.sales)}
+            ${line(t("fin_rims_cost"), -pl.rims.cost)}
+            ${line(t("fin_result"), pl.rims.net, "net")}
+          </table>
+          <p class="muted small">${t("fin_rims_note")}</p>
+        </section>` : ""}
+        ${issues.length ? `
+        <section class="fin-warn">
+          <h3>${t("fin_issues_title")}</h3>
+          ${issues.slice(0, 1).map(i => `<p>${t("fin_issue_line", { no: i.no, date: fmtDate(i.date, { day: "numeric", month: "short", year: "numeric" }), desc: esc(i.desc), sheet: idr(i.saldo), calc: idr(i.calc), diff: idr(i.diff) })}</p>`).join("")}
+          <p class="small">${t("fin_issue_end", { sheet: idr(rows.at(-1).saldo ?? 0), calc: idr(rows.reduce((a, r) => a + r.income - r.expense, 0)) })}</p>
+        </section>` : ""}
+      </div>
+    </div>
+
+    <section class="panel-flat fin-monthly">
+      <h3>${t("fin_monthly")}</h3>
+      <table class="fin-table cols">
+        <thead><tr><th>${t("fin_month")}</th><th class="num">${t("fin_income")}</th><th class="num">${t("fin_expense")}</th><th class="num">${t("fin_net_short")}</th><th class="num">${t("fin_balance")}</th></tr></thead>
+        <tbody>${pl.monthly.map(m => `<tr><td>${monthName(m.month)}</td><td class="num">${idr(m.income)}</td><td class="num">${idr(m.expense)}</td><td class="num ${m.net < 0 ? "neg" : ""}">${idr(m.net)}</td><td class="num">${idr(m.balance)}</td></tr>`).join("")}</tbody>
+      </table>
+    </section>
+
+    <details class="panel-flat fin-ledger">
+      <summary><strong>${t("fin_ledger", { n: pl.count })}</strong></summary>
+      <table class="fin-table cols">
+        <thead><tr><th>${t("fin_date")}</th><th>${t("fin_desc")}</th><th>${t("fin_category")}</th><th class="num">${t("fin_amount")}</th></tr></thead>
+        <tbody>${pl.detail.map(d => `<tr><td>${fmtDate(d.date, { day: "2-digit", month: "short", year: "2-digit" })}</td><td>${esc(d.desc)}${d.note && d.note !== "-" ? `<small>${esc(d.note)}</small>` : ""}</td><td><small>${esc(d.line)}</small></td><td class="num ${d.kind === "expense" ? "neg" : ""}">${d.kind === "expense" ? "−" : ""}${idr(d.amount)}</td></tr>`).join("")}</tbody>
+      </table>
+    </details>`;
+}
+$("#fin-period").addEventListener("change", (e) => { state.finPeriod = e.target.value; renderFinance(); });
+$("#fin-print").addEventListener("click", () => window.print());
+$("#fin-file").addEventListener("change", async (e) => {
+  const file = e.target.files[0]; if (!file) return;
+  try {
+    const rows = parseLedgerCSV(await file.text());
+    if (!rows.length) throw new Error(t("fin_parse_empty"));
+    await setDoc(doc(db, "finance", "ledger"), { rows, fileName: file.name, importedAt: serverTimestamp(), importedBy: state.user.uid });
+    toast(t("fin_import_done", { n: rows.length }));
+    state.finPeriod = "all"; loadFinance();
+  } catch (err) { fail(err); }
+  e.target.value = "";
 });
 
 /* ================= Admin ================= */
