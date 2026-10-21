@@ -52,7 +52,7 @@ export const STRINGS = {
     rejected_title: "Pendaftaran belum disetujui",
     rejected_lead: "Hubungi admin RCMI lewat Instagram kalau menurutmu ini keliru.",
 
-    tab_collection: "Koleksi",
+    tab_collection: "Koleksiku",
     tab_events: "Acara",
     tab_market: "Pasar",
     tab_card: "Kartu saya",
@@ -512,7 +512,7 @@ export const STRINGS = {
     rejected_title: "Your request wasn't approved",
     rejected_lead: "Message the RCMI admins on Instagram if you think this is a mistake.",
 
-    tab_collection: "Collection",
+    tab_collection: "My Collection",
     tab_events: "Events",
     tab_market: "Market",
     tab_card: "My card",
