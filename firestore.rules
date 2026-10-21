@@ -1,11 +1,14 @@
 rules_version = '2';
 
 // RCMI — Resin Car Model Indonesia
+// Two account types (users.accountType):
+//   - "member"  (RCMI member; older accounts without the field count as members)
+//   - "general" (signed-in non-member, approved by an admin)
 // Who can do what:
-//   - Anyone signed in with Google can create their own member request (status "pending").
-//   - Only approved members can read members, collection, events and marketplace.
-//   - Members edit only their own profile fields, cars and listings.
-//   - Admins approve members, assign member numbers and manage events.
+//   - Everyone, signed in or not: browse the market.
+//   - Approved members AND general users: post in the market, see sellers' WhatsApp, events + RSVP, view the collection.
+//   - Approved members only: member list & profiles, member card, monthly dues, adding cars to the collection.
+//   - Admins approve sign-ups, assign member numbers and manage events.
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -15,6 +18,7 @@ service cloud.firestore {
     function hasProfile() { return signedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)); }
     function approved() { return hasProfile() && me().status == 'approved'; }
     function admin() { return approved() && me().role == 'admin'; }
+    function member() { return approved() && me().get('accountType', 'member') == 'member'; }
     function str(v, max) { return v is string && v.size() <= max; }
     function photosOk(p) { return p is list && p.size() <= 3; }
     // Pre-registered members: admins add invites/{gmail} → { rosterId, memberNo }.
@@ -30,21 +34,23 @@ service cloud.firestore {
 
     // ---------- Members ----------
     match /users/{uid} {
-      allow read: if (signedIn() && request.auth.uid == uid) || approved();
+      allow read: if (signedIn() && request.auth.uid == uid) || member() || admin();
 
       allow create: if signedIn() && request.auth.uid == uid
         && request.resource.data.role == 'member'
+        && request.resource.data.get('accountType', 'member') in ['member', 'general']
         && request.resource.data.email == request.auth.token.email
         && str(request.resource.data.displayName, 80)
         && str(request.resource.data.city, 60)
         && (
           // Normal sign-up: waits for an admin.
-          (request.resource.data.keys().hasOnly(['displayName','email','photoURL','city','instagram','whatsapp','bio','status','role','createdAt','phoneKey'])
+          (request.resource.data.keys().hasOnly(['displayName','email','photoURL','city','instagram','whatsapp','bio','status','role','createdAt','phoneKey','accountType'])
             && request.resource.data.status == 'pending')
           ||
           // Registered phone number: active straight away as that member (each record can be claimed once).
-          (request.resource.data.keys().hasOnly(['displayName','email','photoURL','city','instagram','whatsapp','bio','status','role','createdAt','memberNo','rosterId','approvedAt','phoneKey'])
+          (request.resource.data.keys().hasOnly(['displayName','email','photoURL','city','instagram','whatsapp','bio','status','role','createdAt','memberNo','rosterId','approvedAt','phoneKey','accountType'])
             && request.resource.data.status == 'approved'
+            && request.resource.data.get('accountType', 'member') == 'member'
             && request.resource.data.phoneKey is string
             && exists(/databases/$(database)/documents/phoneInvites/$(request.resource.data.phoneKey))
             && request.resource.data.rosterId == phoneInvite(request.resource.data.phoneKey).rosterId
@@ -53,8 +59,9 @@ service cloud.firestore {
           ||
           // Registered Google email: same, keyed by the verified email.
           (hasInvite()
-            && request.resource.data.keys().hasOnly(['displayName','email','photoURL','city','instagram','whatsapp','bio','status','role','createdAt','memberNo','rosterId','approvedAt'])
+            && request.resource.data.keys().hasOnly(['displayName','email','photoURL','city','instagram','whatsapp','bio','status','role','createdAt','memberNo','rosterId','approvedAt','accountType'])
             && request.resource.data.status == 'approved'
+            && request.resource.data.get('accountType', 'member') == 'member'
             && request.resource.data.memberNo == invite().memberNo
             && request.resource.data.rosterId == invite().rosterId
             && rosterFree(invite().rosterId))
@@ -70,9 +77,17 @@ service cloud.firestore {
       allow delete: if admin();
     }
 
+    // Seller contact (name + WhatsApp) for the market — readable by any approved account, written by its owner.
+    match /contacts/{uid} {
+      allow read: if approved();
+      allow write: if signedIn() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['name', 'whatsapp', 'instagram'])
+        && str(request.resource.data.name, 80) && str(request.resource.data.whatsapp, 20);
+    }
+
     // Imported roster (from the Google Form): number, name, province — visible to members.
     match /roster/{id} {
-      allow read: if approved();
+      allow read: if member() || admin();
       allow write: if admin();
       // A member activated by phone/email links their account to their own (still unclaimed) record.
       allow update: if approved() && me().rosterId == id
@@ -98,7 +113,7 @@ service cloud.firestore {
     // ---------- Monthly dues ----------
     // Payment settings (bank account, amount, due day) — members read, admins edit.
     match /settings/{id} {
-      allow read: if approved();
+      allow read: if member() || admin();
       allow write: if admin();
     }
     // One document per member per month: dues/{rosterId}_{YYYY-MM}.
@@ -128,7 +143,7 @@ service cloud.firestore {
     // ---------- Collection showcase ----------
     match /cars/{carId} {
       allow read: if approved();
-      allow create: if approved()
+      allow create: if member()
         && request.resource.data.ownerUid == request.auth.uid
         && str(request.resource.data.name, 100)
         && photosOk(request.resource.data.photos);
@@ -150,11 +165,13 @@ service cloud.firestore {
     }
 
     // ---------- Marketplace / trade ----------
+    // Public market: anyone can browse; only approved members post. Phone numbers never stored in listings.
     match /listings/{listingId} {
-      allow read: if approved();
+      allow read: if true;
       allow create: if approved()
         && request.resource.data.ownerUid == request.auth.uid
         && request.resource.data.type in ['sell','trade','wanted']
+        && !('ownerWhatsapp' in request.resource.data)
         && str(request.resource.data.title, 100)
         && photosOk(request.resource.data.photos);
       allow update: if (approved() && resource.data.ownerUid == request.auth.uid

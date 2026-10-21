@@ -217,9 +217,14 @@ function render() {
   $("#btn-area").hidden = !user || member;
   $("#btn-home").hidden = !user || !member;
   $$(".js-signin").forEach(b => { b.dataset.i18n = user ? "open_member_area" : "sign_in"; b.textContent = t(b.dataset.i18n); });
+  if (location.hash === "#/market") { history.replaceState(null, "", "#market"); }
   if (!member) {
     const wasApp = lastScreen !== "landing";
     show("landing");
+    const canPost = state.profile?.status === "approved";
+    $("#btn-add-listing").hidden = !canPost;
+    $("#market-hint").hidden = canPost;
+    if (!state.listingsLoaded) { state.listingsLoaded = true; loadListings(); } else renderListings();
     const id = location.hash.slice(1);
     if (id && !id.startsWith("/")) requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView());
     else if (wasApp) window.scrollTo(0, 0);
@@ -235,6 +240,7 @@ onAuthStateChanged(auth, (user) => {
   if (unsubProfile) { unsubProfile(); unsubProfile = null; }
   $("#user-chip").hidden = !user;
   if (!user) { state.profile = null; state.gate = null; render(); return; }
+  state.listingsLoaded = false;
   $("#user-avatar").src = user.photoURL || "";
   $("#user-avatar").hidden = !user.photoURL;
 
@@ -251,19 +257,33 @@ onAuthStateChanged(auth, (user) => {
         const note = $("#invite-note");
         note.hidden = !state.invite;
         if (state.invite) note.textContent = t("invite_found", { no: memberNo(state.invite.memberNo) });
-        $("#form-onboarding [type=submit]").textContent = t(state.invite ? "activate_account" : "send_request");
+        syncAccountType();
       }).catch(() => { state.invite = null; if (!f.displayName.value) f.displayName.value = user.displayName || ""; });
     } else {
       state.profile = { id: snap.id, ...snap.data() };
       state.gate = ["pending", "rejected"].includes(state.profile.status) ? state.profile.status : null;
       $("#tab-admin").hidden = state.profile.role !== "admin";
       $("#btn-add-event").hidden = state.profile.role !== "admin";
+      const general = isGeneral();
+      $$('.tabs a[data-tab="members"], .tabs a[data-tab="dues"]').forEach(a => { a.hidden = general; });
+      const ct = $("#tab-card"); ct.dataset.i18n = general ? "tab_profile" : "tab_card"; ct.textContent = t(ct.dataset.i18n);
+      $("#btn-add-car").hidden = general;
+      if (state.profile.status === "approved" && state.contactSyncedFor !== user.uid) { state.contactSyncedFor = user.uid; saveContact(state.profile); }
     }
     // Just signed in from a "Masuk" button → open the members area; otherwise stay where they are.
     if (wantsEnter()) { setEnter(false); if (!isMemberRoute()) { location.hash = "#/collection"; return; } }
     render();
   }, fail);
 });
+
+function syncAccountType() {
+  const general = $("#form-onboarding").accountType.value === "general";
+  $("#phone-hint").textContent = t(general ? "f_phone_hint_general" : "f_phone_hint");
+  const lead = $("#onb-lead"); lead.dataset.i18n = general ? "onb_lead_general" : "onb_lead"; lead.textContent = t(lead.dataset.i18n);
+  $("#invite-note").hidden = general || !state.invite;
+  $("#form-onboarding [type=submit]").textContent = t(!general && state.invite ? "activate_account" : "send_request");
+}
+$$("#form-onboarding [name=accountType]").forEach(r => r.addEventListener("change", syncAccountType));
 
 // Typed phone number isn't on the RCMI list (or already used): ask for the registered number, or apply as new.
 function showPhoneMismatch(phone, taken) {
@@ -290,10 +310,12 @@ $("#form-onboarding").addEventListener("submit", async (e) => {
   const f = e.target; const u = state.user;
   const btn = f.querySelector("[type=submit]"); btn.disabled = true;
   const key = phoneKey(f.whatsapp.value);
+  const accountType = f.accountType.value === "general" ? "general" : "member";
   try {
-    // 1) Registered Google email (if admins added one), else 2) registered phone number.
-    let inv = state.invite;
-    if (!inv && key) {
+    // Members: 1) registered Google email (if admins added one), else 2) registered phone number.
+    // General users: no matching; they wait for an admin.
+    let inv = accountType === "member" ? state.invite : null;
+    if (accountType === "member" && !inv && key) {
       const snap = await getDoc(doc(db, "phoneInvites", key)).catch(() => null);
       inv = snap?.exists() ? { ...snap.data(), phoneKey: key } : null;
       if (!inv) {
@@ -310,10 +332,12 @@ $("#form-onboarding").addEventListener("submit", async (e) => {
       whatsapp: f.whatsapp.value.trim(),
       bio: f.bio.value.trim(),
       role: "member",
+      accountType,
       createdAt: serverTimestamp(),
       ...(inv ? { status: "approved", memberNo: inv.memberNo, rosterId: inv.rosterId, approvedAt: serverTimestamp(), ...(inv.phoneKey ? { phoneKey: inv.phoneKey } : {}) }
               : { status: "pending", ...(key ? { phoneKey: key } : {}) })
     });
+    saveContact({ displayName: f.displayName.value.trim(), whatsapp: f.whatsapp.value.trim(), instagram: f.instagram.value });
     if (inv) {
       await updateDoc(doc(db, "roster", inv.rosterId), { claimedBy: u.uid }).catch(() => {});
       toast(t("approved_msg", { no: memberNo(inv.memberNo) }));
@@ -327,7 +351,7 @@ $("#form-onboarding").addEventListener("submit", async (e) => {
         try {
           await setDoc(doc(db, "users", u.uid), { displayName: f.displayName.value.trim(), email: u.email, photoURL: u.photoURL || "",
             city: f.city.value.trim(), instagram: igHandle(f.instagram.value), whatsapp: f.whatsapp.value.trim(), bio: f.bio.value.trim(),
-            role: "member", createdAt: serverTimestamp(), status: "pending", phoneKey: key });
+            role: "member", accountType: "member", createdAt: serverTimestamp(), status: "pending", phoneKey: key });
         } catch (e2) { fail(e2); }
       }
     } else fail(err);
@@ -336,7 +360,7 @@ $("#form-onboarding").addEventListener("submit", async (e) => {
 });
 
 /* ---------------- routing ---------------- */
-const TABS = ["collection", "events", "market", "members", "dues", "card", "admin"];
+const TABS = ["collection", "events", "members", "dues", "card", "admin"];
 window.addEventListener("hashchange", render);
 function route() {
   if (!state.profile || state.profile.status !== "approved" || !isMemberRoute()) return;
@@ -344,16 +368,23 @@ function route() {
   let tab = TABS.includes(h) ? h : "collection";
   state.sub = decodeURIComponent(sub);
   if (tab === "admin" && state.profile.role !== "admin") tab = "collection";
+  if (isGeneral() && (tab === "members" || tab === "dues")) tab = "events";
   state.tab = tab;
   $$(".tabs a").forEach(a => { if (a.dataset.tab === tab) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
   TABS.forEach(n => { $(`#view-${n}`).hidden = n !== tab; });
-  ({ collection: loadCars, events: loadEvents, market: loadListings, members: loadMembers, dues: loadDues, card: () => fetchRoster().catch(() => {}).then(renderCard), admin: loadAdmin })[tab]();
+  ({ collection: loadCars, events: loadEvents, members: loadMembers, dues: loadDues, card: () => fetchRoster().catch(() => {}).then(renderCard), admin: loadAdmin })[tab]();
 }
 function rerender() {
   if ($("#app").hidden) return;
-  ({ collection: renderCars, events: renderEvents, market: renderListings, members: showMembers, dues: renderDues, card: renderCard, admin: loadAdmin })[state.tab]();
+  ({ collection: renderCars, events: renderEvents, members: showMembers, dues: renderDues, card: renderCard, admin: loadAdmin })[state.tab]();
 }
 const isAdmin = () => state.profile?.role === "admin";
+// Two account types: RCMI members, and general users (non-members). Older accounts without the field are members.
+const isGeneral = () => state.profile?.accountType === "general";
+// Seller contact for the market, readable by any approved account (members and general users).
+const saveContact = (p) => setDoc(doc(db, "contacts", state.user.uid), {
+  name: String(p.displayName || "").slice(0, 80), whatsapp: String(p.whatsapp || "").slice(0, 20), instagram: igHandle(p.instagram) || ""
+}).catch(() => {});
 const canEdit = (ownerUid) => ownerUid === state.user?.uid || isAdmin();
 
 /* ================= Collection ================= */
@@ -536,7 +567,8 @@ $$("[data-mfilter]").forEach(b => b.addEventListener("click", () => {
 $("#listings").addEventListener("click", (e) => {
   const el = e.target.closest("[data-listing]"); if (!el) return;
   const l = state.listings.find(x => x.id === el.dataset.listing); if (!l) return;
-  const ig = igHandle(l.ownerInstagram); const wa = waNumber(l.ownerWhatsapp);
+  const ig = igHandle(l.ownerInstagram);
+  const member = state.profile?.status === "approved";
   openModal(`
     ${l.photos?.length ? `<div class="detail-photos">${l.photos.map(p => `<img src="${p}" alt="">`).join("")}</div>` : ""}
     <span class="tag tag-${esc(l.type)}">${typeLabel(l.type)}</span>
@@ -547,12 +579,21 @@ $("#listings").addEventListener("click", (e) => {
     <p class="muted">${esc(l.ownerName)} · ${fmtDate(l.createdAt, { day: "numeric", month: "short" })}</p>
     <div class="form-actions">
       ${ig ? `<a class="btn btn-ghost" target="_blank" rel="noopener" href="https://instagram.com/${encodeURIComponent(ig)}">Instagram</a>` : ""}
-      ${wa ? `<a class="btn btn-mat" target="_blank" rel="noopener" href="https://wa.me/${wa}">${t("contact")} WhatsApp</a>` : ""}
+      <span id="listing-wa">${member ? "" : `<button type="button" class="btn btn-ghost" data-act="signin">${t("wa_signin")}</button>`}</span>
       ${canEdit(l.ownerUid) && l.status !== "sold" ? `<button class="btn btn-ghost" data-act="sold">${t("mark_sold")}</button>` : ""}
       ${canEdit(l.ownerUid) ? `<button class="btn btn-danger" data-act="del">${t("delete")}</button>` : ""}
     </div>`);
+  // Members see the seller's WhatsApp (read from the member list, which only approved members can open).
+  if (member && l.ownerUid) {
+    getDoc(doc(db, "contacts", l.ownerUid)).then(u => {
+      const wa = waNumber(u.exists() ? u.data().whatsapp : "");
+      const box = $("#listing-wa");
+      if (box && wa) box.innerHTML = `<a class="btn btn-mat" target="_blank" rel="noopener" href="https://wa.me/${wa}">${t("contact")} WhatsApp</a>`;
+    }).catch(() => {});
+  }
   $("#modal-body").onclick = async (ev) => {
     const act = ev.target.dataset.act;
+    if (act === "signin") { closeModal(); setEnter(false); signIn(); return; }
     try {
       if (act === "sold") { await updateDoc(doc(db, "listings", l.id), { status: "sold" }); closeModal(); toast(t("saved")); loadListings(); }
       if (act === "del" && confirm(t("confirm_delete"))) { await deleteDoc(doc(db, "listings", l.id)); closeModal(); toast(t("deleted")); loadListings(); }
@@ -589,7 +630,7 @@ $("#btn-add-listing").addEventListener("click", () => {
         type: f.type.value, title: f.title.value.trim(), price: f.price.value ? Number(f.price.value) : null,
         condition: f.condition.value.trim(), description: f.description.value.trim(), photos, status: "open",
         ownerUid: state.user.uid, ownerName: state.profile.displayName,
-        ownerInstagram: state.profile.instagram || "", ownerWhatsapp: state.profile.whatsapp || "",
+        ownerInstagram: state.profile.instagram || "",
         createdAt: serverTimestamp()
       });
       closeModal(); toast(t("saved")); loadListings();
@@ -611,7 +652,7 @@ async function fetchRoster(force = false) {
   // Members who joined on the site without a roster record still get a profile.
   const linked = new Set(roster.map(r => r.claimedBy).filter(Boolean));
   Object.values(state.siteUsers).forEach(u => {
-    if (!linked.has(u.id)) roster.push({ id: "u-" + u.id, memberNo: u.memberNo || null, name: u.displayName, city: u.city, province: "", status: "member", claimedBy: u.id, joined: "" });
+    if (!linked.has(u.id) && u.accountType !== "general") roster.push({ id: "u-" + u.id, memberNo: u.memberNo || null, name: u.displayName, city: u.city, province: "", status: "member", claimedBy: u.id, joined: "" });
   });
   roster.sort((a, b) => (a.memberNo ?? 1e9) - (b.memberNo ?? 1e9) || String(a.name).localeCompare(b.name));
   state.roster = roster;
@@ -1036,6 +1077,7 @@ function cardHTML({ no, name, city, instagram, photoURL, since }) {
 }
 function renderCard() {
   const p = state.profile;
+  $("#member-card").hidden = isGeneral();
   const r = (state.roster || []).find(x => x.id === p.rosterId);
   $("#member-card").innerHTML = cardHTML({
     no: p.memberNo, name: p.displayName, city: p.city, instagram: p.instagram, photoURL: p.photoURL,
@@ -1051,6 +1093,7 @@ $("#form-profile").addEventListener("submit", async (e) => {
       displayName: f.displayName.value.trim(), city: f.city.value.trim(), instagram: igHandle(f.instagram.value),
       whatsapp: f.whatsapp.value.trim(), bio: f.bio.value.trim(), updatedAt: serverTimestamp()
     });
+    saveContact({ displayName: f.displayName.value.trim(), whatsapp: f.whatsapp.value.trim(), instagram: f.instagram.value });
     toast(t("profile_saved"));
   } catch (err) { fail(err); }
 });
@@ -1068,7 +1111,7 @@ async function loadAdmin() {
     $("#admin-pending").innerHTML = pending.length ? pending.map(u => `
       <div class="row">
         <img src="${esc(u.photoURL)}" alt="" referrerpolicy="no-referrer">
-        <div class="grow"><strong>${esc(u.displayName)}</strong>
+        <div class="grow"><strong>${esc(u.displayName)}</strong><span class="type-tag ${u.accountType === "general" ? "general" : ""}">${t(u.accountType === "general" ? "type_general" : "type_member")}</span>
           <small>${esc(u.city)} · ${u.instagram ? "@" + esc(u.instagram) : ""} · ${esc(u.email)}</small>
           ${u.bio ? `<small>${esc(u.bio)}</small>` : ""}</div>
         <div class="actions">
@@ -1079,7 +1122,7 @@ async function loadAdmin() {
     $("#admin-members").innerHTML = members.map(u => `
       <div class="row">
         <img src="${esc(u.photoURL)}" alt="" referrerpolicy="no-referrer">
-        <div class="grow"><strong>${memberNo(u.memberNo)} · ${esc(u.displayName)}</strong>
+        <div class="grow"><strong>${u.accountType === "general" ? "" : memberNo(u.memberNo) + " · "}${esc(u.displayName)}</strong>${u.accountType === "general" ? `<span class="type-tag general">${t("type_general")}</span>` : ""}
           <small>${esc(u.city)} · ${u.instagram ? "@" + esc(u.instagram) : ""}${u.role === "admin" ? " · admin" : ""}</small></div>
         ${u.role !== "admin" ? `<div class="actions"><button class="btn btn-sm btn-ghost" data-mkadmin="${esc(u.id)}">${t("make_admin")}</button></div>` : ""}
       </div>`).join("");
@@ -1200,7 +1243,14 @@ function openApprove(uid) {
 $("#view-admin").addEventListener("click", async (e) => {
   const a = e.target.closest("[data-approve]"), r = e.target.closest("[data-reject]"), m = e.target.closest("[data-mkadmin]");
   try {
-    if (a) openApprove(a.dataset.approve);
+    if (a) {
+      const pu = (state.pending || []).find(x => x.id === a.dataset.approve);
+      if (pu?.accountType === "general") {
+        a.disabled = true;
+        await updateDoc(doc(db, "users", pu.id), { status: "approved", approvedAt: serverTimestamp() });
+        toast(t("approved_general")); loadAdmin();
+      } else openApprove(a.dataset.approve);
+    }
     if (r && confirm(`${t("reject")}?`)) { await updateDoc(doc(db, "users", r.dataset.reject), { status: "rejected" }); loadAdmin(); }
     if (m) { await updateDoc(doc(db, "users", m.dataset.mkadmin), { role: "admin" }); toast(t("saved")); loadAdmin(); }
   } catch (err) { fail(err); }

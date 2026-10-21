@@ -286,6 +286,9 @@ dialog::backdrop { background: rgba(18, 20, 28, .65); }
 
 /* ---------- Gallery ---------- */
 .gallery { padding: clamp(48px, 7vw, 88px) 24px; max-width: 1180px; margin: 0 auto; }
+.market { padding: clamp(48px, 7vw, 88px) 24px; max-width: 1180px; margin: 0 auto; border-top: 1px solid var(--line); }
+.market .view-head { margin-top: 18px; }
+.market-hint { margin: 0; }
 .g-group { margin-top: 40px; }
 .g-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; border-left: 5px solid var(--red); padding-left: 14px; }
 .g-head h3 { margin: 0; font-style: italic; font-size: 1.45rem; }
@@ -364,7 +367,7 @@ dialog::backdrop { background: rgba(18, 20, 28, .65); }
   .profile { grid-template-columns: 1fr; }
 }
 @media (max-width: 600px) {
-  .gallery { padding-left: 16px; padding-right: 16px; }
+  .gallery, .market { padding-left: 16px; padding-right: 16px; }
   .g-grid { grid-template-columns: repeat(3, 1fr); gap: 4px; }
 }
 
@@ -447,3 +450,14 @@ dialog::backdrop { background: rgba(18, 20, 28, .65); }
 .invite-row { display: flex; gap: 8px; }
 .invite-row input { flex: 1; min-width: 0; font: inherit; padding: 8px 10px; min-height: 38px; border: 1.5px solid var(--line); border-radius: var(--radius-s); }
 .invite-form small { display: block; margin-top: 4px; }
+
+/* ---------- Account type choice ---------- */
+.acct { border: 0; padding: 0; margin: 0 0 4px; display: grid; gap: 8px; }
+.acct legend { font-weight: 600; font-size: .92rem; margin-bottom: 6px; padding: 0; }
+.acct-opt { display: grid !important; grid-template-columns: 22px 1fr; gap: 10px; align-items: start; padding: 12px 14px; border: 2px solid var(--line); border-radius: var(--radius-m); cursor: pointer; background: #fff; }
+.acct-opt:has(input:checked) { border-color: var(--red); background: #FFF5F6; }
+.acct-opt input { width: 18px; height: 18px; min-height: 0; margin-top: 2px; accent-color: var(--red); }
+.acct-opt strong { display: block; font-family: var(--display); font-style: italic; font-size: 1.15rem; }
+.acct-opt small { display: block; color: var(--muted); font-weight: 400; font-size: .86rem; line-height: 1.4; }
+.type-tag { display: inline-block; font-size: .72rem; font-weight: 700; padding: 1px 7px; border-radius: 3px; background: var(--navy); color: #fff; margin-left: 6px; vertical-align: middle; }
+.type-tag.general { background: var(--yellow); color: var(--navy); }

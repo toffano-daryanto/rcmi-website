@@ -40,6 +40,11 @@ When an existing member signs in, the **Admin** tab suggests their record by nam
 
 **What's imported and who sees it:** member number, name, city, province and registration date are visible to approved members. Phone numbers and T-shirt orders are admin-only (`rosterPrivate`). Home addresses, birthdates and payment proofs are **not** imported. `data/roster.json` contains phone numbers, so it is git-ignored.
 
+### Two account types
+- **Anggota (member):** RCMI members. Sign up with the registered phone → active immediately (or admin approval). Full access: member list & profiles, member card, monthly dues, collection, events, market.
+- **Pengguna umum (general user):** non-members, approved by an admin. Can post in the market, see sellers' WhatsApp, view events and RSVP, and view the collection. No member list, member card or dues; their "Kartu saya" tab is "Profil saya".
+- The **market is public**: anyone can browse it on the main website without signing in. Sellers' WhatsApp numbers live in `contacts/{uid}` and are shown only to signed-in, approved accounts; visitors see Instagram only.
+
 ### Auto-approve by phone number
 When a member signs up they enter their phone number first. If it matches a number on the RCMI list (from the Google Form import), the account activates immediately as that member — no admin approval. "0812-…", "+62 812…" and "812…" all match. If it doesn't match, a pop-up asks them to change to the number they registered, or continue as a new member (admin approval). Each member record can be claimed only once; a second account using the same number is refused and told to contact an admin.
 

@@ -24,6 +24,7 @@
     <nav class="topnav" id="landing-nav">
       <a href="#about" data-i18n="nav_about">Tentang</a>
       <a href="#gallery" data-i18n="nav_gallery">Galeri</a>
+      <a href="#market" data-i18n="nav_market">Pasar</a>
       <a href="#join" data-i18n="nav_join">Cara bergabung</a>
     </nav>
     <div class="top-actions">
@@ -92,6 +93,22 @@
         <div id="gallery-groups"></div>
       </section>
 
+      <section class="market" id="market">
+        <h2 data-i18n="market_title">Pasar RCMI</h2>
+        <p class="muted" data-i18n="market_lead"></p>
+        <div class="view-head">
+          <div class="seg" role="group">
+            <button type="button" data-mfilter="all" aria-pressed="true" data-i18n="all"></button>
+            <button type="button" data-mfilter="sell" aria-pressed="false" data-i18n="t_sell"></button>
+            <button type="button" data-mfilter="trade" aria-pressed="false" data-i18n="t_trade"></button>
+            <button type="button" data-mfilter="wanted" aria-pressed="false" data-i18n="t_wanted"></button>
+          </div>
+          <button type="button" class="btn btn-mat" id="btn-add-listing" data-i18n="add_listing" hidden></button>
+          <p class="market-hint muted" id="market-hint" data-i18n="market_hint"></p>
+        </div>
+        <div class="grid" id="listings"></div>
+      </section>
+
       <section class="join" id="join">
         <h2 data-i18n="join_title">Cara bergabung</h2>
         <div class="fees">
@@ -125,10 +142,17 @@
     <section id="gate" hidden>
       <div class="panel" id="gate-onboarding" hidden>
         <h1 data-i18n="onb_title"></h1>
-        <p class="muted" data-i18n="onb_lead"></p>
+        <p class="muted" id="onb-lead" data-i18n="onb_lead"></p>
         <p class="invite-note" id="invite-note" hidden></p>
         <form id="form-onboarding" class="form">
-          <label><span data-i18n="f_phone"></span><input name="whatsapp" required maxlength="20" inputmode="tel" autocomplete="tel" placeholder="08…"><small class="muted" data-i18n="f_phone_hint"></small></label>
+          <fieldset class="acct">
+            <legend data-i18n="acct_type"></legend>
+            <label class="acct-opt"><input type="radio" name="accountType" value="member" checked>
+              <span><strong data-i18n="acct_member"></strong><small data-i18n="acct_member_d"></small></span></label>
+            <label class="acct-opt"><input type="radio" name="accountType" value="general">
+              <span><strong data-i18n="acct_general"></strong><small data-i18n="acct_general_d"></small></span></label>
+          </fieldset>
+          <label><span data-i18n="f_phone"></span><input name="whatsapp" required maxlength="20" inputmode="tel" autocomplete="tel" placeholder="08…"><small class="muted" id="phone-hint" data-i18n="f_phone_hint"></small></label>
           <label><span data-i18n="f_name"></span><input name="displayName" required maxlength="80" autocomplete="name"></label>
           <label><span data-i18n="f_city"></span><input name="city" required maxlength="60" autocomplete="address-level2"></label>
           <label><span data-i18n="f_instagram"></span><input name="instagram" required maxlength="40" placeholder="@username"></label>
@@ -152,10 +176,9 @@
       <nav class="tabs" aria-label="Member sections">
         <a href="#/collection" data-tab="collection" data-i18n="tab_collection">Koleksi</a>
         <a href="#/events" data-tab="events" data-i18n="tab_events">Acara</a>
-        <a href="#/market" data-tab="market" data-i18n="tab_market">Pasar</a>
         <a href="#/members" data-tab="members" data-i18n="tab_members">Anggota</a>
         <a href="#/dues" data-tab="dues" data-i18n="tab_dues">Iuran</a>
-        <a href="#/card" data-tab="card" data-i18n="tab_card">Kartu saya</a>
+        <a href="#/card" data-tab="card" data-i18n="tab_card" id="tab-card">Kartu saya</a>
         <a href="#/admin" data-tab="admin" data-i18n="tab_admin" id="tab-admin" hidden>Admin</a>
       </nav>
 
@@ -180,19 +203,6 @@
           <summary data-i18n="past"></summary>
           <div class="events" id="events-past"></div>
         </details>
-      </div>
-
-      <div class="view" id="view-market" hidden>
-        <div class="view-head">
-          <div class="seg" role="group">
-            <button type="button" data-mfilter="all" aria-pressed="true" data-i18n="all"></button>
-            <button type="button" data-mfilter="sell" aria-pressed="false" data-i18n="t_sell"></button>
-            <button type="button" data-mfilter="trade" aria-pressed="false" data-i18n="t_trade"></button>
-            <button type="button" data-mfilter="wanted" aria-pressed="false" data-i18n="t_wanted"></button>
-          </div>
-          <button type="button" class="btn btn-mat" id="btn-add-listing" data-i18n="add_listing"></button>
-        </div>
-        <div class="grid" id="listings"></div>
       </div>
 
       <div class="view" id="view-members" hidden>
