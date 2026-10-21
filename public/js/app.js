@@ -7,12 +7,12 @@ import {
   getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, collection, query, where,
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig } from "./config.js?v=1792598594";
+import { firebaseConfig } from "./config.js?v=1792598982";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792598594";
-import { SEED_EVENTS } from "./seed-events.js?v=1792598594";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792598594";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792598594";
+import { GALLERY } from "./gallery-data.js?v=1792598982";
+import { SEED_EVENTS } from "./seed-events.js?v=1792598982";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792598982";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792598982";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -749,9 +749,22 @@ async function syncMembersFromSheet(sheetId) {
     writes.push(["roster", id, { memberNo: existing.get(id)?.memberNo ?? null, name: a.name, province: a.province || "", status: existing.get(id)?.status || "applicant", applied: a.applied || "" }]);
     writes.push(["rosterPrivate", id, { phone: a.phone || "" }]);
   }
-  for (let i = 0; i < writes.length; i += 400) {
+  // Old applicant entries for people who now have a member number in the sheet are removed (same name or same phone),
+  // unless an account was already linked to them.
+  const memberPhones = new Set(members.map(m => sheetPhoneKey(m.phone)).filter(Boolean));
+  const memberNames = new Set(members.map(m => m.name.toLowerCase().replace(/\s+/g, " ").trim()));
+  const removes = (state.roster || []).filter(r => r.id.startsWith("a-") && !r.claimedBy && (
+    memberNames.has(String(r.name || "").toLowerCase().replace(/\s+/g, " ").trim()) ||
+    memberPhones.has(sheetPhoneKey((state.rosterPrivate[r.id] || {}).phone))
+  )).map(r => r.id);
+  const skip = new Set(removes);
+  const ops = [
+    ...writes.filter(([c, id]) => !((c === "roster" || c === "rosterPrivate") && skip.has(id))).map(w => ["set", ...w]),
+    ...removes.flatMap(id => [["del", "roster", id], ["del", "rosterPrivate", id]])
+  ];
+  for (let i = 0; i < ops.length; i += 400) {
     const batch = writeBatch(db);
-    writes.slice(i, i + 400).forEach(([c, id, data]) => batch.set(doc(db, c, id), data, { merge: true }));
+    ops.slice(i, i + 400).forEach(([op, c, id, data]) => op === "del" ? batch.delete(doc(db, c, id)) : batch.set(doc(db, c, id), data, { merge: true }));
     await batch.commit();
   }
   // Keep the next member number ahead of the highest number in the sheet.
