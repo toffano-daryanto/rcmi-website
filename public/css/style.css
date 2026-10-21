@@ -775,6 +775,7 @@ section[id], [id="contact"], [id="join"] { scroll-margin-top: 96px; }
 .market-rules ol { margin: 12px 0 4px; padding-left: 22px; display: grid; gap: 12px; }
 .market-rules li b { display: block; text-transform: uppercase; letter-spacing: .02em; }
 .market-rules li p { margin: 4px 0 0; color: var(--muted); font-size: .95rem; }
+.market-rules a { color: var(--red); font-weight: 700; }
 .rules-ok { align-items: flex-start !important; font-weight: 500 !important; }
 .rules-ok input { margin-top: 3px; }
 .rules-ok a { color: var(--red); }
