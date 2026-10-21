@@ -14,7 +14,12 @@ const admins = (await db.collection("users").where("role", "==", "admin").get())
 const to = [...new Set([...String(process.env.NOTIFY_TO || "").split(",").map(x => x.trim().toLowerCase()).filter(Boolean), ...admins])];
 console.log(`Test email to ${to.length} admin address(es).`);
 const mail = nodemailer.createTransport({ service: "gmail", auth: { user: GMAIL_USER, pass: GMAIL_APP_PASSWORD } });
-try { await mail.verify(); } catch (e) { console.log(`::error::Gmail refused the sign-in (${e.responseCode || e.code || "error"}). Re-create the app password and paste it again (16 letters, no spaces).`); process.exit(1); }
+try { await mail.verify(); } catch (e) {
+  // Gmail's own reason (never contains the password), e.g. "534-5.7.9 Application-specific password required".
+  const why = String(e.response || e.message || "").replace(/\s+/g, " ").slice(0, 220);
+  console.log(`::error::Gmail refused the sign-in (${e.responseCode || e.code || "error"}): ${why}`);
+  process.exit(1);
+}
 await mail.sendMail({ from: `"RCMI website" <${GMAIL_USER}>`, to: GMAIL_USER, bcc: to, subject: "RCMI: test notification ✅",
   html: `<div style="font-family:Arial,sans-serif;max-width:600px;color:#12141C">
     <h2 style="margin:0 0 8px">RCMI website</h2>
