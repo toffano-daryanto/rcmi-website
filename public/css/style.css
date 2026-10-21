@@ -653,3 +653,7 @@ img[src*="drive.google.com"] { -webkit-user-drag: none; user-select: none; -webk
   .topnav::-webkit-scrollbar { display: none; }
   .topnav a { font-size: .95rem; white-space: nowrap; flex: none; }
 }
+#feedpage .feed-sec { border-top: 0; padding-top: clamp(28px, 5vw, 56px); min-height: 70vh; }
+#feedpage h1 { max-width: 520px; margin: 0 auto 8px; }
+.topnav a.on { opacity: 1; color: var(--yellow); }
+@media (max-width: 600px) { #feedpage h1 { padding: 0 16px; } }

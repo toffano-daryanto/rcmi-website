@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig } from "./config.js?v=1792604141";
+import { firebaseConfig } from "./config.js?v=1792604498";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792604141";
-import { SEED_EVENTS } from "./seed-events.js?v=1792604141";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792604141";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792604141";
+import { GALLERY } from "./gallery-data.js?v=1792604498";
+import { SEED_EVENTS } from "./seed-events.js?v=1792604498";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792604498";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792604498";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -300,7 +300,9 @@ $("#bell-seen").addEventListener("click", async (e) => {
 let lastScreen = "";
 function show(screen) {
   $("#landing").hidden = screen !== "landing";
-  $("#landing-nav").hidden = screen !== "landing";
+  $("#feedpage").hidden = screen !== "feed";
+  $("#landing-nav").hidden = screen !== "landing" && screen !== "feed";
+  $$("#landing-nav a").forEach(a => a.classList.toggle("on", screen === "feed" && a.getAttribute("href") === "#/feed"));
   $("#gate").hidden = screen !== "gate";
   $("#app").hidden = screen !== "app";
   if (screen !== lastScreen && screen !== "landing") window.scrollTo(0, 0);
@@ -359,14 +361,21 @@ function render() {
   $("#btn-home").hidden = !user || !member;
   $$(".js-signin").forEach(b => { b.dataset.i18n = user ? "open_member_area" : "join_cta"; b.textContent = t(b.dataset.i18n); });
   if (location.hash === "#/market") { history.replaceState(null, "", "#market"); }
+  if (location.hash === "#feed") { history.replaceState(null, "", "#/feed"); }
+  // Collection: its own page on the main website, open to everyone.
+  if (location.hash.startsWith("#/feed")) {
+    show("feed");
+    $("#btn-feed-add").hidden = !(state.profile?.status === "approved" && !isGeneral());
+    if (!state.feedLoaded) { state.feedLoaded = true; loadFeed(true); } else renderFeed();
+    return;
+  }
   if (!member) {
     const wasApp = lastScreen !== "landing";
     show("landing");
     const canPost = state.profile?.status === "approved";
     $("#btn-add-listing").hidden = !canPost;
     $("#market-hint").hidden = canPost;
-    if (!state.listingsLoaded) { state.listingsLoaded = true; loadListings(); loadFeed(true); } else { renderListings(); renderFeed(); }
-    $("#btn-feed-add").hidden = !(state.profile?.status === "approved" && !isGeneral());
+    if (!state.listingsLoaded) { state.listingsLoaded = true; loadListings(); } else renderListings();
     const id = location.hash.slice(1);
     if (id && !id.startsWith("/")) requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView());
     else if (wasApp) window.scrollTo(0, 0);
@@ -382,7 +391,7 @@ onAuthStateChanged(auth, (user) => {
   if (unsubProfile) { unsubProfile(); unsubProfile = null; }
   $("#user-chip").hidden = !user;
   if (!user) { state.profile = null; state.gate = null; stopNotifs(); render(); return; }
-  state.listingsLoaded = false;
+  state.listingsLoaded = false; state.feedLoaded = false;
   $("#user-avatar").src = user.photoURL || "";
   $("#user-avatar").hidden = !user.photoURL;
 
@@ -1967,7 +1976,7 @@ document.addEventListener("click", async (e) => {
     const n = await setActive(uid, !!r);
     toast(t(d ? "deact_done" : "react_done", { n }));
     state.roster = null; await fetchRoster(true);
-    state.listingsLoaded = false;
+    state.listingsLoaded = false; state.feedLoaded = false;
     if (state.tab === "admin") loadAdmin(); else if (state.tab === "members") showMembers();
   } catch (err) { fail(err); (d || r).disabled = false; }
 });
