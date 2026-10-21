@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792609188";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792609388";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792609188";
-import { SEED_EVENTS } from "./seed-events.js?v=1792609188";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792609188";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792609188";
+import { GALLERY } from "./gallery-data.js?v=1792609388";
+import { SEED_EVENTS } from "./seed-events.js?v=1792609388";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792609388";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792609388";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -937,7 +937,8 @@ function renderFeed() {
 }
 $("#feed-more").addEventListener("click", () => loadFeed());
 async function toggleLike(id, forceOn = false) {
-  if (!state.user || state.profile?.status !== "approved") { openSignInChooser(); return; }
+  if (!state.user) { toast(t("like_signin")); openSignInChooser(); return; }
+  if (state.profile?.status !== "approved") { toast(t("cmt_need_active")); return; }
   const c = state.feed.find(x => x.id === id) || (state.feedProfile?.posts || []).find(x => x.id === id) || state.searchPosts.find(x => x.id === id); if (!c) return;
   const uid = state.user.uid; const on = (c.likedBy || []).includes(uid);
   if (forceOn && on) return;
@@ -995,6 +996,21 @@ function openReport(l) {
   }, 250);
 }
 document.addEventListener("click", (e) => { if (e.target.closest(".js-report")) { e.preventDefault(); openReport(null); } });
+
+/* Like a market listing (same rule as the collection: sign in first). */
+document.addEventListener("click", async (e) => {
+  const b = e.target.closest("[data-like-listing]"); if (!b) return;
+  if (!state.user) { toast(t("like_signin")); closeModal(); openSignInChooser(); return; }
+  if (state.profile?.status !== "approved") { toast(t("cmt_need_active")); return; }
+  const l = state.listings.find(x => x.id === b.dataset.likeListing) || state.cmtItems[`listings:${b.dataset.likeListing}`]; if (!l) return;
+  const uid = state.user.uid, on = (l.likedBy || []).includes(uid);
+  l.likedBy = on ? l.likedBy.filter(x => x !== uid) : [...(l.likedBy || []), uid];
+  const paint = () => { const n = l.likedBy.length; b.classList.toggle("on", l.likedBy.includes(uid));
+    b.parentElement.querySelector(".like-count").textContent = n ? t(n === 1 ? "likes_one" : "likes_n", { n }) : ""; };
+  paint();
+  try { await updateDoc(doc(db, "listings", l.id), { likedBy: on ? arrayRemove(uid) : arrayUnion(uid) }); renderListings(); }
+  catch (err) { l.likedBy = on ? [...l.likedBy, uid] : l.likedBy.filter(x => x !== uid); paint(); fail(err); }
+});
 
 /* ---- Share (WhatsApp & co.): the phone's share sheet when available, otherwise a small menu ---- */
 const SHARE_ICON = `<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M21 3 10 14M21 3l-7 18-4-7-7-4 18-7Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>`;
@@ -1454,6 +1470,7 @@ function renderListings() {
         <span class="tag ${l.status === "sold" ? "tag-sold" : "tag-" + esc(l.type)}">${l.status === "sold" ? t("sold") : typeLabel(l.type)}</span>${l.modHidden ? ` <span class="tag tag-hidden">${t("mod_hidden_tag")}</span>` : ""}
         <h3>${esc(l.title)}</h3>
         <p>${l.price ? `<span class="price">${fmtIDR(l.price)}</span> · ` : ""}${esc(l.ownerName)}</p>
+        ${(l.likedBy || []).length ? `<p class="l-likes">♥ ${(l.likedBy || []).length}</p>` : ""}
       </div>
     </button>`).join("") : `<p class="empty">${t(words.length ? "search_none" : "empty_market")}</p>`;
 }
@@ -1485,6 +1502,12 @@ function openListing(l) {
     ${isAdmin() ? `<div class="mod-bar"><small>${t("admin_only")}</small>
       ${l.modHidden ? `<button type="button" class="btn btn-sm btn-mat" data-act="unhide">${t("mod_unhide")}</button>` : `<button type="button" class="btn btn-sm btn-ghost" data-act="modhide">${t("mod_hide")}</button>`}
       <button type="button" class="btn btn-sm btn-danger" data-act="moddel">${t("mod_delete")}</button></div>` : ""}
+    <div class="l-like-row">
+      <button type="button" class="like ${(l.likedBy || []).includes(state.user?.uid) ? "on" : ""}" data-like-listing="${esc(l.id)}" aria-label="${t("like")}">
+        <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M12 21s-7.5-4.6-9.6-9.2C.9 8.4 3 4.5 6.8 4.5c2.2 0 3.6 1.2 4.2 2.3h2c.6-1.1 2-2.3 4.2-2.3 3.8 0 5.9 3.9 4.4 7.3C19.5 16.4 12 21 12 21Z"/></svg>
+      </button>
+      <span class="like-count">${(l.likedBy || []).length ? t((l.likedBy || []).length === 1 ? "likes_one" : "likes_n", { n: (l.likedBy || []).length }) : ""}</span>
+    </div>
     <div class="form-actions">
       <button type="button" class="btn btn-ghost share-btn" data-act="share">${SHARE_ICON} ${t("share")}</button>
       <button type="button" class="btn btn-ghost" data-act="report">${t("mn_report_listing")}</button>

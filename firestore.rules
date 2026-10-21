@@ -247,15 +247,19 @@ service cloud.firestore {
           && request.resource.data.ownerUid == request.auth.uid
           && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['hidden', 'modHidden', 'modNote', 'modBy', 'modAt'])
           && carPhotosOk(request.resource.data.photos)) || admin()
-        // Likes: any active account can add or remove only its own uid in likedBy.
-        || (approved()
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likedBy'])
-          && request.resource.data.likedBy is list && request.resource.data.likedBy.size() <= 5000
-          && ((request.resource.data.likedBy.toSet().difference(resource.data.get('likedBy', []).toSet()) == [request.auth.uid].toSet()
-               && resource.data.get('likedBy', []).toSet().difference(request.resource.data.likedBy.toSet()).size() == 0)
-           || (resource.data.get('likedBy', []).toSet().difference(request.resource.data.likedBy.toSet()) == [request.auth.uid].toSet()
-               && request.resource.data.likedBy.toSet().difference(resource.data.get('likedBy', []).toSet()).size() == 0)));
+        || likeOnly();
       allow delete: if (approved() && resource.data.ownerUid == request.auth.uid) || admin();
+    }
+
+    // Likes (collection posts & market listings): any active account can add or remove only its own uid in likedBy.
+    function likeOnly() {
+      return approved()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likedBy'])
+        && request.resource.data.likedBy is list && request.resource.data.likedBy.size() <= 5000
+        && ((request.resource.data.likedBy.toSet().difference(resource.data.get('likedBy', []).toSet()) == [request.auth.uid].toSet()
+             && resource.data.get('likedBy', []).toSet().difference(request.resource.data.likedBy.toSet()).size() == 0)
+         || (resource.data.get('likedBy', []).toSet().difference(request.resource.data.likedBy.toSet()) == [request.auth.uid].toSet()
+             && request.resource.data.likedBy.toSet().difference(resource.data.get('likedBy', []).toSet()).size() == 0));
     }
 
     // Comments (and replies: parent = the comment replied to) on collection posts and market listings.
@@ -311,7 +315,7 @@ service cloud.firestore {
       allow update: if (approved() && resource.data.ownerUid == request.auth.uid
           && request.resource.data.ownerUid == request.auth.uid
           && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['hidden', 'modHidden', 'modNote', 'modBy', 'modAt'])
-          && photosOk(request.resource.data.photos)) || admin();
+          && photosOk(request.resource.data.photos)) || admin() || likeOnly();
       allow delete: if (approved() && resource.data.ownerUid == request.auth.uid) || admin();
     }
   }
