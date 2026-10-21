@@ -281,7 +281,8 @@ service cloud.firestore {
     }
     match /listings/{listingId}/comments/{cid} {
       allow read: if true;
-      allow create: if commentOk();
+      // No new comments once the seller marks the listing sold.
+      allow create: if commentOk() && get(/databases/$(database)/documents/listings/$(listingId)).data.get('status', 'open') != 'sold';
       allow delete: if (signedIn() && resource.data.uid == request.auth.uid) || admin()
         || (signedIn() && get(/databases/$(database)/documents/listings/$(listingId)).data.ownerUid == request.auth.uid);
     }

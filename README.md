@@ -72,6 +72,9 @@ On a Collection post (⋯ button) or a market listing (*Admin only* bar), admins
 ### Search & hashtags
 🔍 on the Collection page searches everyone's posts (car, maker, caption words, #hashtags, member, city) and shows the matches as a photo grid; the Market page has a search box (title, description, condition, seller, #hashtags) that works together with the All/Sell/Trade/Wanted filter. #hashtags in captions and listing descriptions are links that search for that tag.
 
+### Sold & archive (market)
+The seller (or an admin) taps **Mark as sold**: the listing shows *Sold*, comments close (also enforced by the database rules), and 30 days after being marked sold it's archived — no longer shown in the Market (it stays in the database; a shared link still opens it as "Sold and archived").
+
 ### Comments & replies
 Collection posts (💬 icon, "View all N comments", "Add a comment…") and market listings (comments under the listing) have Instagram-style comments. Tap **Reply** under a comment to answer it; replies show indented with "@name". Anyone can read; active accounts can comment; the author, the post's owner and admins can delete a comment. The post's owner gets a bell notification for new comments, and the person replied to gets one for replies; tapping it opens the post. Stored in `cars/{id}/comments` and `listings/{id}/comments`.
 

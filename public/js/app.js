@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792609388";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792609591";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792609388";
-import { SEED_EVENTS } from "./seed-events.js?v=1792609388";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792609388";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792609388";
+import { GALLERY } from "./gallery-data.js?v=1792609591";
+import { SEED_EVENTS } from "./seed-events.js?v=1792609591";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792609591";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792609591";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -1143,6 +1143,8 @@ async function renderCommentsInto(box, col, item) {
   } catch (e) { box.querySelector(".cmt-list").innerHTML = `<p class="muted">${t("cmt_none")}</p>`; }
 }
 function cmtFormHTML(key) {
+  const [kcol, kid] = key.split(":");
+  if (kcol === "listings" && findPost(kcol, kid)?.status === "sold") return `<p class="muted cmt-closed">🔒 ${t("cmt_closed_sold")}</p>`;
   if (!state.user) return `<button type="button" class="btn btn-ghost cmt-signin" data-cmt-signin>${t("cmt_signin")}</button>`;
   if (state.profile?.status !== "approved") return `<p class="muted">${t("cmt_need_active")}</p>`;
   const ph = state.profile.photoURL || state.user.photoURL;
@@ -1453,10 +1455,15 @@ async function loadListings() {
     const snap = await getDocs(query(collection(db, "listings"), orderBy("createdAt", "desc"), limit(120)));
     // Hidden by an admin: only the seller (and admins) still see it, marked as hidden.
     state.listings = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-      .filter(l => !l.hidden && (!l.modHidden || l.ownerUid === state.user?.uid || isAdmin()));
+      .filter(l => !l.hidden && (!l.modHidden || l.ownerUid === state.user?.uid || isAdmin()))
+      .filter(l => !isArchived(l));
     renderListings();
   } catch (e) { fail(e); }
 }
+// Sold listings stay visible (marked Sold) for 30 days, then they're archived: no longer shown in the market.
+const ARCHIVE_DAYS = 30;
+const soldTime = (l) => ms(l.soldAt) || ms(l.createdAt);
+const isArchived = (l) => l.status === "sold" && Date.now() - soldTime(l) > ARCHIVE_DAYS * 864e5;
 const typeLabel = (ty) => t({ sell: "t_sell", trade: "t_trade", wanted: "t_wanted" }[ty] || "t_sell");
 function renderListings() {
   const f = state.marketFilter;
@@ -1498,6 +1505,7 @@ function openListing(l) {
     <p class="muted">${esc(l.ownerName)} · ${fmtDate(l.createdAt, { day: "numeric", month: "short" })}</p>
     ${l.modHidden ? `<p class="mod-note">🚫 ${t(isAdmin() && l.ownerUid !== state.user?.uid ? "mod_hidden_admin" : "mod_hidden_owner")}${l.modNote ? `<br><strong>${t("mod_reason")}:</strong> ${esc(l.modNote)}` : ""}</p>` : ""}
     <p class="listing-risk">⚠️ ${t("mn_short")}</p>
+    ${l.status === "sold" ? `<p class="sold-note">✅ ${t(isArchived(l) ? "sold_archived" : "sold_note", { days: Math.max(1, Math.ceil((soldTime(l) + ARCHIVE_DAYS * 864e5 - Date.now()) / 864e5)) })}</p>` : ""}
     <section class="cmt-inline" data-cmt-inline="listings:${esc(l.id)}"></section>
     ${isAdmin() ? `<div class="mod-bar"><small>${t("admin_only")}</small>
       ${l.modHidden ? `<button type="button" class="btn btn-sm btn-mat" data-act="unhide">${t("mod_unhide")}</button>` : `<button type="button" class="btn btn-sm btn-ghost" data-act="modhide">${t("mod_hide")}</button>`}
@@ -1534,7 +1542,10 @@ function openListing(l) {
     if (act === "modhide" || act === "moddel") { openModerate("listings", l, act === "moddel" ? "delete" : "hide"); return; }
     if (act === "unhide") { await unhidePost("listings", l); closeModal(); return; }
     try {
-      if (act === "sold") { await updateDoc(doc(db, "listings", l.id), { status: "sold" }); closeModal(); toast(t("saved")); loadListings(); }
+      if (act === "sold") {
+        if (!confirm(t("sold_confirm"))) return;
+        await updateDoc(doc(db, "listings", l.id), { status: "sold", soldAt: serverTimestamp() }); closeModal(); toast(t("sold_done")); loadListings();
+      }
       if (act === "del" && confirm(t("confirm_delete"))) { await deleteDoc(doc(db, "listings", l.id)); closeModal(); toast(t("deleted")); loadListings(); }
     } catch (e2) { fail(e2); }
   };
