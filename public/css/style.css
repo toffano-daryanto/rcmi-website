@@ -765,3 +765,16 @@ section[id], [id="contact"], [id="join"] { scroll-margin-top: 96px; }
 /* Posts keep the photo's shape: no cropping */
 .post-media { aspect-ratio: 1 / 1; transition: aspect-ratio .2s; }
 .post-track img { object-fit: contain; background: #0d0f15; }
+
+/* Market rules */
+.market-rules { margin: 0 0 22px; padding: 12px 18px; border-radius: var(--radius-m); background: var(--surface); box-shadow: 0 0 0 1px var(--line); max-width: 760px; }
+.market-rules summary { cursor: pointer; list-style: none; }
+.market-rules summary::-webkit-details-marker { display: none; }
+.market-rules summary::before { content: "▸ "; color: var(--red); }
+.market-rules[open] summary::before { content: "▾ "; }
+.market-rules ol { margin: 12px 0 4px; padding-left: 22px; display: grid; gap: 12px; }
+.market-rules li b { display: block; text-transform: uppercase; letter-spacing: .02em; }
+.market-rules li p { margin: 4px 0 0; color: var(--muted); font-size: .95rem; }
+.rules-ok { align-items: flex-start !important; font-weight: 500 !important; }
+.rules-ok input { margin-top: 3px; }
+.rules-ok a { color: var(--red); }

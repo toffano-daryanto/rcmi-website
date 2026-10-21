@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792606448";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792606634";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792606448";
-import { SEED_EVENTS } from "./seed-events.js?v=1792606448";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792606448";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792606448";
+import { GALLERY } from "./gallery-data.js?v=1792606634";
+import { SEED_EVENTS } from "./seed-events.js?v=1792606634";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792606634";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792606634";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -1317,13 +1317,25 @@ $("#btn-add-listing").addEventListener("click", () => {
       <label><span>${t("l_desc")}</span><textarea name="description" rows="3" maxlength="800"></textarea></label>
       <label><span>${t("photos")}</span><input type="file" name="photos" accept="image/*" multiple></label>
       <div class="thumbs"></div>
+      <label class="lay-check rules-ok"><input type="checkbox" name="rules" required> <span>${t("mr_agree")} <a href="#/market" data-act="rules">${t("mr_title")}</a></span></label>
       <div class="form-actions">
         <button type="button" class="btn btn-ghost" data-act="close">${t("cancel")}</button>
         <button class="btn btn-mat" type="submit">${t("save")}</button>
       </div>
     </form>`);
   const f = $("#f-l"); bindPhotoPreview(f);
-  $("#modal-body").onclick = (ev) => { if (ev.target.dataset.act === "close") closeModal(); };
+  // Rule 3: price must be listed (for "wanted": the budget). Trade posts may skip it.
+  const syncPrice = () => {
+    const ty = f.type.value; f.price.required = ty !== "trade";
+    f.price.closest("label").querySelector("span").textContent = t(ty === "wanted" ? "l_budget" : "l_price") + (ty !== "trade" ? " *" : " " + t("l_optional"));
+    f.description.required = ty === "wanted";
+    f.description.placeholder = ty === "wanted" ? t("l_wanted_ph") : "";
+  };
+  f.type.addEventListener("change", syncPrice); syncPrice();
+  $("#modal-body").onclick = (ev) => {
+    if (ev.target.dataset.act === "close") closeModal();
+    if (ev.target.dataset.act === "rules") { ev.preventDefault(); closeModal(); const d = $("#market-rules"); d.open = true; d.scrollIntoView({ behavior: "smooth" }); }
+  };
   f.addEventListener("submit", async (e) => {
     e.preventDefault(); const btn = f.querySelector('[type="submit"]'); btn.disabled = true;
     try {
