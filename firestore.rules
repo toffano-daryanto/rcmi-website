@@ -50,6 +50,31 @@ service cloud.firestore {
       allow read, write: if admin();
     }
 
+    // ---------- Monthly dues ----------
+    // Payment settings (bank account, amount, due day) — members read, admins edit.
+    match /settings/{id} {
+      allow read: if approved();
+      allow write: if admin();
+    }
+    // One document per member per month: dues/{rosterId}_{YYYY-MM}.
+    // Members see and submit only their own; admins confirm, reject, waive or mark paid.
+    match /dues/{dueId} {
+      function mine(d) { return approved() && d.rosterId == me().rosterId; }
+      function validSubmit(d) {
+        return d.uid == request.auth.uid
+          && d.status == 'pending'
+          && d.month is string && d.month.matches('^20[0-9]{2}-(0[1-9]|1[0-2])$')
+          && dueId == d.rosterId + '_' + d.month
+          && d.proof is string && d.proof.size() < 400000;
+      }
+      allow read: if admin() || mine(resource.data);
+      allow create: if admin() || (mine(request.resource.data) && validSubmit(request.resource.data));
+      allow update: if admin() || (mine(resource.data) && resource.data.status != 'paid'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['proof','note','submittedAt','status','uid','name','memberNo'])
+        && validSubmit(request.resource.data));
+      allow delete: if admin();
+    }
+
     // Member-number counter, managed by admins during approval.
     match /counters/{id} {
       allow read, write: if admin();

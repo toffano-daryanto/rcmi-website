@@ -146,6 +146,7 @@
         <a href="#/events" data-tab="events" data-i18n="tab_events">Acara</a>
         <a href="#/market" data-tab="market" data-i18n="tab_market">Pasar</a>
         <a href="#/members" data-tab="members" data-i18n="tab_members">Anggota</a>
+        <a href="#/dues" data-tab="dues" data-i18n="tab_dues">Iuran</a>
         <a href="#/card" data-tab="card" data-i18n="tab_card">Kartu saya</a>
         <a href="#/admin" data-tab="admin" data-i18n="tab_admin" id="tab-admin" hidden>Admin</a>
       </nav>
@@ -195,6 +196,17 @@
           <div class="roster" id="roster"></div>
         </div>
         <div id="member-profile" hidden></div>
+      </div>
+
+      <div class="view" id="view-dues" hidden>
+        <div class="view-head" id="dues-mode-bar" hidden>
+          <div class="seg" role="group">
+            <button type="button" data-dmode="mine" aria-pressed="true" data-i18n="dues_my"></button>
+            <button type="button" data-dmode="all" aria-pressed="false" data-i18n="dues_all"></button>
+          </div>
+        </div>
+        <div id="dues-mine"></div>
+        <div id="dues-all" hidden></div>
       </div>
 
       <div class="view" id="view-card" hidden>

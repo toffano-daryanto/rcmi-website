@@ -59,6 +59,14 @@ for (const e of events.events) {
 }
 await batch.commit();
 
+// Dues settings: create with defaults only if missing (admins edit bank details on the site)
+const sRef = db.doc("settings/payment");
+if (!(await sRef.get()).exists) {
+  const now = new Date();
+  await sRef.set({ amount: 50000, dueDay: 10, bank: "", accountNo: "", accountName: "",
+    trackFrom: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}` });
+}
+
 // Member-number counter: never move it backwards
 const maxNo = Math.max(...roster.members.map(m => m.no));
 const cRef = db.doc("counters/members");

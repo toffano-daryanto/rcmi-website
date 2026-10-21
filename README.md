@@ -2,7 +2,7 @@
 
 Community website for 1:64 resin car model collectors. Public landing page plus a members-only area behind Google sign-in with admin approval.
 
-**Members area:** Member directory & profiles · Collection showcase · Events & meetups (RSVP) · Marketplace (sell / trade / wanted) · Member card & profile · Admin approvals.
+**Members area:** Member directory & profiles · Monthly dues · Collection showcase · Events & meetups (RSVP) · Marketplace (sell / trade / wanted) · Member card & profile · Admin approvals.
 **Languages:** Bahasa Indonesia and English (toggle in the top bar).
 **Stack:** Plain HTML/CSS/JS, Firebase Authentication (Google), Cloud Firestore, Firebase Hosting. No build step.
 
@@ -43,6 +43,12 @@ When an existing member signs in, the **Admin** tab suggests their record by nam
 ### Gallery photos and videos
 The landing-page gallery (`public/js/gallery-data.js`) shows the 74 photos and videos from the RCMI Drive folder directly from Google Drive. Each file has to be shared **Anyone with the link → Viewer**, or its tile stays blank. Share the media files individually — **not the whole folder**, which also holds the registration responses and payment proofs.
 
+### Monthly dues (Iuran)
+- **Members** see this month's status, where to transfer (Rp50.000, due by the 10th), their history, and upload a transfer receipt.
+- **Admins** switch to *Semua anggota*: pick a month, confirm or reject receipts, mark paid / waive, and download a CSV.
+- Set the bank account, amount, due day and the month to start tracking from under **Iuran → Semua anggota → Pengaturan iuran**. The joining month counts as paid (it's covered by the Rp150.000 registration fee).
+- Each member sees only their own payments; admins see everyone's (`dues/{rosterId}_{YYYY-MM}`).
+
 ### Custom domain (optional)
 *Hosting → Add custom domain*, then add the domain under *Authentication → Settings → Authorized domains* so Google sign-in works there too.
 
@@ -66,6 +72,8 @@ Without the secret, the workflow skips deploying instead of failing.
 | `users/{uid}` | name, city, Instagram, WhatsApp, bio, `status` (pending/approved/rejected), `role` (member/admin), `memberNo` | the member (own profile details only); admins (status, role) |
 | `roster/{id}` | imported member record: number, name, city, province, registration date, linked account | admins |
 | `rosterPrivate/{id}` | phone, T-shirt size / qty / paid — admin-only | admins |
+| `dues/{rosterId}_{YYYY-MM}` | monthly dues: status (pending/paid/rejected/waived), amount, receipt photo | member submits own; admins confirm |
+| `settings/payment` | bank account, amount, due day, tracking start month | admins |
 | `counters/members` | `next` member number | admins |
 | `cars/{id}` | model name, caster/maker, notes, up to 3 photos, owner | owner, admins |
 | `events/{id}` + `rsvps/{uid}` | title, date, place, details; one RSVP doc per member | admins create events; each member their own RSVP |

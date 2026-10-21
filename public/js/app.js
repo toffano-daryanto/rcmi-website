@@ -226,7 +226,7 @@ $("#form-onboarding").addEventListener("submit", async (e) => {
 });
 
 /* ---------------- routing ---------------- */
-const TABS = ["collection", "events", "market", "members", "card", "admin"];
+const TABS = ["collection", "events", "market", "members", "dues", "card", "admin"];
 window.addEventListener("hashchange", route);
 function route() {
   if (!state.profile || state.profile.status !== "approved") return;
@@ -237,11 +237,11 @@ function route() {
   state.tab = tab;
   $$(".tabs a").forEach(a => { if (a.dataset.tab === tab) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
   TABS.forEach(n => { $(`#view-${n}`).hidden = n !== tab; });
-  ({ collection: loadCars, events: loadEvents, market: loadListings, members: loadMembers, card: () => fetchRoster().catch(() => {}).then(renderCard), admin: loadAdmin })[tab]();
+  ({ collection: loadCars, events: loadEvents, market: loadListings, members: loadMembers, dues: loadDues, card: () => fetchRoster().catch(() => {}).then(renderCard), admin: loadAdmin })[tab]();
 }
 function rerender() {
   if ($("#app").hidden) return;
-  ({ collection: renderCars, events: renderEvents, market: renderListings, members: showMembers, card: renderCard, admin: loadAdmin })[state.tab]();
+  ({ collection: renderCars, events: renderEvents, market: renderListings, members: showMembers, dues: renderDues, card: renderCard, admin: loadAdmin })[state.tab]();
 }
 const isAdmin = () => state.profile?.role === "admin";
 const canEdit = (ownerUid) => ownerUid === state.user?.uid || isAdmin();
@@ -571,11 +571,19 @@ async function renderProfile(id) {
         </dl>
         ${priv ? `<div class="admin-box"><small>${t("admin_only")}</small>
           ${priv.phone ? `${t("phone")}: <a href="https://wa.me/${waNumber(priv.phone)}" target="_blank" rel="noopener">${esc(priv.phone)}</a><br>` : ""}
-          ${priv.shirtSize ? `${t("shirt")}: ${esc(priv.shirtSize)} × ${priv.shirtQty || 1} — ${priv.shirtPaid ? t("paid") : t("unpaid")}` : ""}
+          ${priv.shirtSize ? `${t("shirt")}: ${esc(priv.shirtSize)} × ${priv.shirtQty || 1} — ${priv.shirtPaid ? t("paid") : t("unpaid")}<br>` : ""}
+          <span id="profile-dues"></span>
         </div>` : ""}
         <div id="profile-extra"></div>
       </div>
     </div>`;
+  if (isAdmin() && r.memberNo) {
+    loadPaySettings().then(() => getDoc(doc(db, "dues", `${r.id}_${ym()}`))).then(snap => {
+      const el = $("#profile-dues"); if (!el || state.sub !== id) return;
+      const st = dueStatus(ym(), r.joined ? r.joined.slice(0, 7) : "", snap.exists() ? snap.data() : null);
+      el.innerHTML = `${t("dues_status_admin")}: ${chip(st)}`;
+    }).catch(() => {});
+  }
   if (!u) return;
   try {
     const [cs, ls] = await Promise.all([
@@ -592,6 +600,233 @@ async function renderProfile(id) {
       ${listings.length ? `<h2>${t("their_listings")}</h2><div class="mini-grid">${listings.map(l => tile(l, l.title)).join("")}</div>` : ""}`;
   } catch (e) { fail(e); }
 }
+
+/* ================= Monthly dues ================= */
+const ym = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+const addMonth = (m, n) => { const [y, mo] = m.split("-").map(Number); return ym(new Date(y, mo - 1 + n, 1)); };
+const monthRange = (from, to) => { const out = []; for (let m = from, i = 0; m <= to && i < 240; m = addMonth(m, 1), i++) out.push(m); return out; };
+const monthLabel = (m) => { const [y, mo] = m.split("-").map(Number); return new Date(y, mo - 1, 1).toLocaleDateString(locale(), { month: "long", year: "numeric" }); };
+const PAY_DEFAULTS = { amount: 50000, dueDay: 10, bank: "", accountNo: "", accountName: "", trackFrom: ym() };
+const ST_KEY = { paid: "st_paid", pending: "st_pending", overdue: "st_overdue", due: "st_due", reg: "st_reg", waived: "st_waived", rejected: "st_rejected" };
+const chip = (st) => `<span class="chip chip-${st}">${t(ST_KEY[st])}</span>`;
+state.duesMode = "mine"; state.duesMonth = ym();
+
+async function loadPaySettings(force = false) {
+  if (state.pay && !force) return;
+  try {
+    const snap = await getDoc(doc(db, "settings", "payment"));
+    state.pay = { ...PAY_DEFAULTS, ...(snap.exists() ? snap.data() : {}) };
+  } catch (e) { state.pay = { ...PAY_DEFAULTS }; }
+}
+// Status of one member for one month. The joining month is covered by the Rp150.000 registration fee.
+function dueStatus(month, joinedYm, d) {
+  if (d && ["paid", "waived", "pending", "rejected"].includes(d.status)) return d.status;
+  if (joinedYm && month === joinedYm) return "reg";
+  const cur = ym();
+  return (month < cur || (month === cur && new Date().getDate() > Number(state.pay?.dueDay || 10))) ? "overdue" : "due";
+}
+const myJoinedYm = () => {
+  const r = (state.roster || []).find(x => x.id === state.profile.rosterId);
+  return r?.joined ? r.joined.slice(0, 7) : ym(toDate(state.profile.approvedAt) || new Date());
+};
+
+async function loadDues() {
+  try {
+    await Promise.all([loadPaySettings(true), fetchRoster().catch(() => {})]);
+    renderDues();
+  } catch (e) { fail(e); }
+}
+function renderDues() {
+  const admin = isAdmin();
+  $("#dues-mode-bar").hidden = !admin;
+  if (!admin) state.duesMode = "mine";
+  $$("[data-dmode]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.dmode === state.duesMode)));
+  $("#dues-mine").hidden = state.duesMode !== "mine";
+  $("#dues-all").hidden = state.duesMode !== "all";
+  if (state.duesMode === "mine") renderDuesMine(); else renderDuesAll();
+}
+$$("[data-dmode]").forEach(b => b.addEventListener("click", () => { state.duesMode = b.dataset.dmode; renderDues(); }));
+
+function payInfoHTML() {
+  const p = state.pay;
+  return `<div class="dues-how">
+    <h3>${t("dues_how")}</h3>
+    <p>${t("dues_amount_line", { amount: fmtIDR(p.amount), day: p.dueDay })}</p>
+    ${p.bank && p.accountNo ? `<p class="muted">${t("dues_transfer_to")}</p>
+      <p class="acct"><strong>${esc(p.bank)} ${esc(p.accountNo)}</strong><br>${esc(p.accountName)}</p>` : `<p class="muted">${t("dues_bank_missing")}</p>`}
+  </div>`;
+}
+
+async function renderDuesMine() {
+  const box = $("#dues-mine");
+  const rosterId = state.profile.rosterId;
+  if (!rosterId) { box.innerHTML = `<div class="dues-top"><p class="empty">${t("dues_not_linked")}</p>${payInfoHTML()}</div>`; return; }
+  let byMonth = {};
+  try {
+    const snap = await getDocs(query(collection(db, "dues"), where("rosterId", "==", rosterId)));
+    snap.docs.forEach(d => { byMonth[d.data().month] = { id: d.id, ...d.data() }; });
+  } catch (e) { fail(e); }
+  const joined = myJoinedYm();
+  const from = [state.pay.trackFrom, joined].sort().pop();
+  const months = monthRange(from, ym()).reverse();
+  const cur = ym();
+  const stCur = dueStatus(cur, joined, byMonth[cur]);
+  const open = months.filter(m => ["due", "overdue", "rejected"].includes(dueStatus(m, joined, byMonth[m])));
+  box.innerHTML = `
+    <div class="dues-top">
+      <div class="dues-now">
+        <p class="muted">${t("dues_this_month")}</p>
+        <h2>${monthLabel(cur)}</h2>
+        <p>${chip(stCur)}</p>
+        <p class="fee-amt">${fmtIDR(byMonth[cur]?.amount || state.pay.amount)}</p>
+      </div>
+      ${payInfoHTML()}
+    </div>
+    ${open.length ? `
+    <form class="form panel-flat dues-form" id="f-dues">
+      <h2>${t("dues_upload")}</h2>
+      <label><span>${t("dues_for_month")}</span>
+        <select name="month">${open.map(m => `<option value="${m}">${monthLabel(m)} — ${t(ST_KEY[dueStatus(m, joined, byMonth[m])])}</option>`).join("")}</select>
+      </label>
+      <label><span>${t("dues_proof")}</span><input type="file" name="photos" accept="image/*" required></label>
+      <div class="thumbs"></div>
+      <label><span>${t("dues_note")}</span><input name="note" maxlength="200"></label>
+      <div class="form-actions"><button class="btn btn-mat" type="submit">${t("dues_send")}</button></div>
+    </form>` : `<p class="empty">${t("dues_all_clear")}</p>`}
+    <h2>${t("dues_history")}</h2>
+    <div class="rows">${months.map(m => {
+      const d = byMonth[m]; const st = dueStatus(m, joined, d);
+      return `<div class="row"><div class="grow"><strong>${monthLabel(m)}</strong>
+        ${d?.paidAt ? `<small>${t("paid_on", { date: fmtDate(d.paidAt, { day: "numeric", month: "short", year: "numeric" }) })}</small>` : ""}
+        ${st === "rejected" && d?.rejectReason ? `<small>${esc(d.rejectReason)}</small>` : ""}</div>${chip(st)}</div>`;
+    }).join("")}</div>`;
+  const f = $("#f-dues");
+  if (!f) return;
+  bindPhotoPreview(f);
+  f.addEventListener("submit", async (e) => {
+    e.preventDefault(); const btn = f.querySelector('[type="submit"]'); btn.disabled = true;
+    try {
+      const file = f.photos.files[0];
+      const proof = await compressPhoto(file, 1200, 380000);
+      const month = f.month.value;
+      await setDoc(doc(db, "dues", `${rosterId}_${month}`), {
+        rosterId, month, uid: state.user.uid, amount: state.pay.amount, status: "pending",
+        proof, note: f.note.value.trim(), submittedAt: serverTimestamp(),
+        name: state.profile.displayName, memberNo: state.profile.memberNo || null
+      }, { merge: true });
+      toast(t("dues_sent")); renderDuesMine();
+    } catch (err) { fail(err); btn.disabled = false; }
+  });
+}
+
+async function renderDuesAll() {
+  const box = $("#dues-all");
+  const M = state.duesMonth;
+  let byRoster = {};
+  try {
+    const snap = await getDocs(query(collection(db, "dues"), where("month", "==", M)));
+    snap.docs.forEach(d => { byRoster[d.data().rosterId] = { id: d.id, ...d.data() }; });
+  } catch (e) { fail(e); }
+  const members = (state.roster || []).filter(r => r.memberNo && r.status !== "applicant" && !r.id.startsWith("u-")
+    && (!r.joined || r.joined.slice(0, 7) <= M));
+  const rows = members.map(r => ({ r, d: byRoster[r.id], st: dueStatus(M, r.joined ? r.joined.slice(0, 7) : "", byRoster[r.id]) }));
+  state.duesRows = rows;
+  const count = (f) => rows.filter(x => f(x.st)).length;
+  const collected = rows.filter(x => x.st === "paid").reduce((a, x) => a + Number(x.d?.amount || state.pay.amount), 0);
+  const months = monthRange(addMonth(ym(), -23), ym()).reverse();
+  const p = state.pay;
+  box.innerHTML = `
+    <div class="view-head">
+      <label class="inline-label">${t("dues_for_month")}
+        <select id="dues-month" class="search">${months.map(m => `<option value="${m}" ${m === M ? "selected" : ""}>${monthLabel(m)}</option>`).join("")}</select>
+      </label>
+      <button type="button" class="btn btn-ghost" id="dues-csv">${t("export_csv")}</button>
+    </div>
+    <div class="dues-sum">
+      <div><p class="muted">${t("dues_summary", { paid: count(s => s === "paid" || s === "reg" || s === "waived"), pending: count(s => s === "pending"), unpaid: count(s => ["due", "overdue", "rejected"].includes(s)) })}</p></div>
+      <div><p class="muted">${t("dues_collected")}</p><p class="fee-amt">${fmtIDR(collected)}</p></div>
+    </div>
+    <div class="rows">${rows.map(({ r, d, st }) => `
+      <div class="row">
+        <span class="r-no small">#${r.memberNo}</span>
+        <div class="grow"><strong>${esc(r.name)}</strong>
+          <small>${d?.paidAt ? t("paid_on", { date: fmtDate(d.paidAt, { day: "numeric", month: "short" }) }) : esc(r.city || "")}${d?.note ? " · " + esc(d.note) : ""}</small></div>
+        ${chip(st)}
+        <div class="actions">
+          ${d?.proof ? `<button class="btn btn-sm btn-ghost" data-dact="proof" data-r="${esc(r.id)}">${t("view_proof")}</button>` : ""}
+          ${st === "pending" ? `<button class="btn btn-sm btn-mat" data-dact="paid" data-r="${esc(r.id)}">${t("confirm_paid")}</button>
+            <button class="btn btn-sm btn-danger" data-dact="reject" data-r="${esc(r.id)}">${t("reject_proof")}</button>` : ""}
+          ${["due", "overdue", "rejected"].includes(st) ? `<button class="btn btn-sm btn-mat" data-dact="paid" data-r="${esc(r.id)}">${t("mark_paid")}</button>
+            <button class="btn btn-sm btn-ghost" data-dact="waive" data-r="${esc(r.id)}">${t("mark_waived")}</button>` : ""}
+          ${["paid", "waived"].includes(st) ? `<button class="btn btn-sm btn-ghost" data-dact="undo" data-r="${esc(r.id)}">${t("mark_unpaid")}</button>` : ""}
+        </div>
+      </div>`).join("")}</div>
+    <details class="panel-flat dues-settings">
+      <summary><strong>${t("pay_settings")}</strong></summary>
+      <form class="form" id="f-pay">
+        <div class="row2">
+          <label><span>${t("ps_bank")}</span><input name="bank" maxlength="40" value="${esc(p.bank)}" placeholder="BCA"></label>
+          <label><span>${t("ps_accno")}</span><input name="accountNo" maxlength="30" value="${esc(p.accountNo)}" inputmode="numeric"></label>
+        </div>
+        <label><span>${t("ps_accname")}</span><input name="accountName" maxlength="80" value="${esc(p.accountName)}"></label>
+        <div class="row2">
+          <label><span>${t("ps_amount")}</span><input name="amount" type="number" min="0" step="1000" value="${Number(p.amount)}"></label>
+          <label><span>${t("ps_dueday")}</span><input name="dueDay" type="number" min="1" max="28" value="${Number(p.dueDay)}"></label>
+        </div>
+        <label><span>${t("ps_from")}</span><input name="trackFrom" type="month" value="${esc(p.trackFrom)}"><small class="muted">${t("ps_from_hint")}</small></label>
+        <div class="form-actions"><button class="btn btn-mat" type="submit">${t("save")}</button></div>
+      </form>
+    </details>`;
+  $("#dues-month").addEventListener("change", (e) => { state.duesMonth = e.target.value; renderDuesAll(); });
+  $("#dues-csv").addEventListener("click", () => {
+    const lines = [["No", "Nama", "Bulan", "Status", "Jumlah", "Tanggal bayar", "Catatan"]].concat(rows.map(({ r, d, st }) => [
+      memberNo(r.memberNo), r.name, M, t(ST_KEY[st]), ["paid", "reg"].includes(st) ? (d?.amount || p.amount) : "",
+      d?.paidAt ? fmtDate(d.paidAt, { year: "numeric", month: "2-digit", day: "2-digit" }) : "", d?.note || d?.rejectReason || ""]));
+    const csv = lines.map(l => l.map(v => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob(["﻿" + csv], { type: "text/csv" }));
+    a.download = `iuran-rcmi-${M}.csv`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  });
+  $("#f-pay").addEventListener("submit", async (e) => {
+    e.preventDefault(); const f = e.target;
+    try {
+      await setDoc(doc(db, "settings", "payment"), {
+        bank: f.bank.value.trim(), accountNo: f.accountNo.value.trim(), accountName: f.accountName.value.trim(),
+        amount: Number(f.amount.value) || 0, dueDay: Math.min(28, Math.max(1, Number(f.dueDay.value) || 10)),
+        trackFrom: f.trackFrom.value || ym()
+      }, { merge: true });
+      await loadPaySettings(true); toast(t("saved")); renderDuesAll();
+    } catch (err) { fail(err); }
+  });
+}
+
+$("#dues-all").addEventListener("click", async (e) => {
+  const b = e.target.closest("[data-dact]"); if (!b) return;
+  const row = (state.duesRows || []).find(x => x.r.id === b.dataset.r); if (!row) return;
+  const { r, d } = row; const M = state.duesMonth;
+  const ref = doc(db, "dues", `${r.id}_${M}`);
+  const base = { rosterId: r.id, month: M, memberNo: r.memberNo, name: r.name, uid: d?.uid || r.claimedBy || null, amount: d?.amount || state.pay.amount };
+  try {
+    if (b.dataset.dact === "proof") {
+      openModal(`<h2>${esc(r.name)} — ${monthLabel(M)}</h2><img src="${d.proof}" alt="" style="width:100%;border-radius:8px">
+        ${d.note ? `<p>${esc(d.note)}</p>` : ""}<div class="form-actions"><button class="btn btn-ghost" data-act="close">${t("close")}</button></div>`);
+      $("#modal-body").onclick = (ev) => { if (ev.target.dataset.act === "close") closeModal(); };
+      return;
+    }
+    b.disabled = true;
+    if (b.dataset.dact === "paid") await setDoc(ref, { ...base, status: "paid", paidAt: serverTimestamp(), confirmedBy: state.user.uid }, { merge: true });
+    if (b.dataset.dact === "waive") await setDoc(ref, { ...base, status: "waived", confirmedBy: state.user.uid }, { merge: true });
+    if (b.dataset.dact === "reject") {
+      const reason = prompt(t("reject_reason")); if (reason === null) { b.disabled = false; return; }
+      await updateDoc(ref, { status: "rejected", rejectReason: reason.trim(), confirmedBy: state.user.uid });
+    }
+    if (b.dataset.dact === "undo") {
+      if (d?.proof) await updateDoc(ref, { status: "pending", paidAt: null });
+      else await deleteDoc(ref);
+    }
+    toast(t("saved")); renderDuesAll();
+  } catch (err) { fail(err); b.disabled = false; }
+});
 
 /* ================= Member card + profile ================= */
 function cardHTML({ no, name, city, instagram, photoURL, since }) {
