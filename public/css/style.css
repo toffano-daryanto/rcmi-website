@@ -285,7 +285,6 @@ dialog::backdrop { background: rgba(18, 20, 28, .65); }
 .hero .stats {
   display: inline-flex; align-items: center; font-family: var(--display); font-style: italic; font-weight: 800; font-size: 1.25rem;
   background: var(--yellow); color: var(--navy); padding: .55em 1.5em; border-radius: var(--radius-s);
-  clip-path: polygon(4% 0, 100% 0, 96% 100%, 0 100%);
 }
 .hero-cta .btn-lg { display: inline-flex; align-items: center; }
 @media (max-width: 600px) { .hero-cta > * { flex: 1 1 100%; justify-content: center; } .hero-cta .stats, .hero-cta .btn-lg { font-size: 1.1rem; padding: .5em 1em; white-space: nowrap; } }
