@@ -7,12 +7,12 @@ import {
   getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, collection, query, where,
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig } from "./config.js?v=1792601838";
+import { firebaseConfig } from "./config.js?v=1792603237";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792601838";
-import { SEED_EVENTS } from "./seed-events.js?v=1792601838";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792601838";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792601838";
+import { GALLERY } from "./gallery-data.js?v=1792603237";
+import { SEED_EVENTS } from "./seed-events.js?v=1792603237";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792603237";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792603237";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -203,9 +203,37 @@ async function signIn() {
 const ENTER_KEY = "rcmi-enter";
 const setEnter = (v) => { try { v ? sessionStorage.setItem(ENTER_KEY, "1") : sessionStorage.removeItem(ENTER_KEY); } catch (e) {} };
 const wantsEnter = () => { try { return sessionStorage.getItem(ENTER_KEY) === "1"; } catch (e) { return false; } };
+// What the person chose before Google sign-in: login-member, login-general, new-member, new-general.
+const INTENT_KEY = "rcmi-intent";
+const setIntent = (v) => { try { v ? sessionStorage.setItem(INTENT_KEY, v) : sessionStorage.removeItem(INTENT_KEY); } catch (e) {} };
+const getIntent = () => { try { return sessionStorage.getItem(INTENT_KEY) || ""; } catch (e) { return ""; } };
+function openSignInChooser() {
+  const opt = (id, icon, kind) => `<button type="button" class="choose-opt ${kind}" data-intent="${id}">
+      <span class="choose-ic" aria-hidden="true">${icon}</span>
+      <span><strong>${t("ch_" + id.replace("-", "_"))}</strong><small>${t("ch_" + id.replace("-", "_") + "_d")}</small></span></button>`;
+  openModal(`
+    <h2>${t("sign_in")}</h2>
+    <p class="choose-label">${t("ch_have_account")}</p>
+    <div class="choose-grid">
+      ${opt("login-member", "🪪", "login")}
+      ${opt("login-general", "👤", "login")}
+    </div>
+    <p class="choose-label">${t("ch_new_here")}</p>
+    <div class="choose-grid">
+      ${opt("new-member", "🏁", "create")}
+      ${opt("new-general", "✨", "create")}
+    </div>
+    <p class="muted choose-note">${t("ch_google_note")}</p>
+    <div class="form-actions"><button type="button" class="btn btn-ghost" data-act="close">${t("cancel")}</button></div>`);
+  $("#modal-body").onclick = (ev) => {
+    if (ev.target.dataset.act === "close") { closeModal(); return; }
+    const b = ev.target.closest("[data-intent]"); if (!b) return;
+    setIntent(b.dataset.intent); setEnter(true); closeModal(); signIn();
+  };
+}
 $$("#btn-signin, .js-signin").forEach(b => b.addEventListener("click", () => {
   if (state.user) { location.hash = "#/collection"; return; }
-  setEnter(true); signIn();
+  openSignInChooser();
 }));
 $("#btn-signout").addEventListener("click", async () => { await signOut(auth); location.hash = "#/"; });
 getRedirectResult(auth).catch(fail);
@@ -279,7 +307,7 @@ function show(screen) {
 }
 function showGate(which) {
   show("gate");
-  ["onboarding", "pending", "rejected"].forEach(w => { $(`#gate-${w}`).hidden = w !== which; });
+  ["onboarding", "pending", "rejected", "blocked"].forEach(w => { $(`#gate-${w}`).hidden = w !== which; });
   if (which === "pending" && state.joinPayFor !== state.user?.uid) { state.joinPayFor = state.user?.uid; renderJoinPay(); }
 }
 
@@ -360,6 +388,19 @@ onAuthStateChanged(auth, (user) => {
   unsubProfile = onSnapshot(doc(db, "users", user.uid), (snap) => {
     if (!snap.exists()) {
       const f = $("#form-onboarding");
+      // Request rejected by an admin while they were waiting: back to the start, they can sign up again.
+      if (state.profile && state.profile.status === "pending") {
+        state.profile = null; state.gate = null;
+        signOut(auth).finally(() => openModal(`<h2>${t("rejected_title")}</h2><p>${t("rejected_again")}</p>
+          <div class="form-actions"><button type="button" class="btn btn-mat" data-act="close">${t("close")}</button></div>`));
+        $("#modal-body").onclick = (ev) => { if (ev.target.dataset.act === "close") closeModal(); };
+        location.hash = "#/";
+        return;
+      }
+      // Blocked by email: show the blocked page instead of the sign-up form.
+      getDoc(doc(db, "blocked", String(user.email || "").toLowerCase())).then(b => {
+        if (b.exists() && !state.profile) { state.gate = "blocked"; render(); }
+      }).catch(() => {});
       state.profile = null; state.gate = "onboarding";
       // Pre-registered by email? Then the account activates itself on save.
       getDoc(doc(db, "invites", String(user.email || "").toLowerCase())).then(inv => {
@@ -369,11 +410,15 @@ onAuthStateChanged(auth, (user) => {
         const note = $("#invite-note");
         note.hidden = !state.invite;
         if (state.invite) note.textContent = t("invite_found", { no: memberNo(state.invite.memberNo) });
-        syncAccountType();
-      }).catch(() => { state.invite = null; if (!f.displayName.value) f.displayName.value = user.displayName || ""; });
+        applyIntent();
+      }).catch(() => { state.invite = null; if (!f.displayName.value) f.displayName.value = user.displayName || ""; applyIntent(); });
     } else {
       state.profile = { id: snap.id, ...snap.data() };
-      state.gate = ["pending", "rejected"].includes(state.profile.status) ? state.profile.status : null;
+      // Old-style rejection: clear it so they can create their account again.
+      if (state.profile.status === "rejected") {
+        deleteDoc(doc(db, "users", user.uid)).then(() => toast(t("rejected_again"))).catch(() => {});
+      }
+      state.gate = ["pending", "blocked"].includes(state.profile.status) ? state.profile.status : state.profile.status === "rejected" ? "onboarding" : null;
       $("#tab-admin").hidden = state.profile.role !== "admin";
       $("#tab-finance").hidden = state.profile.accountType === "general";
       if (state.profile.role === "admin") { refreshInboxCount(); if (state.profile.status === "approved") { startNotifs(); renderBell(); } } else stopNotifs();
@@ -385,15 +430,28 @@ onAuthStateChanged(auth, (user) => {
       if (state.profile.status === "approved" && state.contactSyncedFor !== user.uid) { state.contactSyncedFor = user.uid; saveContact(state.profile); }
     }
     // Just signed in from a "Masuk" button → open the members area; otherwise stay where they are.
+    if (snap.exists()) setIntent("");
     if (wantsEnter()) { setEnter(false); if (!isMemberRoute()) { location.hash = "#/collection"; return; } }
     render();
   }, fail);
 });
 
+// Pre-select the sign-up form from the option chosen before Google sign-in.
+function applyIntent() {
+  const f = $("#form-onboarding"); const intent = getIntent();
+  const general = intent.endsWith("general");
+  if (intent) f.querySelector(`[name=accountType][value=${general ? "general" : "member"}]`).checked = true;
+  // Chose "log in" but this Google account has no account yet.
+  const note = $("#intent-note");
+  note.hidden = !intent.startsWith("login");
+  if (!note.hidden) note.textContent = t(general ? "ch_no_account_general" : "ch_no_account_member");
+  syncAccountType();
+}
 function syncAccountType() {
   const general = $("#form-onboarding").accountType.value === "general";
+  const newMember = !general && getIntent() === "new-member";
   $("#phone-hint").textContent = t(general ? "f_phone_hint_general" : "f_phone_hint");
-  const lead = $("#onb-lead"); lead.dataset.i18n = general ? "onb_lead_general" : "onb_lead"; lead.textContent = t(lead.dataset.i18n);
+  const lead = $("#onb-lead"); lead.dataset.i18n = general ? "onb_lead_general" : newMember ? "onb_lead_newmember" : "onb_lead"; lead.textContent = t(lead.dataset.i18n);
   $("#invite-note").hidden = general || !state.invite;
   $("#form-onboarding [type=submit]").textContent = t(general ? "create_account" : state.invite ? "activate_account" : "send_request");
 }
@@ -428,11 +486,15 @@ $("#form-onboarding").addEventListener("submit", async (e) => {
   try {
     // Members: 1) registered Google email (if admins added one), else 2) registered phone number.
     // General users: no matching; they wait for an admin.
+    if (key) {
+      const bp = await getDoc(doc(db, "blockedPhones", key)).catch(() => null);
+      if (bp?.exists()) { toast(t("blocked_phone")); btn.disabled = false; return; }
+    }
     let inv = accountType === "member" ? state.invite : null;
     if (accountType === "member" && !inv && key) {
       const snap = await getDoc(doc(db, "phoneInvites", key)).catch(() => null);
       inv = snap?.exists() ? { ...snap.data(), phoneKey: key } : null;
-      if (!inv) {
+      if (!inv && getIntent() !== "new-member") {
         const choice = await showPhoneMismatch(f.whatsapp.value.trim(), false);
         if (choice === "fix") { btn.disabled = false; f.whatsapp.focus(); f.whatsapp.select(); return; }
       }
@@ -1695,6 +1757,17 @@ async function loadAdmin() {
       fetchRoster(true)
     ]);
     const pending = state.pending = pend.docs.map(d => ({ id: d.id, ...d.data() }));
+    getDocs(collection(db, "blocked")).then(s => {
+      const list = state.blocked = s.docs.map(d => ({ id: d.id, ...d.data() }));
+      $("#admin-blocked-count").textContent = `(${list.length})`;
+      $("#admin-blocked").innerHTML = list.length ? list.map(b => `
+        <div class="row">
+          <div class="grow"><strong>${esc(b.name || b.id)}</strong><span class="type-tag blocked">${t("blocked_tag")}</span>
+            <small>${[b.city, b.id].filter(Boolean).map(esc).join(" · ")}</small>
+            ${b.blockedAt ? `<small class="muted">${t("blocked_on", { date: fmtDate(b.blockedAt, { day: "numeric", month: "short", year: "numeric" }) })}</small>` : ""}</div>
+          <div class="actions"><button class="btn btn-sm btn-ghost" data-unblock="${esc(b.id)}">${t("unblock")}</button></div>
+        </div>`).join("") : `<p class="muted">${t("no_blocked")}</p>`;
+    }).catch(() => {});
     const proofs = state.joinProofs = {};
     await Promise.all(pending.filter(u => u.accountType !== "general").map(u =>
       getDoc(doc(db, "joinPayments", u.id)).then(s => { if (s.exists()) proofs[u.id] = s.data(); }).catch(() => {})));
@@ -1724,7 +1797,8 @@ async function loadAdmin() {
           ${u.accountType !== "general" ? (proofs[u.id] ? `<button type="button" class="btn btn-sm btn-ghost proof-btn" data-proof="${esc(u.id)}">${t("view_join_proof")}</button>` : `<small class="muted">${t("no_join_proof")}</small>`) : ""}</div>
         <div class="actions">
           <button class="btn btn-sm btn-mat" data-approve="${esc(u.id)}">${t("approve")}</button>
-          <button class="btn btn-sm btn-danger" data-reject="${esc(u.id)}">${t("reject")}</button>
+          <button class="btn btn-sm btn-ghost" data-reject="${esc(u.id)}" title="${esc(t("reject_hint"))}">${t("reject")}</button>
+          <button class="btn btn-sm btn-danger" data-block="${esc(u.id)}" title="${esc(t("block_hint"))}">${t("block")}</button>
         </div>
       </div>`).join("") : `<p class="muted">${t("no_pending")}</p>`;
     $("#admin-members").innerHTML = members.map(u => `
@@ -1751,6 +1825,31 @@ async function loadAdmin() {
       } catch (err) { fail(err); btn.disabled = false; }
     });
   } catch (e) { fail(e); }
+}
+
+/* Reject: remove the request entirely, so the person goes back to the start and can sign up again. */
+async function rejectRequest(uid) {
+  await deleteDoc(doc(db, "users", uid));
+  await Promise.all([deleteDoc(doc(db, "joinPayments", uid)), deleteDoc(doc(db, "contacts", uid))].map(p => p.catch(() => {})));
+}
+/* Block: the account stays "blocked", and its Google email + phone can't be used to register again. */
+async function blockUser(u) {
+  const email = String(u.email || "").toLowerCase();
+  const key = u.phoneKey || phoneKey(u.whatsapp);
+  const batch = writeBatch(db);
+  batch.update(doc(db, "users", u.id), { status: "blocked", blockedAt: serverTimestamp() });
+  if (email) batch.set(doc(db, "blocked", email), { uid: u.id, name: u.displayName || "", phoneKey: key || "", city: u.city || "", blockedAt: serverTimestamp(), by: state.user.uid });
+  if (key) batch.set(doc(db, "blockedPhones", key), { uid: u.id, email, name: u.displayName || "" });
+  await batch.commit();
+  await Promise.all([deleteDoc(doc(db, "joinPayments", u.id)), deleteDoc(doc(db, "contacts", u.id))].map(p => p.catch(() => {})));
+}
+/* Unblock: clear the block and the old account record; they can sign up again from scratch. */
+async function unblockUser(b) {
+  const batch = writeBatch(db);
+  batch.delete(doc(db, "blocked", b.id));
+  if (b.phoneKey) batch.delete(doc(db, "blockedPhones", b.phoneKey));
+  if (b.uid) batch.delete(doc(db, "users", b.uid));
+  await batch.commit();
 }
 
 /* Import the Google Form roster from the browser (no terminal needed). Admin only; safe to run again. */
@@ -1861,7 +1960,26 @@ $("#view-admin").addEventListener("click", async (e) => {
         toast(t("approved_general")); loadAdmin();
       } else openApprove(a.dataset.approve);
     }
-    if (r && confirm(`${t("reject")}?`)) { await updateDoc(doc(db, "users", r.dataset.reject), { status: "rejected" }); loadAdmin(); }
+    if (r) {
+      const pu = (state.pending || []).find(x => x.id === r.dataset.reject);
+      if (!confirm(t("reject_confirm", { name: pu?.displayName || "" }))) return;
+      await rejectRequest(r.dataset.reject);
+      toast(t("rejected_done")); loadAdmin();
+    }
+    const bl = e.target.closest("[data-block]");
+    if (bl) {
+      const pu = (state.pending || []).find(x => x.id === bl.dataset.block) || state.siteUsers[bl.dataset.block];
+      if (!pu || !confirm(t("block_confirm", { name: pu.displayName || "" }))) return;
+      await blockUser(pu);
+      toast(t("blocked_done")); loadAdmin();
+    }
+    const ub = e.target.closest("[data-unblock]");
+    if (ub) {
+      const b = (state.blocked || []).find(x => x.id === ub.dataset.unblock);
+      if (!b || !confirm(t("unblock_confirm", { name: b.name || b.id }))) return;
+      await unblockUser(b);
+      toast(t("unblocked_done")); loadAdmin();
+    }
     if (m) { await updateDoc(doc(db, "users", m.dataset.mkadmin), { role: "admin" }); toast(t("saved")); loadAdmin(); }
   } catch (err) { fail(err); }
 });

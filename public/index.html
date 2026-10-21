@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;1,600;1,700;1,800&family=Barlow:wght@400;500;600;700&family=Noto+Serif:wght@700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/style.css?v=1792601838">
+  <link rel="stylesheet" href="/css/style.css?v=1792603237">
   <link rel="icon" type="image/png" href="/img/icon-64.png">
   <link rel="apple-touch-icon" href="/img/icon-192.png">
   <meta property="og:image" content="/img/icon-512.png">
@@ -186,6 +186,7 @@
         <h1 data-i18n="onb_title"></h1>
         <p class="muted" id="onb-lead" data-i18n="onb_lead"></p>
         <p class="invite-note" id="invite-note" hidden></p>
+        <p class="invite-note intent-note" id="intent-note" hidden></p>
         <form id="form-onboarding" class="form">
           <fieldset class="acct">
             <legend data-i18n="acct_type"></legend>
@@ -207,6 +208,10 @@
         <h1 data-i18n="pending_title"></h1>
         <p class="muted" data-i18n="pending_lead"></p>
         <div class="join-pay" id="join-pay" hidden></div>
+      </div>
+      <div class="panel" id="gate-blocked" hidden>
+        <h1 data-i18n="blocked_title"></h1>
+        <p class="muted" data-i18n="blocked_lead"></p>
       </div>
       <div class="panel" id="gate-rejected" hidden>
         <h1 data-i18n="rejected_title"></h1>
@@ -317,6 +322,8 @@
         <div class="rows" id="admin-members"></div>
         <h2><span data-i18n="general_users"></span> <span class="inbox-count" id="admin-general-count"></span></h2>
         <div class="rows" id="admin-general"></div>
+        <h2><span data-i18n="blocked_users"></span> <span class="inbox-count" id="admin-blocked-count"></span></h2>
+        <div class="rows" id="admin-blocked"></div>
         <div id="admin-import"></div>
       </div>
     </section>
@@ -342,6 +349,6 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="/js/app.js?v=1792601838"></script>
+  <script type="module" src="/js/app.js?v=1792603237"></script>
 </body>
 </html>

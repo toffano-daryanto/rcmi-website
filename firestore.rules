@@ -37,6 +37,9 @@ service cloud.firestore {
       allow read: if (signedIn() && request.auth.uid == uid) || member() || admin();
 
       allow create: if signedIn() && request.auth.uid == uid
+        // Blocked by an admin (by Google email or phone number): can't register again.
+        && !exists(/databases/$(database)/documents/blocked/$(myEmail()))
+        && (!('phoneKey' in request.resource.data) || !exists(/databases/$(database)/documents/blockedPhones/$(request.resource.data.phoneKey)))
         && request.resource.data.role == 'member'
         && request.resource.data.get('accountType', 'member') in ['member', 'general']
         && request.resource.data.email == request.auth.token.email
@@ -79,12 +82,14 @@ service cloud.firestore {
           && str(request.resource.data.displayName, 80))
         || admin();
 
-      allow delete: if admin();
+      // Admins; or the person themselves after a rejection, so they can sign up again.
+      allow delete: if admin() || (signedIn() && request.auth.uid == uid && resource.data.status == 'rejected');
     }
 
     // Seller contact (name + WhatsApp) for the market — readable by any approved account, written by its owner.
     match /contacts/{uid} {
       allow read: if approved();
+      allow delete: if admin();
       allow write: if signedIn() && request.auth.uid == uid
         && request.resource.data.keys().hasOnly(['name', 'whatsapp', 'instagram'])
         && str(request.resource.data.name, 80) && str(request.resource.data.whatsapp, 20);
@@ -147,6 +152,16 @@ service cloud.firestore {
     match /finance/{id} {
       allow read: if admin() || (id == 'ledger' && member());
       allow write: if admin();
+    }
+
+    // Blocked sign-ups: by Google email, and by phone number (looked up by exact key only, never listed).
+    match /blocked/{email} {
+      allow get: if (signedIn() && email == myEmail()) || admin();
+      allow list, write: if admin();
+    }
+    match /blockedPhones/{key} {
+      allow get: if signedIn();
+      allow list, write: if admin();
     }
 
     // Joining-fee proof from a new member waiting for approval: the applicant and admins only.
