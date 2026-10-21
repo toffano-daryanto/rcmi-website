@@ -49,6 +49,7 @@ jobs:
           NOTIFY_TO: ${{ secrets.NOTIFY_TO }}
         run: SA_JSON_PATH="$RUNNER_TEMP/sa.json" node notify-test.mjs
       - name: Sync changed phone numbers to the Google Sheet
+        if: always()
         working-directory: scripts
         run: SA_JSON_PATH="$RUNNER_TEMP/sa.json" node phone-sync.mjs
       - name: Email the admin about new activity
