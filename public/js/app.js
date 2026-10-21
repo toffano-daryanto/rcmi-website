@@ -1,17 +1,18 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
 import {
   getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult,
-  onAuthStateChanged, signOut
+  onAuthStateChanged, signOut, reauthenticateWithPopup
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
 import {
   getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, collection, query, where,
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig } from "./config.js?v=1792597362";
+import { firebaseConfig } from "./config.js?v=1792598594";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792597362";
-import { SEED_EVENTS } from "./seed-events.js?v=1792597362";
-import { parseLedgerCSV, buildPL, balanceIssues } from "./finance.js?v=1792597362";
+import { GALLERY } from "./gallery-data.js?v=1792598594";
+import { SEED_EVENTS } from "./seed-events.js?v=1792598594";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792598594";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792598594";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -674,6 +675,7 @@ function showMembers() {
   if (id) renderProfile(id); else renderRoster();
 }
 function renderRoster() {
+  $("#mem-sync-bar").hidden = !isAdmin();
   const q = norm(state.memberSearch);
   const list = (state.roster || [])
     .filter(r => isAdmin() || r.status !== "applicant")
@@ -722,6 +724,80 @@ async function setInviteEmail(r, email) {
   await batch.commit();
   state.rosterPrivate[r.id] = { ...(state.rosterPrivate[r.id] || {}), email };
 }
+
+/* ---------- Members: sync from the RCMI Membership Registration sheet (admins only) ---------- */
+async function syncMembersFromSheet(sheetId) {
+  const { members, applicants } = parseMemberSheets(await readSpreadsheet(sheetId));
+  if (!members.length && !applicants.length) throw new Error(t("sheet_no_members"));
+  await fetchRoster(true);
+  const existing = new Map((state.roster || []).map(r => [r.id, r]));
+  const rid = (no) => `m${String(no).padStart(3, "0")}`;
+  const writes = [];
+  for (const m of members) {
+    const id = rid(m.no), old = existing.get(id) || {};
+    // The sheet decides number, name, phone and T-shirt. City/province/join date only fill gaps, so manual corrections stay.
+    writes.push(["roster", id, { memberNo: m.no, name: m.name, status: "member",
+      ...(old.province ? {} : { province: m.province || "" }), ...(old.joined ? {} : { joined: m.joined || "" }), ...(old.city ? {} : { city: old.city || "" }) }]);
+    writes.push(["rosterPrivate", id, { phone: m.phone || "", ...(m.shirt ? { shirtSize: m.shirt.size || "", shirtQty: m.shirt.qty || 1, shirtPaid: !!m.shirt.paid } : {}) }]);
+    const pk = sheetPhoneKey(m.phone);
+    if (pk) writes.push(["phoneInvites", pk, { rosterId: id, memberNo: m.no, name: m.name, city: old.city || "" }]);
+  }
+  const numberedNames = new Set(members.map(m => m.name.toLowerCase()));
+  for (const a of applicants) {
+    const id = `a-${a.key}`;
+    if (numberedNames.has(a.name.toLowerCase())) continue;
+    writes.push(["roster", id, { memberNo: existing.get(id)?.memberNo ?? null, name: a.name, province: a.province || "", status: existing.get(id)?.status || "applicant", applied: a.applied || "" }]);
+    writes.push(["rosterPrivate", id, { phone: a.phone || "" }]);
+  }
+  for (let i = 0; i < writes.length; i += 400) {
+    const batch = writeBatch(db);
+    writes.slice(i, i + 400).forEach(([c, id, data]) => batch.set(doc(db, c, id), data, { merge: true }));
+    await batch.commit();
+  }
+  // Keep the next member number ahead of the highest number in the sheet.
+  const maxNo = Math.max(0, ...members.map(m => m.no));
+  await runTransaction(db, async (tx) => {
+    const cRef = doc(db, "counters", "members"); const c = await tx.get(cRef);
+    tx.set(cRef, { next: Math.max(c.exists() ? c.data().next || 1 : 1, maxNo + 1) });
+  });
+  return { members: members.length, applicants: applicants.length };
+}
+function askMemberSheet() {
+  openModal(`
+    <h2>${t("mem_sync")}</h2>
+    <p class="muted">${t("mem_sync_help")}</p>
+    <form class="form" id="f-msheet">
+      <label><span>${t("fin_sheet_link")}</span><input name="link" required placeholder="https://docs.google.com/spreadsheets/d/…" value="${esc(state.memSource?.link || "")}"></label>
+      <div class="form-actions">
+        <button type="button" class="btn btn-ghost" data-act="close">${t("cancel")}</button>
+        <button class="btn btn-mat" type="submit">${t("mem_sync")}</button>
+      </div>
+    </form>`);
+  $("#modal-body").onclick = (ev) => { if (ev.target.dataset.act === "close") closeModal(); };
+  $("#f-msheet").addEventListener("submit", async (e) => {
+    e.preventDefault(); const btn = e.target.querySelector("[type=submit]"); btn.disabled = true;
+    const link = e.target.link.value.trim(); const id = sheetIdFrom(link);
+    if (!id) { toast(t("fin_sheet_bad")); btn.disabled = false; return; }
+    try {
+      const r = await syncMembersFromSheet(id);
+      await setDoc(doc(db, "sources", "members"), { link, sheetId: id, savedBy: state.user.uid });
+      state.memSource = { link, sheetId: id };
+      closeModal(); toast(t("mem_sync_done", r)); state.roster = null; loadMembers();
+    } catch (err) { fail(err); btn.disabled = false; }
+  });
+}
+$("#mem-sync").addEventListener("click", async (e) => {
+  if (!state.memSource) { try { const s = await getDoc(doc(db, "sources", "members")); state.memSource = s.exists() ? s.data() : null; } catch (err) {} }
+  if (!state.memSource?.sheetId) return askMemberSheet();
+  const btn = e.currentTarget; btn.disabled = true;
+  try { const r = await syncMembersFromSheet(state.memSource.sheetId); toast(t("mem_sync_done", r)); state.roster = null; loadMembers(); }
+  catch (err) { fail(err); }
+  btn.disabled = false;
+});
+$("#mem-sync-link").addEventListener("click", async () => {
+  if (!state.memSource) { try { const s = await getDoc(doc(db, "sources", "members")); state.memSource = s.exists() ? s.data() : null; } catch (err) {} }
+  askMemberSheet();
+});
 
 $("#member-search").addEventListener("input", (e) => { state.memberSearch = e.target.value; renderRoster(); });
 $("#roster").addEventListener("click", (e) => {
@@ -1125,6 +1201,7 @@ function renderFinance() {
   // Members view; only admins sync or import.
   const admin = isAdmin();
   $("#fin-sync").hidden = !admin;
+  $("#fin-sync-link").hidden = !admin || !state.finSource?.sheetId;
   $(".fin-import").hidden = !admin;
   const note = $(".fin-note [data-i18n]"); note.dataset.i18n = admin ? "fin_only_admin" : "fin_members_view"; note.textContent = t(note.dataset.i18n);
   $("#fin-source").innerHTML = "";
@@ -1226,19 +1303,44 @@ function renderFinance() {
 }
 $("#fin-period").addEventListener("change", (e) => { state.finPeriod = e.target.value; renderFinance(); });
 $("#fin-print").addEventListener("click", () => window.print());
-// Pull the ledger straight from the KEUANGAN RCMI Google Sheet. The sheet link is kept in finance/source (admins only),
-// never in the site's code, so it isn't exposed through the public GitHub repo.
+/* ---------- Reading private Google Sheets with the admin's own Google account ---------- */
+// The admin grants "view your Google Sheets" once per session; sheets stay private (no link sharing needed).
+// Sheet links are kept in Firestore (admins only), never in the site's public code.
 const sheetIdFrom = (s) => (String(s).match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]{20,})/) || String(s).match(/^([a-zA-Z0-9_-]{30,})$/) || [])[1] || "";
+let sheetsToken = null, sheetsTokenAt = 0;
+async function getSheetsToken() {
+  if (sheetsToken && Date.now() - sheetsTokenAt < 50 * 60e3) return sheetsToken;
+  const p = new GoogleAuthProvider();
+  p.addScope("https://www.googleapis.com/auth/spreadsheets.readonly");
+  p.setCustomParameters({ login_hint: state.user.email || "" });
+  const res = await reauthenticateWithPopup(auth.currentUser, p);
+  sheetsToken = GoogleAuthProvider.credentialFromResult(res)?.accessToken;
+  sheetsTokenAt = Date.now();
+  if (!sheetsToken) throw new Error(t("sheet_no_access"));
+  return sheetsToken;
+}
+/** All tabs of a spreadsheet: [{ title, gid, rows }]. */
+async function readSpreadsheet(sheetId) {
+  const tok = await getSheetsToken();
+  const api = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sheetId)}`;
+  const call = async (url) => {
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${tok}` } });
+    if (res.status === 401) { sheetsToken = null; throw new Error(t("sheet_no_access")); }
+    if (res.status === 403) { const b = await res.text(); throw new Error(/has not been used|disabled/i.test(b) ? t("sheet_api_off") : t("sheet_no_access")); }
+    if (res.status === 404) throw new Error(t("sheet_not_found"));
+    if (!res.ok) throw new Error(`Google Sheets ${res.status}`);
+    return res.json();
+  };
+  const meta = await call(`${api}?fields=sheets.properties(title,sheetId)`);
+  const tabs = (meta.sheets || []).map(s => s.properties);
+  const ranges = tabs.map(p => "ranges=" + encodeURIComponent(`'${p.title.replace(/'/g, "''")}'`)).join("&");
+  const vals = await call(`${api}/values:batchGet?${ranges}&valueRenderOption=FORMATTED_VALUE`);
+  return tabs.map((p, i) => ({ title: p.title, gid: String(p.sheetId), rows: vals.valueRanges?.[i]?.values || [] }));
+}
 async function syncFromSheet(sheetId, gid) {
-  const url = `https://docs.google.com/spreadsheets/d/${encodeURIComponent(sheetId)}/gviz/tq?tqx=out:csv${gid ? "&gid=" + encodeURIComponent(gid) : ""}`;
-  let text;
-  try {
-    const res = await fetch(url, { credentials: "omit" });
-    if (!res.ok) throw new Error(String(res.status));
-    text = await res.text();
-  } catch (e) { throw new Error(t("fin_sync_fetch_fail")); }
-  if (/^\s*</.test(text)) throw new Error(t("fin_sync_fetch_fail"));
-  const rows = parseLedgerCSV(text);
+  const tabs = await readSpreadsheet(sheetId);
+  const tab = tabs.find(x => gid && x.gid === String(gid)) || tabs.find(x => x.rows.some(r => r.some(c => /^tanggal/i.test(String(c).trim())))) || tabs[0];
+  const rows = parseLedgerTable(tab?.rows || []);
   if (!rows.length) throw new Error(t("fin_parse_empty"));
   await setDoc(doc(db, "finance", "ledger"), { rows, fileName: "Google Sheet", importedAt: serverTimestamp(), importedBy: state.user.uid });
   return rows.length;
@@ -1276,6 +1378,7 @@ $("#fin-sync").addEventListener("click", async (e) => {
   btn.disabled = false;
 });
 $("#fin-sync").addEventListener("contextmenu", (e) => { e.preventDefault(); askSheetLink(); });
+$("#fin-sync-link").addEventListener("click", () => askSheetLink());
 
 $("#fin-file").addEventListener("change", async (e) => {
   const file = e.target.files[0]; if (!file) return;

@@ -31,7 +31,15 @@ function csvRows(text) {
 
 /** CSV text (No,Tanggal,Deskripsi,Keterangan,Pemasukan,Pengeluaran,SALDO) → ledger rows. */
 export function parseLedgerCSV(text) {
-  const rows = csvRows(text.replace(/^﻿/, ""));
+  return parseLedgerTable(csvRows(text.replace(/^﻿/, "")));
+}
+
+/** Rows straight from Google Sheets (array of arrays; header row may sit below a title) → ledger rows. */
+export function parseLedgerTable(input) {
+  const rows = input.map(r => r.map(c => String(c ?? "")));
+  const hi = rows.findIndex(r => r.some(c => c.trim().toLowerCase().startsWith("tanggal")));
+  if (hi < 0) throw new Error("Kolom Tanggal / Pemasukan / Pengeluaran tidak ditemukan.");
+  rows.splice(0, hi);
   const head = rows.shift().map(h => h.trim().toLowerCase());
   const col = (name) => head.findIndex(h => h.startsWith(name));
   const ci = { no: col("no"), date: col("tanggal"), desc: col("deskripsi"), note: col("keterangan"), inc: col("pemasukan"), exp: col("pengeluaran"), bal: col("saldo") };

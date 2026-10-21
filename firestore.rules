@@ -143,6 +143,11 @@ service cloud.firestore {
       allow write: if admin();
     }
 
+    // Links to the admin's private Google Sheets used for syncing (members). Admins only.
+    match /sources/{id} {
+      allow read, write: if admin();
+    }
+
     // Member-number counter, managed by admins during approval.
     match /counters/{id} {
       allow read, write: if admin();

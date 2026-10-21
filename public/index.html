@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;1,600;1,700;1,800&family=Barlow:wght@400;500;600;700&family=Noto+Serif:wght@700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/style.css?v=1792597362">
+  <link rel="stylesheet" href="/css/style.css?v=1792598594">
   <link rel="icon" type="image/png" href="/img/icon-64.png">
   <link rel="apple-touch-icon" href="/img/icon-192.png">
   <meta property="og:image" content="/img/icon-512.png">
@@ -208,6 +208,10 @@
 
       <div class="view" id="view-members" hidden>
         <div id="members-list">
+          <div class="view-head mem-sync-bar" id="mem-sync-bar" hidden>
+            <button type="button" class="btn btn-mat" id="mem-sync" data-i18n="mem_sync"></button>
+            <button type="button" class="btn-link" id="mem-sync-link" data-i18n="sheet_change_link"></button>
+          </div>
           <div class="view-head">
             <p class="muted" data-i18n="members_lead"></p>
             <input type="search" id="member-search" class="search" data-i18n-ph="search_members" aria-label="Search members">
@@ -247,6 +251,7 @@
           <div class="fin-actions">
             <select id="fin-period" class="search" aria-label="Periode"></select>
             <button type="button" class="btn btn-mat" id="fin-sync" data-i18n="fin_sync"></button>
+            <button type="button" class="btn-link" id="fin-sync-link" data-i18n="sheet_change_link" hidden></button>
             <label class="btn btn-ghost fin-import"><span data-i18n="fin_import"></span><input type="file" id="fin-file" accept=".csv,text/csv" hidden></label>
             <button type="button" class="btn btn-ghost" id="fin-print" data-i18n="fin_print"></button>
           </div>
@@ -286,6 +291,6 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="/js/app.js?v=1792597362"></script>
+  <script type="module" src="/js/app.js?v=1792598594"></script>
 </body>
 </html>

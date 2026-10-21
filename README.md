@@ -40,6 +40,15 @@ When an existing member signs in, the **Admin** tab suggests their record by nam
 
 **What's imported and who sees it:** member number, name, city, province and registration date are visible to approved members. Phone numbers and T-shirt orders are admin-only (`rosterPrivate`). Home addresses, birthdates and payment proofs are **not** imported. `data/roster.json` contains phone numbers, so it is git-ignored.
 
+### Sync members from the Google Sheet (admins)
+**Anggota → Sinkron anggota dari Google Sheet** reads the *RCMI Membership Registration (Responses)* sheet with the admin's own Google account (the sheet stays private). It reads all three tabs every time, so old and new rows are included:
+- *RCMI Member List* → member number, name, phone; *Form responses 1* → province and join date (matched by phone, then name); *List Kaos RCMI* → T-shirt size/qty/paid.
+- Form responses not on the member list yet become **applicants** (they get a number when approved).
+- Addresses and birthdates are never read. Manually corrected city/province/join date are kept (the sheet only fills gaps).
+- The **Keuangan** sync uses the same Google sign-in, so the KEUANGAN sheet can be private too.
+
+**One-time setup:** enable the **Google Sheets API** for the project: console.cloud.google.com/apis/library/sheets.googleapis.com?project=rcmi-website → **Enable**. The first sync asks for permission to view your Google Sheets; because the app isn't verified by Google you may see "Google hasn't verified this app" → **Advanced → Go to rcmi-website**.
+
 ### Finance — Laba Rugi (members view, admins update)
 **Keuangan** tab — members can view it read-only; general users can't see it; only admins sync/import: Profit & Loss built from the treasurer's *KEUANGAN RCMI* Google Sheet.
 1. In the sheet: **File → Download → Comma Separated Values (.csv)**.
