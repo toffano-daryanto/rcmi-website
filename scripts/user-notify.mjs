@@ -65,7 +65,7 @@ for (const d of chatSnap.docs) {
 if (!per.size) { await stateRef.set({ lastCheck: now }); console.log("User emails: nothing new."); process.exit(0); }
 
 const users = await db.getAll(...[...per.keys()].map(uid => db.doc(`users/${uid}`)));
-const mail = nodemailer.createTransport({ service: "gmail", auth: { user: GMAIL_USER, pass: GMAIL_APP_PASSWORD } });
+const mail = nodemailer.createTransport({ service: "gmail", auth: { user: GMAIL_USER, pass: String(GMAIL_APP_PASSWORD).replace(/\s+/g, "") } });
 let sent = 0, skipped = 0, failed = 0;
 for (const u of users) {
   const p = u.exists ? u.data() : null;

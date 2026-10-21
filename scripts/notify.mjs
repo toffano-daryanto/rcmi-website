@@ -97,7 +97,7 @@ const html = `<div style="font-family:Arial,sans-serif;max-width:600px;color:#12
 const admins = (await db.collection("users").where("role", "==", "admin").get()).docs.map(d => d.data())
   .filter(u => u.status === "approved" && u.email).map(u => u.email.toLowerCase());
 const to = [...new Set([...String(NOTIFY_TO || "").split(",").map(x => x.trim().toLowerCase()).filter(Boolean), ...admins])];
-const mail = nodemailer.createTransport({ service: "gmail", auth: { user: GMAIL_USER, pass: GMAIL_APP_PASSWORD } });
+const mail = nodemailer.createTransport({ service: "gmail", auth: { user: GMAIL_USER, pass: String(GMAIL_APP_PASSWORD).replace(/\s+/g, "") } });
 await mail.sendMail({ from: `"RCMI website" <${GMAIL_USER}>`, to: GMAIL_USER, bcc: to, subject: `RCMI: ${parts.join(", ")}`, html });
 // Only move forward once the email has gone out, so nothing is missed if sending fails.
 await stateRef.set({ lastCheck: now });

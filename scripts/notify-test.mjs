@@ -13,7 +13,7 @@ const admins = (await db.collection("users").where("role", "==", "admin").get())
   .filter(u => u.status === "approved" && u.email).map(u => u.email.toLowerCase());
 const to = [...new Set([...String(process.env.NOTIFY_TO || "").split(",").map(x => x.trim().toLowerCase()).filter(Boolean), ...admins])];
 console.log(`Test email to ${to.length} admin address(es).`);
-const mail = nodemailer.createTransport({ service: "gmail", auth: { user: GMAIL_USER, pass: GMAIL_APP_PASSWORD } });
+const mail = nodemailer.createTransport({ service: "gmail", auth: { user: GMAIL_USER, pass: String(GMAIL_APP_PASSWORD).replace(/\s+/g, "") } });
 try { await mail.verify(); } catch (e) {
   // Gmail's own reason (never contains the password), e.g. "534-5.7.9 Application-specific password required".
   const why = String(e.response || e.message || "").replace(/\s+/g, " ").slice(0, 220);
