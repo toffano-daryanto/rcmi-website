@@ -9,3 +9,6 @@ export const firebaseConfig = {
   appId: "1:109325988808:web:d13a38fa24d5ba216246fd",
   measurementId: "G-GF1L1N0MP1"
 };
+
+// Google Drive photo uploads (scripts/drive-upload.gs deployed as a web app). Empty = photos stay inside the posts.
+export const uploadUrl = "";

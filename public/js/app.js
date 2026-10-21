@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig } from "./config.js?v=1792605262";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792605508";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792605262";
-import { SEED_EVENTS } from "./seed-events.js?v=1792605262";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792605262";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792605262";
+import { GALLERY } from "./gallery-data.js?v=1792605508";
+import { SEED_EVENTS } from "./seed-events.js?v=1792605508";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792605508";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792605508";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -62,6 +62,53 @@ function compressPhoto(file, maxSide = 1000, maxChars = 280000) {
     img.src = url;
   });
 }
+/* Photos go to Google Drive (RCMI → Collections / Market) through the RCMI upload script when it's
+   set up (config.js → uploadUrl); otherwise they're stored inside the post itself as before. */
+const driveUrl = (id) => `https://drive.google.com/thumbnail?id=${encodeURIComponent(id)}&sz=w1600`;
+// Only our own kinds of image addresses are ever put into the page.
+function photoSrc(p) {
+  p = String(p || "");
+  return /^(data:image\/(jpeg|png|webp);base64,|https:\/\/(drive\.google\.com|lh3\.googleusercontent\.com)\/)/.test(p) ? esc(p) : "";
+}
+function toJpegBase64(src, maxSide = 2048, q = 0.88) {
+  // src: a File, or a canvas (layout collage)
+  const fromCanvas = (c) => c.toDataURL("image/jpeg", q).split(",")[1];
+  if (src instanceof HTMLCanvasElement) return Promise.resolve(fromCanvas(src));
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(src), img = new Image();
+    img.onload = () => {
+      const k = Math.min(1, maxSide / Math.max(img.width, img.height));
+      const c = document.createElement("canvas"); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url); resolve(fromCanvas(c));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error(t("err_photo"))); };
+    img.src = url;
+  });
+}
+async function uploadToDrive(kind, src, name, onStep) {
+  const data = await toJpegBase64(src);
+  const idToken = await state.user.getIdToken();
+  const r = await fetch(uploadUrl, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({ idToken, kind, name: String(name || "photo").slice(0, 60), mime: "image/jpeg", data }) });
+  const j = await r.json().catch(() => ({ error: "upload failed" }));
+  if (!j.id) throw new Error(t("upload_failed") + (j.error ? ` (${j.error})` : ""));
+  onStep?.();
+  return driveUrl(j.id);
+}
+// Upload the chosen files (Drive when available, else inside the post). `btn` shows progress.
+async function storePhotos(input, kind, max = 3, extraSlots = 0, btn = null, done0 = 0, total0 = 0) {
+  if (!uploadUrl) return readPhotos(input, max, extraSlots);
+  const files = [...(input.files || [])].slice(0, max);
+  const total = total0 || files.length; let n = done0;
+  const label = btn?.textContent;
+  const step = () => { n++; if (btn) btn.textContent = t("uploading", { n, total }); };
+  if (btn) btn.textContent = t("uploading", { n, total });
+  const out = [];
+  for (const f of files) out.push(await uploadToDrive(kind, f, f.name, step));
+  if (btn && !total0) btn.textContent = label;
+  return out;
+}
+
 // Photos live inside the Firestore document (max 1 MB), so more photos = smaller each.
 async function readPhotos(input, max = 3, extraSlots = 0) {
   const files = [...(input.files || [])].slice(0, max);
@@ -607,7 +654,7 @@ function renderCars() {
   const list = state.carFilter === "mine" ? state.cars.filter(c => c.ownerUid === state.user.uid) : state.cars;
   $("#cars").innerHTML = list.length ? list.map(c => `
     <button type="button" class="item" data-car="${esc(c.id)}">
-      ${c.photos?.[0] ? `<img class="ph" src="${c.photos[0]}" alt="" loading="lazy">` : `<div class="ph ph-empty">1:64</div>`}
+      ${c.photos?.[0] ? `<img class="ph" src="${photoSrc(c.photos[0])}" alt="" loading="lazy">` : `<div class="ph ph-empty">1:64</div>`}
       <div class="meta"><h3>${esc(c.name)}</h3><p>${esc(c.maker || "")}${c.maker ? " · " : ""}${t("by")} ${esc(c.ownerName)}</p></div>
     </button>`).join("") : `<p class="empty">${t("empty_collection")}</p>`;
 }
@@ -620,7 +667,7 @@ $("#cars").addEventListener("click", (e) => {
   const el = e.target.closest("[data-car]"); if (!el) return;
   const c = state.cars.find(x => x.id === el.dataset.car); if (!c) return;
   openModal(`
-    ${c.photos?.length ? `<div class="detail-photos">${c.photos.map(p => `<img src="${p}" alt="">`).join("")}</div>` : ""}
+    ${c.photos?.length ? `<div class="detail-photos">${c.photos.map(p => `<img src="${photoSrc(p)}" alt="">`).join("")}</div>` : ""}
     <h2>${esc(c.name)}</h2>
     ${c.maker ? `<p><strong>${t("car_maker")}:</strong> ${esc(c.maker)}</p>` : ""}
     ${c.notes ? `<p>${esc(c.notes)}</p>` : ""}
@@ -693,11 +740,17 @@ function openAddCar(after) {
       const useLayout = !f.querySelector(".pm-layout").hidden;
       if (useLayout && lay.count() < 2) { toast(t("lay_need2")); btn.disabled = false; return; }
       if (!useLayout && f.photos.files.length > 10) toast(t("feed_max10_note"));
-      let photos;
+      let photos; const label = btn.textContent;
       if (useLayout) {
         const extra = Math.min(9, f.lextra.files.length);
-        photos = [await lay.export(Math.min(300000, Math.floor(800000 / (1 + extra)))), ...(extra ? await readPhotos(f.lextra, 9, 1) : [])];
-      } else photos = await readPhotos(f.photos, 10);
+        if (uploadUrl) {
+          const total = 1 + extra;
+          btn.textContent = t("uploading", { n: 0, total });
+          const first = await uploadToDrive("collection", lay.canvas(), "layout", () => { btn.textContent = t("uploading", { n: 1, total }); });
+          photos = [first, ...(extra ? await storePhotos(f.lextra, "collection", 9, 0, btn, 1, total) : [])];
+        } else photos = [await lay.export(Math.min(300000, Math.floor(800000 / (1 + extra)))), ...(extra ? await readPhotos(f.lextra, 9, 1) : [])];
+      } else photos = await storePhotos(f.photos, "collection", 10, 0, btn);
+      btn.textContent = label;
       await addDoc(collection(db, "cars"), {
         name: f.name.value.trim(), maker: f.maker.value.trim(), notes: f.notes.value.trim(), photos,
         ownerUid: state.user.uid, ownerName: state.profile.displayName, ownerPhoto: state.profile.photoURL || state.user.photoURL || "",
@@ -764,6 +817,7 @@ function bindLayout(form) {
   });
   return {
     count: () => st.imgs.length,
+    canvas: () => { st.sel = -1; draw(); return cv; },
     export: async (maxChars = 300000) => {
       st.sel = -1; draw();
       let c = cv;
@@ -811,7 +865,7 @@ function postHTML(c) {
       <div><strong>${esc(c.ownerName || "RCMI")}</strong>${c.ownerCity ? `<small>${esc(c.ownerCity)}</small>` : ""}</div>
     </header>
     <div class="post-media">
-      ${photos.length ? `<div class="post-track">${photos.map(p => `<img src="${p}" alt="${esc(c.name)}" loading="lazy" draggable="false">`).join("")}</div>
+      ${photos.length ? `<div class="post-track">${photos.map(p => `<img src="${photoSrc(p)}" alt="${esc(c.name)}" loading="lazy" draggable="false">`).join("")}</div>
         ${photos.length > 1 ? `<button type="button" class="post-nav prev" data-slide="-1" aria-label="Previous">‹</button><button type="button" class="post-nav next" data-slide="1" aria-label="Next">›</button>` : ""}
         ${photos.length > 1 ? `<div class="post-dots">${photos.map((_, i) => `<i class="${i ? "" : "on"}"></i>`).join("")}</div><span class="post-count">1/${photos.length}</span>` : ""}`
         : `<div class="post-empty">1:64</div>`}
@@ -1007,7 +1061,7 @@ function paintProfile() {
     </div>
     ${p.posts && !posts.length ? `<p class="empty">${t("feed_empty")}</p>` : ""}
     <div class="ig-grid">${posts.map(c => `<button type="button" class="ig-tile" data-open-post="${esc(c.id)}">
-      ${c.photos?.[0] ? `<img src="${c.photos[0]}" alt="${esc(c.name)}" loading="lazy" draggable="false">` : `<span>1:64</span>`}
+      ${c.photos?.[0] ? `<img src="${photoSrc(c.photos[0])}" alt="${esc(c.name)}" loading="lazy" draggable="false">` : `<span>1:64</span>`}
       ${(c.photos || []).length > 1 ? `<i class="ig-multi" aria-hidden="true">❏</i>` : ""}
       <span class="ig-hover">♥ ${(c.likedBy || []).length}</span></button>`).join("")}</div>`;
 }
@@ -1141,7 +1195,7 @@ function renderListings() {
   const list = f === "all" ? state.listings : state.listings.filter(l => l.type === f);
   $("#listings").innerHTML = list.length ? list.map(l => `
     <button type="button" class="item" data-listing="${esc(l.id)}">
-      ${l.photos?.[0] ? `<img class="ph" src="${l.photos[0]}" alt="" loading="lazy">` : `<div class="ph ph-empty">1:64</div>`}
+      ${l.photos?.[0] ? `<img class="ph" src="${photoSrc(l.photos[0])}" alt="" loading="lazy">` : `<div class="ph ph-empty">1:64</div>`}
       <div class="meta">
         <span class="tag ${l.status === "sold" ? "tag-sold" : "tag-" + esc(l.type)}">${l.status === "sold" ? t("sold") : typeLabel(l.type)}</span>
         <h3>${esc(l.title)}</h3>
@@ -1162,7 +1216,7 @@ function openListing(l) {
   const ig = igHandle(l.ownerInstagram);
   const member = state.profile?.status === "approved";
   openModal(`
-    ${l.photos?.length ? `<div class="detail-photos">${l.photos.map(p => `<img src="${p}" alt="">`).join("")}</div>` : ""}
+    ${l.photos?.length ? `<div class="detail-photos">${l.photos.map(p => `<img src="${photoSrc(p)}" alt="">`).join("")}</div>` : ""}
     <span class="tag tag-${esc(l.type)}">${typeLabel(l.type)}</span>
     <h2>${esc(l.title)}</h2>
     ${l.price ? `<p class="price">${fmtIDR(l.price)}</p>` : ""}
@@ -1222,7 +1276,7 @@ $("#btn-add-listing").addEventListener("click", () => {
   f.addEventListener("submit", async (e) => {
     e.preventDefault(); const btn = f.querySelector('[type="submit"]'); btn.disabled = true;
     try {
-      const photos = await readPhotos(f.photos);
+      const photos = await storePhotos(f.photos, "market", 3, 0, f.querySelector('[type="submit"]'));
       await addDoc(collection(db, "listings"), {
         type: f.type.value, title: f.title.value.trim(), price: f.price.value ? Number(f.price.value) : null,
         condition: f.condition.value.trim(), description: f.description.value.trim(), photos, status: "open",
@@ -1516,7 +1570,7 @@ async function renderProfile(id) {
     if (state.sub !== id) return;
     const cars = cs.docs.map(d => ({ id: d.id, ...d.data() })).filter(c => !c.hidden || isAdmin());
     const listings = ls.docs.map(d => ({ id: d.id, ...d.data() })).filter(l => l.status !== "sold" && (!l.hidden || isAdmin()));
-    const tile = (x, title) => `<div class="item">${x.photos?.[0] ? `<img class="ph" src="${x.photos[0]}" alt="" loading="lazy">` : `<div class="ph ph-empty">1:64</div>`}<div class="meta"><h3>${esc(title)}</h3>${x.price ? `<p class="price">${fmtIDR(x.price)}</p>` : x.maker ? `<p>${esc(x.maker)}</p>` : ""}</div></div>`;
+    const tile = (x, title) => `<div class="item">${x.photos?.[0] ? `<img class="ph" src="${photoSrc(x.photos[0])}" alt="" loading="lazy">` : `<div class="ph ph-empty">1:64</div>`}<div class="meta"><h3>${esc(title)}</h3>${x.price ? `<p class="price">${fmtIDR(x.price)}</p>` : x.maker ? `<p>${esc(x.maker)}</p>` : ""}</div></div>`;
     $("#profile-extra").innerHTML = `
       <h2>${t("their_cars")}</h2>
       ${cars.length ? `<div class="mini-grid">${cars.map(c => tile(c, c.name)).join("")}</div>` : `<p class="muted">${t("no_cars_yet")}</p>`}
