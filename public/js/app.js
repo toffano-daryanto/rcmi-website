@@ -138,7 +138,23 @@ lb.addEventListener("close", () => { $("#lb-stage").innerHTML = ""; });
 lb.addEventListener("keydown", (e) => { if (e.key === "ArrowLeft") lbStep(-1); if (e.key === "ArrowRight") lbStep(1); });
 lb.addEventListener("click", (e) => { if (e.target === lb) lb.close(); });
 
-applyStatic(); updateRuler(); renderGallery();
+// Photo strip under the hero: the first photos from the most recent event. Hidden until they load.
+function renderPitlane() {
+  const g = GALLERY[0]; const track = $("#pitlane-track"); if (!g || !track) return;
+  const shots = g.items.map((it, i) => ({ ...it, i })).filter(it => it.kind === "photo").slice(1, 11);
+  let loaded = 0;
+  track.innerHTML = shots.map(it => `<button type="button" data-g="${g.key}" data-i="${it.i}" aria-label="Foto ${it.i + 1}"><img src="${driveThumb(it.id, 640)}" alt="" loading="lazy" referrerpolicy="no-referrer"></button>`).join("");
+  track.querySelectorAll("img").forEach(img => {
+    img.addEventListener("load", () => { loaded++; $("#pitlane").hidden = false; });
+    img.addEventListener("error", () => img.parentNode.remove());
+  });
+}
+$("#pitlane-track").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-g]"); if (!b) return;
+  lbState.group = b.dataset.g; lbState.i = Number(b.dataset.i); lbShow(); lb.showModal();
+});
+
+applyStatic(); updateRuler(); renderGallery(); renderPitlane();
 
 /* ---------------- Firebase ---------------- */
 const configured = firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith("PASTE");
@@ -870,19 +886,17 @@ $("#dues-all").addEventListener("click", async (e) => {
 });
 
 /* ================= Member card + profile ================= */
+// Digital version of the printed RCMI member card: pearl card, EXCLUSIVE MEMBER, logo, RCMI QR, name and number.
 function cardHTML({ no, name, city, instagram, photoURL, since }) {
   const sub = [city, instagram ? "@" + igHandle(instagram) : "", since ? `${t("card_since")} ${fmtDate(since, { month: "short", year: "numeric" })}` : ""].filter(Boolean).map(esc).join(" · ");
   return `
-    <div class="mcard">
-      <div class="mcard-top">
-        <div><span class="wm-main">RCMI</span><div class="mcard-sub">Resin Car Model Indonesia · 1:64</div></div>
-        ${photoURL ? `<img src="${esc(photoURL)}" alt="" referrerpolicy="no-referrer">` : ""}
-      </div>
-      <div>
-        <div class="mcard-no">${no ? memberNo(no) : esc(t("applicant"))}</div>
-        <div class="mcard-name">${esc(name)}</div>
-        <div class="mcard-sub">${sub}</div>
-      </div>
+    <div class="mcard" role="img" aria-label="RCMI ${esc(name)} ${no ? "#" + no : ""}">
+      <p class="mcard-kicker">Exclusive Member</p>
+      <img class="mcard-logo" src="/img/logo-dark.png" alt="">
+      <img class="mcard-qr" src="/img/card-qr.png" alt="">
+      <p class="mcard-name">${esc(name)}</p>
+      <p class="mcard-no">${no ? "#" + no : esc(t("applicant"))}</p>
+      ${sub ? `<p class="mcard-sub">${sub}</p>` : ""}
     </div>`;
 }
 function renderCard() {

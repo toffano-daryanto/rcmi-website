@@ -5,20 +5,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>RCMI — Resin Car Model Indonesia</title>
   <meta name="description" content="Komunitas kolektor dan pembuat model mobil resin skala 1:64 di Indonesia.">
-  <meta name="theme-color" content="#2F5D50">
+  <meta name="theme-color" content="#12141C">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;1,600;1,700;1,800&family=Barlow:wght@400;500;600;700&family=Noto+Serif:wght@700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/style.css">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%232F5D50'/%3E%3Crect x='5' y='19' width='22' height='4' rx='2' fill='%23E3A33B'/%3E%3Cpath d='M8 19l3-6h10l3 6' fill='none' stroke='%23EEEFEA' stroke-width='2.4' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="icon" type="image/png" href="/img/icon-64.png">
+  <link rel="apple-touch-icon" href="/img/icon-192.png">
+  <meta property="og:image" content="/img/icon-512.png">
 </head>
 <body>
   <a class="skip" href="#main">Skip to content</a>
 
   <header class="topbar">
-    <a class="wordmark" href="#/" aria-label="RCMI home">
-      <span class="wm-main">RCMI</span>
-      <span class="wm-sub">Resin Car Model Indonesia</span>
+    <a class="wordmark" href="#/" aria-label="RCMI — Resin Car Model Indonesia, beranda">
+      <img class="logo" src="/img/logo-white.png" alt="RCMI — Resin Car Model Indonesia" width="900" height="343">
     </a>
     <nav class="topnav" id="landing-nav">
       <a href="#about" data-i18n="nav_about">Tentang</a>
@@ -68,6 +69,10 @@
             <span data-i18n="ruler_hint"></span>
           </figcaption>
         </figure>
+      </div>
+
+      <div class="pitlane" id="pitlane" hidden>
+        <div class="pitlane-track" id="pitlane-track"></div>
       </div>
 
       <section class="about" id="about">
@@ -233,8 +238,7 @@
   </main>
 
   <footer class="foot">
-    <span class="wm-main">RCMI</span>
-    <span data-i18n="footer">Resin Car Model Indonesia</span>
+    <img class="logo" src="/img/logo-white.png" alt="RCMI — Resin Car Model Indonesia" width="900" height="343" loading="lazy">
   </footer>
 
   <dialog id="lightbox" aria-label="Gallery">
