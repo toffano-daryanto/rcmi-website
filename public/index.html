@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RCMI — Resin Car Model Indonesia</title>
+  <meta name="description" content="Komunitas kolektor dan pembuat model mobil resin skala 1:64 di Indonesia.">
+  <meta name="theme-color" content="#2F5D50">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%232F5D50'/%3E%3Crect x='5' y='19' width='22' height='4' rx='2' fill='%23E3A33B'/%3E%3Cpath d='M8 19l3-6h10l3 6' fill='none' stroke='%23EEEFEA' stroke-width='2.4' stroke-linejoin='round'/%3E%3C/svg%3E">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="topbar">
+    <a class="wordmark" href="#/" aria-label="RCMI home">
+      <span class="wm-main">RCMI</span>
+      <span class="wm-sub">Resin Car Model Indonesia</span>
+    </a>
+    <nav class="topnav" id="landing-nav">
+      <a href="#about" data-i18n="nav_about">Tentang</a>
+      <a href="#join" data-i18n="nav_join">Cara bergabung</a>
+    </nav>
+    <div class="top-actions">
+      <div class="lang" role="group" aria-label="Language">
+        <button type="button" data-lang="id" aria-pressed="true">ID</button>
+        <button type="button" data-lang="en" aria-pressed="false">EN</button>
+      </div>
+      <button type="button" class="btn btn-amber" id="btn-signin" data-i18n="sign_in">Masuk dengan Google</button>
+      <div class="user-chip" id="user-chip" hidden>
+        <img id="user-avatar" alt="" width="32" height="32" referrerpolicy="no-referrer">
+        <button type="button" class="btn-link" id="btn-signout" data-i18n="sign_out">Keluar</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="banner" id="setup-banner" role="alert" hidden data-i18n="setup_missing"></div>
+
+  <main id="main">
+
+    <!-- ===== Public landing ===== -->
+    <section id="landing">
+      <div class="hero">
+        <div class="hero-inner">
+          <h1 data-i18n="hero_title">Mobil resin 1:64, dicetak tangan, dikoleksi bersama.</h1>
+          <p class="lead" data-i18n="hero_lead"></p>
+          <button type="button" class="btn btn-amber btn-lg js-signin" data-i18n="sign_in">Masuk dengan Google</button>
+        </div>
+
+        <figure class="scale-tool" aria-labelledby="ruler-out">
+          <label for="real-length" class="scale-label" data-i18n="ruler_label">Panjang mobil asli (meter)</label>
+          <div class="scale-input">
+            <input type="range" id="real-length" min="3" max="6.4" step="0.05" value="4.5">
+            <output id="real-length-out">4.50 m</output>
+          </div>
+          <div class="ruler" aria-hidden="true">
+            <div class="ruler-bar" id="ruler-bar"></div>
+            <div class="ruler-ticks"></div>
+            <div class="ruler-nums"><span>0</span><span>20</span><span>40</span><span>60</span><span>80</span><span>100 mm</span></div>
+          </div>
+          <figcaption>
+            <strong id="ruler-out"></strong>
+            <span data-i18n="ruler_hint"></span>
+          </figcaption>
+        </figure>
+      </div>
+
+      <section class="about" id="about">
+        <h2 data-i18n="about_title">Apa itu RCMI</h2>
+        <div class="about-grid">
+          <div><h3 data-i18n="about_1_t"></h3><p data-i18n="about_1_d"></p></div>
+          <div><h3 data-i18n="about_2_t"></h3><p data-i18n="about_2_d"></p></div>
+          <div><h3 data-i18n="about_3_t"></h3><p data-i18n="about_3_d"></p></div>
+        </div>
+      </section>
+
+      <section class="join" id="join">
+        <h2 data-i18n="join_title">Cara bergabung</h2>
+        <ol class="steps">
+          <li data-i18n="join_1"></li>
+          <li data-i18n="join_2"></li>
+          <li data-i18n="join_3"></li>
+          <li data-i18n="join_4"></li>
+        </ol>
+        <button type="button" class="btn btn-mat js-signin" data-i18n="sign_in">Masuk dengan Google</button>
+      </section>
+    </section>
+
+    <!-- ===== Onboarding / pending / rejected ===== -->
+    <section id="gate" hidden>
+      <div class="panel" id="gate-onboarding" hidden>
+        <h1 data-i18n="onb_title"></h1>
+        <p class="muted" data-i18n="onb_lead"></p>
+        <form id="form-onboarding" class="form">
+          <label><span data-i18n="f_name"></span><input name="displayName" required maxlength="80" autocomplete="name"></label>
+          <label><span data-i18n="f_city"></span><input name="city" required maxlength="60" autocomplete="address-level2"></label>
+          <label><span data-i18n="f_instagram"></span><input name="instagram" required maxlength="40" placeholder="@username"></label>
+          <label><span data-i18n="f_whatsapp"></span><input name="whatsapp" maxlength="20" inputmode="tel" placeholder="08…"></label>
+          <label><span data-i18n="f_bio"></span><textarea name="bio" rows="3" maxlength="400"></textarea></label>
+          <button class="btn btn-mat" type="submit" data-i18n="send_request"></button>
+        </form>
+      </div>
+      <div class="panel" id="gate-pending" hidden>
+        <div class="pending-mark" aria-hidden="true"></div>
+        <h1 data-i18n="pending_title"></h1>
+        <p class="muted" data-i18n="pending_lead"></p>
+      </div>
+      <div class="panel" id="gate-rejected" hidden>
+        <h1 data-i18n="rejected_title"></h1>
+        <p class="muted" data-i18n="rejected_lead"></p>
+      </div>
+    </section>
+
+    <!-- ===== Members area ===== -->
+    <section id="app" hidden>
+      <nav class="tabs" aria-label="Member sections">
+        <a href="#/collection" data-tab="collection" data-i18n="tab_collection">Koleksi</a>
+        <a href="#/events" data-tab="events" data-i18n="tab_events">Acara</a>
+        <a href="#/market" data-tab="market" data-i18n="tab_market">Pasar</a>
+        <a href="#/card" data-tab="card" data-i18n="tab_card">Kartu saya</a>
+        <a href="#/admin" data-tab="admin" data-i18n="tab_admin" id="tab-admin" hidden>Admin</a>
+      </nav>
+
+      <div class="view" id="view-collection" hidden>
+        <div class="view-head">
+          <div class="seg" role="group">
+            <button type="button" data-filter="all" aria-pressed="true" data-i18n="all"></button>
+            <button type="button" data-filter="mine" aria-pressed="false" data-i18n="mine"></button>
+          </div>
+          <button type="button" class="btn btn-mat" id="btn-add-car" data-i18n="add_car"></button>
+        </div>
+        <div class="grid" id="cars"></div>
+      </div>
+
+      <div class="view" id="view-events" hidden>
+        <div class="view-head">
+          <h2 data-i18n="upcoming"></h2>
+          <button type="button" class="btn btn-mat" id="btn-add-event" data-i18n="add_event" hidden></button>
+        </div>
+        <div class="events" id="events-upcoming"></div>
+        <details class="past">
+          <summary data-i18n="past"></summary>
+          <div class="events" id="events-past"></div>
+        </details>
+      </div>
+
+      <div class="view" id="view-market" hidden>
+        <div class="view-head">
+          <div class="seg" role="group">
+            <button type="button" data-mfilter="all" aria-pressed="true" data-i18n="all"></button>
+            <button type="button" data-mfilter="sell" aria-pressed="false" data-i18n="t_sell"></button>
+            <button type="button" data-mfilter="trade" aria-pressed="false" data-i18n="t_trade"></button>
+            <button type="button" data-mfilter="wanted" aria-pressed="false" data-i18n="t_wanted"></button>
+          </div>
+          <button type="button" class="btn btn-mat" id="btn-add-listing" data-i18n="add_listing"></button>
+        </div>
+        <div class="grid" id="listings"></div>
+      </div>
+
+      <div class="view" id="view-card" hidden>
+        <div class="card-wrap" id="member-card"></div>
+        <form id="form-profile" class="form panel-flat">
+          <h2 data-i18n="edit_profile"></h2>
+          <label><span data-i18n="f_name"></span><input name="displayName" required maxlength="80"></label>
+          <label><span data-i18n="f_city"></span><input name="city" required maxlength="60"></label>
+          <label><span data-i18n="f_instagram"></span><input name="instagram" maxlength="40"></label>
+          <label><span data-i18n="f_whatsapp"></span><input name="whatsapp" maxlength="20" inputmode="tel"></label>
+          <label><span data-i18n="f_bio"></span><textarea name="bio" rows="3" maxlength="400"></textarea></label>
+          <button class="btn btn-mat" type="submit" data-i18n="save"></button>
+        </form>
+      </div>
+
+      <div class="view" id="view-admin" hidden>
+        <h2 data-i18n="pending_requests"></h2>
+        <div class="rows" id="admin-pending"></div>
+        <h2 data-i18n="members"></h2>
+        <div class="rows" id="admin-members"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <span class="wm-main">RCMI</span>
+    <span data-i18n="footer">Resin Car Model Indonesia</span>
+  </footer>
+
+  <dialog id="modal">
+    <div id="modal-body"></div>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>

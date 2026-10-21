@@ -1,0 +1,30 @@
+name: Deploy to Firebase
+
+# On every push to main: deploys the website, the Firestore database rules and indexes.
+# Needs one repo secret: FIREBASE_SERVICE_ACCOUNT (the full JSON key of a service account
+# with the "Firebase Admin" role). See README → "Automatic deploys".
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Deploy hosting + Firestore rules
+        env:
+          SA_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$SA_JSON" ]; then
+            echo "FIREBASE_SERVICE_ACCOUNT secret not set — skipping deploy."
+            exit 0
+          fi
+          printf '%s' "$SA_JSON" > "$RUNNER_TEMP/sa.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json"
+          npx --yes firebase-tools@latest deploy --only hosting,firestore --non-interactive

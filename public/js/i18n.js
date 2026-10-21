@@ -1,0 +1,233 @@
+// Bahasa Indonesia (id) and English (en) strings.
+export const STRINGS = {
+  id: {
+    nav_about: "Tentang",
+    nav_join: "Cara bergabung",
+    sign_in: "Masuk dengan Google",
+    sign_out: "Keluar",
+    hero_title: "Mobil resin 1:64, dicetak tangan, dikoleksi bersama.",
+    hero_lead: "RCMI adalah komunitas kolektor dan pembuat model mobil resin skala 1:64 di Indonesia. Tempat berbagi koleksi, ketemuan, dan tukar barang.",
+    ruler_label: "Panjang mobil asli (meter)",
+    ruler_result: "Di skala 1:64 jadi {mm} mm",
+    ruler_hint: "Geser untuk melihat ukuran mobil di meja kerja.",
+    about_title: "Apa itu RCMI",
+    about_1_t: "Resin, bukan die-cast",
+    about_1_d: "Model resin dibuat dalam produksi kecil, sering dari cetakan buatan tangan. Detailnya tajam, jumlahnya terbatas, dan tiap caster punya gayanya sendiri.",
+    about_2_t: "Pamer koleksi",
+    about_2_d: "Unggah foto koleksimu, lihat koleksi anggota lain, dan cari tahu caster mana yang membuat model tertentu.",
+    about_3_t: "Ketemuan dan jual beli",
+    about_3_d: "Info kopdar dan acara, plus pasar khusus anggota untuk jual, tukar, atau mencari model yang sedang diburu.",
+    join_title: "Cara bergabung",
+    join_1: "Masuk dengan akun Google.",
+    join_2: "Isi profil singkat: nama, kota, dan Instagram.",
+    join_3: "Admin RCMI memeriksa dan menyetujui pendaftaranmu.",
+    join_4: "Kamu dapat nomor anggota dan akses ke semua fitur.",
+    footer: "Resin Car Model Indonesia",
+
+    setup_missing: "Konfigurasi Firebase belum diisi. Buka public/js/config.js dan tempel konfigurasi web app dari Firebase console.",
+
+    onb_title: "Lengkapi profilmu",
+    onb_lead: "Admin memakai info ini untuk menyetujui pendaftaran.",
+    f_name: "Nama",
+    f_city: "Kota",
+    f_instagram: "Instagram",
+    f_whatsapp: "WhatsApp (opsional)",
+    f_bio: "Tentang koleksimu (opsional)",
+    send_request: "Kirim pendaftaran",
+    pending_title: "Pendaftaran sedang ditinjau",
+    pending_lead: "Admin RCMI akan memeriksa profilmu. Halaman ini otomatis terbuka begitu kamu disetujui.",
+    rejected_title: "Pendaftaran belum disetujui",
+    rejected_lead: "Hubungi admin RCMI lewat Instagram kalau menurutmu ini keliru.",
+
+    tab_collection: "Koleksi",
+    tab_events: "Acara",
+    tab_market: "Pasar",
+    tab_card: "Kartu saya",
+    tab_admin: "Admin",
+
+    all: "Semua",
+    mine: "Milik saya",
+    add_car: "Tambah mobil",
+    car_name: "Model mobil",
+    car_maker: "Caster / pembuat",
+    car_notes: "Catatan",
+    photos: "Foto (maks. 3)",
+    save: "Simpan",
+    cancel: "Batal",
+    delete: "Hapus",
+    confirm_delete: "Hapus ini? Tidak bisa dibatalkan.",
+    empty_collection: "Belum ada mobil di sini. Tambahkan model pertamamu.",
+    by: "oleh",
+
+    add_event: "Buat acara",
+    ev_title: "Nama acara",
+    ev_date: "Tanggal & jam",
+    ev_place: "Lokasi",
+    ev_desc: "Keterangan",
+    upcoming: "Akan datang",
+    past: "Sudah lewat",
+    going: "Saya ikut",
+    not_going: "Batal ikut",
+    attending: "{n} ikut",
+    empty_events: "Belum ada acara terjadwal.",
+
+    add_listing: "Pasang iklan",
+    l_type: "Jenis",
+    t_sell: "Jual",
+    t_trade: "Tukar",
+    t_wanted: "Dicari",
+    l_title: "Judul",
+    l_price: "Harga (Rp, opsional)",
+    l_condition: "Kondisi",
+    l_desc: "Keterangan",
+    mark_sold: "Tandai selesai",
+    sold: "Selesai",
+    contact: "Hubungi",
+    empty_market: "Belum ada iklan. Pasang yang pertama.",
+
+    card_member: "Anggota",
+    card_since: "Sejak",
+    edit_profile: "Ubah profil",
+    profile_saved: "Profil disimpan.",
+
+    pending_requests: "Pendaftaran menunggu",
+    members: "Anggota",
+    approve: "Setujui",
+    reject: "Tolak",
+    make_admin: "Jadikan admin",
+    no_pending: "Tidak ada pendaftaran yang menunggu.",
+    approved_msg: "Disetujui sebagai {no}.",
+
+    err_generic: "Gagal menyimpan: {msg}",
+    err_photo: "Foto terlalu besar setelah dikompres. Coba foto lain.",
+    saved: "Tersimpan.",
+    deleted: "Dihapus."
+  },
+  en: {
+    nav_about: "About",
+    nav_join: "How to join",
+    sign_in: "Sign in with Google",
+    sign_out: "Sign out",
+    hero_title: "Hand-cast 1:64 resin cars, collected together.",
+    hero_lead: "RCMI is Indonesia's community of 1:64 resin car model collectors and makers. Share your collection, meet up, and trade.",
+    ruler_label: "Real car length (metres)",
+    ruler_result: "At 1:64 it's {mm} mm",
+    ruler_hint: "Drag to see how big the car is on the workbench.",
+    about_title: "What RCMI is",
+    about_1_t: "Resin, not die-cast",
+    about_1_d: "Resin models are made in small runs, often from hand-made moulds. Sharp detail, limited numbers, and every caster has their own style.",
+    about_2_t: "Show your collection",
+    about_2_d: "Upload photos of your cars, browse other members' shelves, and find out which caster made a model.",
+    about_3_t: "Meetups and trading",
+    about_3_d: "Meetup and event info, plus a members-only market to sell, swap, or hunt for the model you're after.",
+    join_title: "How to join",
+    join_1: "Sign in with your Google account.",
+    join_2: "Fill in a short profile: name, city and Instagram.",
+    join_3: "An RCMI admin reviews and approves your request.",
+    join_4: "You get a member number and access to every feature.",
+    footer: "Resin Car Model Indonesia",
+
+    setup_missing: "Firebase config isn't set yet. Open public/js/config.js and paste the web app config from the Firebase console.",
+
+    onb_title: "Complete your profile",
+    onb_lead: "Admins use this to approve your request.",
+    f_name: "Name",
+    f_city: "City",
+    f_instagram: "Instagram",
+    f_whatsapp: "WhatsApp (optional)",
+    f_bio: "About your collection (optional)",
+    send_request: "Send request",
+    pending_title: "Your request is being reviewed",
+    pending_lead: "An RCMI admin will check your profile. This page opens automatically once you're approved.",
+    rejected_title: "Your request wasn't approved",
+    rejected_lead: "Message the RCMI admins on Instagram if you think this is a mistake.",
+
+    tab_collection: "Collection",
+    tab_events: "Events",
+    tab_market: "Market",
+    tab_card: "My card",
+    tab_admin: "Admin",
+
+    all: "All",
+    mine: "Mine",
+    add_car: "Add car",
+    car_name: "Car model",
+    car_maker: "Caster / maker",
+    car_notes: "Notes",
+    photos: "Photos (max 3)",
+    save: "Save",
+    cancel: "Cancel",
+    delete: "Delete",
+    confirm_delete: "Delete this? This can't be undone.",
+    empty_collection: "No cars here yet. Add your first model.",
+    by: "by",
+
+    add_event: "Create event",
+    ev_title: "Event name",
+    ev_date: "Date & time",
+    ev_place: "Location",
+    ev_desc: "Details",
+    upcoming: "Upcoming",
+    past: "Past",
+    going: "I'm going",
+    not_going: "Cancel RSVP",
+    attending: "{n} going",
+    empty_events: "No events scheduled yet.",
+
+    add_listing: "Post listing",
+    l_type: "Type",
+    t_sell: "Sell",
+    t_trade: "Trade",
+    t_wanted: "Wanted",
+    l_title: "Title",
+    l_price: "Price (IDR, optional)",
+    l_condition: "Condition",
+    l_desc: "Details",
+    mark_sold: "Mark done",
+    sold: "Done",
+    contact: "Contact",
+    empty_market: "No listings yet. Post the first one.",
+
+    card_member: "Member",
+    card_since: "Since",
+    edit_profile: "Edit profile",
+    profile_saved: "Profile saved.",
+
+    pending_requests: "Pending requests",
+    members: "Members",
+    approve: "Approve",
+    reject: "Reject",
+    make_admin: "Make admin",
+    no_pending: "No requests waiting.",
+    approved_msg: "Approved as {no}.",
+
+    err_generic: "Couldn't save: {msg}",
+    err_photo: "Photo is still too large after compressing. Try another photo.",
+    saved: "Saved.",
+    deleted: "Deleted."
+  }
+};
+
+let lang = "id";
+try { lang = localStorage.getItem("rcmi-lang") || "id"; } catch (e) {}
+
+export function getLang() { return lang; }
+
+export function setLang(next) {
+  lang = next;
+  try { localStorage.setItem("rcmi-lang", next); } catch (e) {}
+  applyStatic();
+}
+
+export function t(key, vars = {}) {
+  let s = (STRINGS[lang] && STRINGS[lang][key]) || STRINGS.id[key] || key;
+  for (const [k, v] of Object.entries(vars)) s = s.replace(`{${k}}`, v);
+  return s;
+}
+
+export function applyStatic(root = document) {
+  document.documentElement.lang = lang;
+  root.querySelectorAll("[data-i18n]").forEach(el => { el.textContent = t(el.dataset.i18n); });
+  root.querySelectorAll("[data-i18n-ph]").forEach(el => { el.placeholder = t(el.dataset.i18nPh); });
+  document.querySelectorAll("[data-lang]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.lang === lang)));
+}

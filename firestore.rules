@@ -1,0 +1,86 @@
+rules_version = '2';
+
+// RCMI — Resin Car Model Indonesia
+// Who can do what:
+//   - Anyone signed in with Google can create their own member request (status "pending").
+//   - Only approved members can read members, collection, events and marketplace.
+//   - Members edit only their own profile fields, cars and listings.
+//   - Admins approve members, assign member numbers and manage events.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function me() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
+    function hasProfile() { return signedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)); }
+    function approved() { return hasProfile() && me().status == 'approved'; }
+    function admin() { return approved() && me().role == 'admin'; }
+    function str(v, max) { return v is string && v.size() <= max; }
+    function photosOk(p) { return p is list && p.size() <= 3; }
+
+    // ---------- Members ----------
+    match /users/{uid} {
+      allow read: if (signedIn() && request.auth.uid == uid) || approved();
+
+      allow create: if signedIn() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['displayName','email','photoURL','city','instagram','whatsapp','bio','status','role','createdAt'])
+        && request.resource.data.status == 'pending'
+        && request.resource.data.role == 'member'
+        && request.resource.data.email == request.auth.token.email
+        && str(request.resource.data.displayName, 80)
+        && str(request.resource.data.city, 60);
+
+      // Members can edit their own profile details, never their status, role or number.
+      allow update: if (signedIn() && request.auth.uid == uid
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['displayName','city','instagram','whatsapp','bio','photoURL','updatedAt'])
+          && str(request.resource.data.displayName, 80))
+        || admin();
+
+      allow delete: if admin();
+    }
+
+    // Member-number counter, managed by admins during approval.
+    match /counters/{id} {
+      allow read, write: if admin();
+    }
+
+    // ---------- Collection showcase ----------
+    match /cars/{carId} {
+      allow read: if approved();
+      allow create: if approved()
+        && request.resource.data.ownerUid == request.auth.uid
+        && str(request.resource.data.name, 100)
+        && photosOk(request.resource.data.photos);
+      allow update: if (approved() && resource.data.ownerUid == request.auth.uid
+          && request.resource.data.ownerUid == request.auth.uid
+          && photosOk(request.resource.data.photos)) || admin();
+      allow delete: if (approved() && resource.data.ownerUid == request.auth.uid) || admin();
+    }
+
+    // ---------- Events & meetups ----------
+    match /events/{eventId} {
+      allow read: if approved();
+      allow write: if admin();
+
+      match /rsvps/{uid} {
+        allow read: if approved();
+        allow create, delete: if approved() && request.auth.uid == uid;
+      }
+    }
+
+    // ---------- Marketplace / trade ----------
+    match /listings/{listingId} {
+      allow read: if approved();
+      allow create: if approved()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.type in ['sell','trade','wanted']
+        && str(request.resource.data.title, 100)
+        && photosOk(request.resource.data.photos);
+      allow update: if (approved() && resource.data.ownerUid == request.auth.uid
+          && request.resource.data.ownerUid == request.auth.uid
+          && photosOk(request.resource.data.photos)) || admin();
+      allow delete: if (approved() && resource.data.ownerUid == request.auth.uid) || admin();
+    }
+  }
+}
