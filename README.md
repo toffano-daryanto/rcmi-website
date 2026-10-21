@@ -24,7 +24,7 @@ Community website for 1:64 resin car model collectors. Public landing page plus 
    This creates the database rules and publishes the site at `https://<project-id>.web.app`.
 
 ### Import the members from the Google Form and make yourself admin
-The 22 numbered members (from *RCMI Membership Registration (Responses)* → *RCMI Member List* and *List Kaos RCMI*), the 5 applicants without a number yet, and the August 2025 64 Fitment Contest event are in `data/`. One command loads them into Firestore:
+The 22 numbered members (from *RCMI Membership Registration (Responses)* → *RCMI Member List* and *List Kaos RCMI*), the 5 applicants without a number yet, and the three 2025 events (first meet, 2nd meet, IDS 2025 / TMCP 64 Fitment Contest) are in `data/`. One command loads them into Firestore:
 
 1. Open the site and **sign in with Google once** (submit the profile form).
 2. Firebase console → *Project settings → Service accounts → Generate new private key*. Save it as `service-account.json` in the project folder (it's git-ignored — never commit it).

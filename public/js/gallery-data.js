@@ -2,13 +2,17 @@
 // Each file must be shared "Anyone with the link → Viewer" in Drive for it to show on the site.
 export const GALLERY = [
  {
-  "key": "tmcp",
-  "date": "2025-08-31",
+  "key": "ids",
+  "date": "2025-08-30",
   "title": {
-   "id": "64 Fitment Contest — The Model Car Playground, Ecovention Ancol, 30–31 Agustus 2025",
-   "en": "64 Fitment Contest — The Model Car Playground, Ecovention Ancol, 30–31 August 2025"
+   "id": "IDS 2025 — RCMI mendukung TMCP 64 Fitment Contest, Ecovention Ancol, 30–31 Agustus 2025",
+   "en": "IDS 2025 — RCMI supporting the TMCP 64 Fitment Contest, Ecovention Ancol, 30–31 August 2025"
   },
   "items": [
+   {
+    "id": "18YiE4-mvHFBLpNujIkk-Rj_S0NWYtAqB",
+    "kind": "photo"
+   },
    {
     "id": "1yr8W3bryoknTmDrA7h44ifsTWvLWCOfb",
     "kind": "photo"
@@ -176,37 +180,11 @@ export const GALLERY = [
   ]
  },
  {
-  "key": "misc",
-  "date": "2025-08-08",
-  "title": {
-   "id": "Juni – Agustus 2025",
-   "en": "June – August 2025"
-  },
-  "items": [
-   {
-    "id": "1Y6XBGUqem5Tn-e4AQZ_wjICdramALBcN",
-    "kind": "photo"
-   },
-   {
-    "id": "15xaWGpID14wZFkc-72qBywVPRxIxhqg5",
-    "kind": "photo"
-   },
-   {
-    "id": "1CoiL2LHTIO3DLIn8C-m2GNtjCwBUyoTJ",
-    "kind": "video"
-   },
-   {
-    "id": "18YiE4-mvHFBLpNujIkk-Rj_S0NWYtAqB",
-    "kind": "photo"
-   }
-  ]
- },
- {
-  "key": "may",
+  "key": "meet2",
   "date": "2025-05-03",
   "title": {
-   "id": "3 Mei 2025",
-   "en": "3 May 2025"
+   "id": "Kopdar RCMI ke-2 — 3 Mei 2025",
+   "en": "2nd RCMI meet — 3 May 2025"
   },
   "items": [
    {
@@ -312,11 +290,11 @@ export const GALLERY = [
   ]
  },
  {
-  "key": "apr",
+  "key": "meet1",
   "date": "2025-04-17",
   "title": {
-   "id": "17–18 April 2025",
-   "en": "17–18 April 2025"
+   "id": "Kopdar pertama RCMI — 17–18 April 2025",
+   "en": "First RCMI meet — 17–18 April 2025"
   },
   "items": [
    {
@@ -333,6 +311,28 @@ export const GALLERY = [
    },
    {
     "id": "1Pf50w8yWdOR-ZANClchdYWlpYktC_vRW",
+    "kind": "video"
+   }
+  ]
+ },
+ {
+  "key": "other",
+  "date": "2025-06-02",
+  "title": {
+   "id": "Lainnya — Juni & Agustus 2025",
+   "en": "Other — June & August 2025"
+  },
+  "items": [
+   {
+    "id": "1Y6XBGUqem5Tn-e4AQZ_wjICdramALBcN",
+    "kind": "photo"
+   },
+   {
+    "id": "15xaWGpID14wZFkc-72qBywVPRxIxhqg5",
+    "kind": "photo"
+   },
+   {
+    "id": "1CoiL2LHTIO3DLIn8C-m2GNtjCwBUyoTJ",
     "kind": "video"
    }
   ]

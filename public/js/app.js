@@ -336,7 +336,7 @@ function eventHTML(ev, upcoming) {
     <div class="event-date"><b>${d ? d.getDate() : ""}</b><span>${fmtDate(ev.date, { month: "short", year: "2-digit" })}</span></div>
     <div>
       <h3>${esc(ev.title)}</h3>
-      <p>${ev.dateLabel ? esc(ev.dateLabel[getLang()] || ev.dateLabel.id) : ev.allDay ? fmtDate(ev.date, { day: "numeric", month: "long", year: "numeric" }) : d ? d.toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" }) : ""} · ${esc(ev.place)}</p>
+      <p>${ev.dateLabel ? esc(ev.dateLabel[getLang()] || ev.dateLabel.id) : ev.allDay ? fmtDate(ev.date, { day: "numeric", month: "long", year: "numeric" }) : d ? d.toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" }) : ""}${ev.place ? " · " + esc(ev.place) : ""}</p>
       ${ev.description ? `<p>${esc(ev.description)}</p>` : ""}
       <p class="who"><strong>${t("attending", { n: ev.rsvps.length })}</strong>${names ? ` — ${names}` : ""}</p>
     </div>
