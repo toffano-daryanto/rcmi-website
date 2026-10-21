@@ -55,6 +55,11 @@ It shows totals, the P&L by category, the IDS 2025 event result, the RCMI x Hell
 ### Collection feed (main website)
 **Collection** in the top menu (a swipeable menu row on phones) opens its own page (`#/feed`, e.g. rcmi-website.web.app/#/feed): an Instagram-style feed of every member's cars, newest first: owner photo and name, swipeable photos, a heart to like (or double-tap the photo), caption and time. It loads 6 posts at a time (*Load more*). Anyone can view it; signed-in active accounts can like (`cars/{id}.likedBy`, each account can only add/remove itself). Members add cars from *+ Add to my collection* (the Koleksi tab). Cars of deactivated accounts are hidden.
 
+### Collection & Market pages, sharing
+- **Collection** (`#/feed`) works like Instagram: newest posts first, a row of collectors at the top (tap one for their profile: photo, post and like counts, 3-column grid), a **+** button (top right, and a round + on phones) to post — visitors are asked to sign in first and come back to the form; only RCMI members can post. Tap a name in a post to open that collector's profile.
+- **Market** (`#/market`) is its own page too, newest listings first.
+- **Share**: every post (paper-plane icon) and every listing (*Share* in the listing) can be shared. On phones it opens the phone's share sheet (WhatsApp, Instagram, …); on computers a menu with WhatsApp, Telegram, Facebook, X and *Copy link*. Shared links open that exact post (`#/feed/p/<id>`) or listing (`#/market/<id>`).
+
 ### Two account types
 - **Anggota (member):** RCMI members. Sign up with the registered phone → active immediately (or admin approval). Full access: member list & profiles, member card, monthly dues, collection, events, market.
 - **Sign up:** the top-bar button is *Sign in or create account*. New accounts are asked "Create your account as an RCMI member?" — **Yes**: registered members (matching phone) are active right away; new members see the Rp150.000 joining fee (QRIS / bank from *Pengaturan iuran*), upload the payment proof (`joinPayments/{uid}`, visible to them and admins only) and wait for admin approval — admins see a *View payment proof* button on the request. **No**: general users just register and are active right away.

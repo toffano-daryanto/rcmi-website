@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig } from "./config.js?v=1792604498";
+import { firebaseConfig } from "./config.js?v=1792604767";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792604498";
-import { SEED_EVENTS } from "./seed-events.js?v=1792604498";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792604498";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792604498";
+import { GALLERY } from "./gallery-data.js?v=1792604767";
+import { SEED_EVENTS } from "./seed-events.js?v=1792604767";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792604767";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792604767";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -301,8 +301,9 @@ let lastScreen = "";
 function show(screen) {
   $("#landing").hidden = screen !== "landing";
   $("#feedpage").hidden = screen !== "feed";
-  $("#landing-nav").hidden = screen !== "landing" && screen !== "feed";
-  $$("#landing-nav a").forEach(a => a.classList.toggle("on", screen === "feed" && a.getAttribute("href") === "#/feed"));
+  $("#marketpage").hidden = screen !== "market";
+  $("#landing-nav").hidden = !["landing", "feed", "market"].includes(screen);
+  $$("#landing-nav a").forEach(a => a.classList.toggle("on", a.getAttribute("href") === "#/" + screen));
   $("#gate").hidden = screen !== "gate";
   $("#app").hidden = screen !== "app";
   if (screen !== lastScreen && screen !== "landing") window.scrollTo(0, 0);
@@ -360,22 +361,28 @@ function render() {
   $("#btn-area").hidden = !user || member;
   $("#btn-home").hidden = !user || !member;
   $$(".js-signin").forEach(b => { b.dataset.i18n = user ? "open_member_area" : "join_cta"; b.textContent = t(b.dataset.i18n); });
-  if (location.hash === "#/market") { history.replaceState(null, "", "#market"); }
+  if (location.hash === "#market") { history.replaceState(null, "", "#/market"); }
   if (location.hash === "#feed") { history.replaceState(null, "", "#/feed"); }
+  // Market: its own page on the main website, open to everyone (#/market, #/market/<id> opens a listing).
+  if (location.hash.startsWith("#/market")) {
+    show("market");
+    const canPost = state.profile?.status === "approved";
+    $("#btn-add-listing").hidden = !canPost;
+    $("#market-hint").hidden = canPost;
+    const done = () => openDeepLink();
+    if (!state.listingsLoaded) { state.listingsLoaded = true; loadListings().then(done); } else { renderListings(); done(); }
+    return;
+  }
   // Collection: its own page on the main website, open to everyone.
   if (location.hash.startsWith("#/feed")) {
     show("feed");
-    $("#btn-feed-add").hidden = !(state.profile?.status === "approved" && !isGeneral());
     if (!state.feedLoaded) { state.feedLoaded = true; loadFeed(true); } else renderFeed();
+    renderFeedRoute();
     return;
   }
   if (!member) {
     const wasApp = lastScreen !== "landing";
     show("landing");
-    const canPost = state.profile?.status === "approved";
-    $("#btn-add-listing").hidden = !canPost;
-    $("#market-hint").hidden = canPost;
-    if (!state.listingsLoaded) { state.listingsLoaded = true; loadListings(); } else renderListings();
     const id = location.hash.slice(1);
     if (id && !id.startsWith("/")) requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView());
     else if (wasApp) window.scrollTo(0, 0);
@@ -442,6 +449,11 @@ onAuthStateChanged(auth, (user) => {
     }
     // Just signed in from a "Masuk" button → open the members area; otherwise stay where they are.
     if (snap.exists()) setIntent("");
+    if (snap.exists() && getAfter() === "feed-add") {
+      setAfter(""); setEnter(false);
+      if (!location.hash.startsWith("#/feed")) location.hash = "#/feed";
+      setTimeout(feedPlus, 400);
+    }
     if (wantsEnter()) { setEnter(false); if (!isMemberRoute()) { location.hash = "#/collection"; return; } }
     render();
   }, fail);
@@ -621,18 +633,19 @@ $("#cars").addEventListener("click", (e) => {
     }
   };
 });
-$("#btn-add-car").addEventListener("click", () => {
+$("#btn-add-car").addEventListener("click", () => openAddCar(loadCars));
+function openAddCar(after) {
   openModal(`
     <h2>${t("add_car")}</h2>
     <form class="form" id="f-car">
       <label><span>${t("car_name")}</span><input name="name" required maxlength="100" placeholder="Toyota Celica GT-Four ST185"></label>
       <label><span>${t("car_maker")}</span><input name="maker" maxlength="80"></label>
       <label><span>${t("car_notes")}</span><textarea name="notes" rows="3" maxlength="600"></textarea></label>
-      <label><span>${t("photos")}</span><input type="file" name="photos" accept="image/*" multiple></label>
+      <label><span>${t("photos")} (${t("feed_max3")})</span><input type="file" name="photos" accept="image/*" multiple required></label>
       <div class="thumbs"></div>
       <div class="form-actions">
         <button type="button" class="btn btn-ghost" data-act="close">${t("cancel")}</button>
-        <button class="btn btn-mat" type="submit">${t("save")}</button>
+        <button class="btn btn-mat" type="submit">${t("feed_share")}</button>
       </div>
     </form>`);
   const f = $("#f-car"); bindPhotoPreview(f);
@@ -646,10 +659,10 @@ $("#btn-add-car").addEventListener("click", () => {
         ownerUid: state.user.uid, ownerName: state.profile.displayName, ownerPhoto: state.profile.photoURL || state.user.photoURL || "",
         ownerCity: state.profile.city || "", createdAt: serverTimestamp()
       });
-      closeModal(); toast(t("saved")); loadCars();
+      closeModal(); toast(t("feed_posted")); state.feedLoaded = false; after?.();
     } catch (err) { fail(err); btn.disabled = false; }
   });
-});
+}
 
 /* ================= Collection feed on the main website (Instagram-style) ================= */
 const FEED_PAGE = 6;
@@ -683,7 +696,7 @@ function postHTML(c) {
   const mine = !!state.user && likes.includes(state.user.uid);
   const photos = c.photos || [];
   return `<article class="post" data-post="${esc(c.id)}">
-    <header class="post-head">
+    <header class="post-head" data-owner="${esc(c.ownerUid || "")}" role="link" tabindex="0">
       <span class="post-av">${c.ownerPhoto ? `<img src="${esc(c.ownerPhoto)}" alt="" referrerpolicy="no-referrer">` : esc(initials(c.ownerName))}</span>
       <div><strong>${esc(c.ownerName || "RCMI")}</strong>${c.ownerCity ? `<small>${esc(c.ownerCity)}</small>` : ""}</div>
     </header>
@@ -697,6 +710,7 @@ function postHTML(c) {
       <button type="button" class="like ${mine ? "on" : ""}" data-like="${esc(c.id)}" aria-pressed="${mine}" aria-label="${t("like")}">
         <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M12 21s-7.5-4.6-9.6-9.2C.9 8.4 3 4.5 6.8 4.5c2.2 0 3.6 1.2 4.2 2.3h2c.6-1.1 2-2.3 4.2-2.3 3.8 0 5.9 3.9 4.4 7.3C19.5 16.4 12 21 12 21Z"/></svg>
       </button>
+      <button type="button" class="share" data-share-post="${esc(c.id)}" aria-label="${t("share")}">${SHARE_ICON}</button>
       <span class="like-count">${likes.length ? t(likes.length === 1 ? "likes_one" : "likes_n", { n: likes.length }) : ""}</span>
     </div>
     <p class="post-cap"><strong>${esc(c.name)}</strong>${c.maker ? ` <span class="post-maker">· ${esc(c.maker)}</span>` : ""}${c.notes ? `<br>${esc(c.notes)}` : ""}</p>
@@ -707,17 +721,13 @@ function renderFeed() {
   const box = $("#feed-list"); if (!box) return;
   box.innerHTML = state.feed.length ? state.feed.map(postHTML).join("") : `<p class="empty">${t("feed_empty")}</p>`;
   $("#feed-more").hidden = state.feedDone || !state.feed.length;
-  box.querySelectorAll(".post-track").forEach(tr => tr.addEventListener("scroll", () => {
-    const i = Math.round(tr.scrollLeft / tr.clientWidth);
-    const post = tr.closest(".post");
-    post.querySelectorAll(".post-dots i").forEach((d, k) => d.classList.toggle("on", k === i));
-    const cnt = post.querySelector(".post-count"); if (cnt) cnt.textContent = `${i + 1}/${tr.children.length}`;
-  }, { passive: true }));
+  wireCarousels(box);
+  renderPeople();
 }
 $("#feed-more").addEventListener("click", () => loadFeed());
 async function toggleLike(id, forceOn = false) {
   if (!state.user || state.profile?.status !== "approved") { openSignInChooser(); return; }
-  const c = state.feed.find(x => x.id === id); if (!c) return;
+  const c = state.feed.find(x => x.id === id) || (state.feedProfile?.posts || []).find(x => x.id === id); if (!c) return;
   const uid = state.user.uid; const on = (c.likedBy || []).includes(uid);
   if (forceOn && on) return;
   c.likedBy = on ? c.likedBy.filter(x => x !== uid) : [...(c.likedBy || []), uid];
@@ -727,21 +737,181 @@ async function toggleLike(id, forceOn = false) {
 }
 // Update one post's heart and count in place (keeps the photo carousel where it is).
 function paintLike(c) {
-  const post = $(`.post[data-post="${CSS.escape(c.id)}"]`); if (!post) return;
-  const n = (c.likedBy || []).length, mine = (c.likedBy || []).includes(state.user?.uid);
-  const b = post.querySelector(".like"); b.classList.toggle("on", mine); b.setAttribute("aria-pressed", String(mine));
-  post.querySelector(".like-count").textContent = n ? t(n === 1 ? "likes_one" : "likes_n", { n }) : "";
+  // Same car can be in the feed, a profile and an open post at once: keep them all in step.
+  [state.feed, state.feedProfile?.posts || []].forEach(list => { const x = list.find(y => y.id === c.id); if (x && x !== c) x.likedBy = c.likedBy; });
+  document.querySelectorAll(`.post[data-post="${CSS.escape(c.id)}"]`).forEach(post => {
+    const n = (c.likedBy || []).length, mine = (c.likedBy || []).includes(state.user?.uid);
+    const b = post.querySelector(".like"); b.classList.toggle("on", mine); b.setAttribute("aria-pressed", String(mine));
+    post.querySelector(".like-count").textContent = n ? t(n === 1 ? "likes_one" : "likes_n", { n }) : "";
+  });
 }
-$("#feed-list").addEventListener("click", (e) => {
-  const b = e.target.closest("[data-like]"); if (b) toggleLike(b.dataset.like);
+// Likes and double-tap work in the feed, on profiles and in an opened post.
+document.addEventListener("click", (e) => {
+  const b = e.target.closest(".post [data-like]"); if (b) toggleLike(b.dataset.like);
 });
-// Double-tap a photo to like it, like Instagram.
-$("#feed-list").addEventListener("dblclick", (e) => {
+document.addEventListener("dblclick", (e) => {
   const m = e.target.closest(".post-media"); if (!m) return;
   const post = m.closest(".post"); const h = m.querySelector(".post-heart");
   h.classList.remove("pop"); void h.offsetWidth; h.classList.add("pop");
   setTimeout(() => toggleLike(post.dataset.post, true), 350);
 });
+
+/* ---- Share (WhatsApp & co.): the phone's share sheet when available, otherwise a small menu ---- */
+const SHARE_ICON = `<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M21 3 10 14M21 3l-7 18-4-7-7-4 18-7Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>`;
+const SITE_URL = location.origin + "/";
+async function shareLink({ title, text, url }) {
+  if (navigator.share) {
+    try { await navigator.share({ title, text, url }); return; }
+    catch (e) { if (e.name === "AbortError") return; }
+  }
+  const enc = encodeURIComponent;
+  openModal(`
+    <h2>${t("share")}</h2>
+    <p class="muted share-what">${esc(title)}</p>
+    <div class="share-grid">
+      <a class="share-opt wa" target="_blank" rel="noopener" href="https://wa.me/?text=${enc(text + "\n" + url)}"><b>WhatsApp</b></a>
+      <a class="share-opt tg" target="_blank" rel="noopener" href="https://t.me/share/url?url=${enc(url)}&text=${enc(text)}"><b>Telegram</b></a>
+      <a class="share-opt fb" target="_blank" rel="noopener" href="https://www.facebook.com/sharer/sharer.php?u=${enc(url)}"><b>Facebook</b></a>
+      <a class="share-opt x" target="_blank" rel="noopener" href="https://twitter.com/intent/tweet?text=${enc(text)}&url=${enc(url)}"><b>X</b></a>
+      <button type="button" class="share-opt copy" data-act="copy"><b>${t("copy_link")}</b></button>
+    </div>
+    <input class="share-url" readonly value="${esc(url)}">
+    <div class="form-actions"><button type="button" class="btn btn-ghost" data-act="close">${t("close")}</button></div>`);
+  $("#modal-body").onclick = async (ev) => {
+    const a = ev.target.closest("[data-act]")?.dataset.act;
+    if (a === "close") closeModal();
+    if (a === "copy") {
+      try { await navigator.clipboard.writeText(url); } catch (e) { const i = $(".share-url"); i.select(); document.execCommand("copy"); }
+      toast(t("link_copied"));
+    }
+  };
+}
+function sharePost(c) {
+  shareLink({ title: c.name, text: t("share_post_text", { car: c.name, owner: c.ownerName || "RCMI" }), url: `${SITE_URL}#/feed/p/${c.id}` });
+}
+function shareListing(l) {
+  const price = l.price ? " · " + fmtIDR(l.price) : "";
+  shareLink({ title: l.title, text: t("share_listing_text", { type: typeLabel(l.type), title: l.title + price }), url: `${SITE_URL}#/market/${l.id}` });
+}
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-share-post]"); if (!b) return;
+  const id = b.dataset.sharePost;
+  const c = state.feed.find(x => x.id === id) || (state.feedProfile?.posts || []).find(x => x.id === id) || state.deepPost;
+  if (c) sharePost(c);
+});
+// Shared links: #/feed/p/<id> opens that post, #/market/<id> opens that listing.
+async function openDeepLink() {
+  const h = location.hash;
+  if (state.deepOpened === h) return;
+  let m = h.match(/^#\/feed\/p\/([^/]+)/);
+  if (m) {
+    state.deepOpened = h;
+    const id = decodeURIComponent(m[1]);
+    let c = state.feed.find(x => x.id === id);
+    if (!c) { try { const s = await getDoc(doc(db, "cars", id)); c = s.exists() ? { id: s.id, ...s.data() } : null; } catch (e) {} }
+    if (!c || c.hidden) { toast(t("not_found")); return; }
+    state.deepPost = c;
+    openModal(`<div class="post-modal">${postHTML(c)}</div>`); $("#modal-body").onclick = null;
+    wireCarousels($("#modal-body"));
+    modal.addEventListener("close", () => { state.deepOpened = null; history.replaceState(null, "", "#/feed"); }, { once: true });
+    return;
+  }
+  m = h.match(/^#\/market\/([^/]+)/);
+  if (m) {
+    state.deepOpened = h;
+    const id = decodeURIComponent(m[1]);
+    let l = state.listings.find(x => x.id === id);
+    if (!l) { try { const s = await getDoc(doc(db, "listings", id)); l = s.exists() ? { id: s.id, ...s.data() } : null; } catch (e) {} }
+    if (!l || l.hidden) { toast(t("not_found")); return; }
+    openListing(l);
+    modal.addEventListener("close", () => { state.deepOpened = null; history.replaceState(null, "", "#/market"); }, { once: true });
+  }
+}
+
+/* ---- Instagram-style extras: collectors row, profiles with a photo grid, the + button ---- */
+const feedAv = (photo, name) => photo ? `<img src="${esc(photo)}" alt="" referrerpolicy="no-referrer">` : esc(initials(name));
+function renderPeople() {
+  const box = $("#feed-people"); if (!box) return;
+  const seen = new Map();
+  state.feed.forEach(c => { if (c.ownerUid && !seen.has(c.ownerUid)) seen.set(c.ownerUid, c); });
+  const cur = state.feedProfile?.uid || "";
+  box.innerHTML = seen.size ? `
+    <a class="ig-person ${cur ? "" : "on"}" href="#/feed"><span class="ig-ring all">★</span><small>${t("all")}</small></a>
+    ${[...seen.values()].map(c => `<a class="ig-person ${cur === c.ownerUid ? "on" : ""}" href="#/feed/u/${encodeURIComponent(c.ownerUid)}">
+      <span class="ig-ring">${feedAv(c.ownerPhoto, c.ownerName)}</span><small>${esc(String(c.ownerName || "").split(" ")[0])}</small></a>`).join("")}` : "";
+}
+async function renderFeedRoute() {
+  if (/^#\/feed\/p\//.test(location.hash)) openDeepLink();
+  const m = location.hash.match(/^#\/feed\/u\/([^/]+)/);
+  const uid = m ? decodeURIComponent(m[1]) : "";
+  $("#feed-main").hidden = !!uid; $("#feed-profile").hidden = !uid;
+  if (!uid) { state.feedProfile = null; renderPeople(); return; }
+  if (state.feedProfile?.uid !== uid) {
+    state.feedProfile = { uid, posts: null };
+    renderPeople(); paintProfile();
+    try {
+      const snap = await getDocs(query(collection(db, "cars"), where("ownerUid", "==", uid)));
+      if (state.feedProfile?.uid !== uid) return;
+      state.feedProfile.posts = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(c => !c.hidden)
+        .sort((a, b) => ms(b.createdAt) - ms(a.createdAt));
+    } catch (e) { state.feedProfile.posts = []; }
+  }
+  renderPeople(); paintProfile();
+  window.scrollTo(0, 0);
+}
+function paintProfile() {
+  const p = state.feedProfile; if (!p) return;
+  const posts = p.posts || [];
+  const any = posts[0] || state.feed.find(c => c.ownerUid === p.uid) || {};
+  const likes = posts.reduce((a, c) => a + (c.likedBy || []).length, 0);
+  $("#feed-profile").innerHTML = `
+    <div class="ig-profile">
+      <span class="ig-ring big">${feedAv(any.ownerPhoto, any.ownerName)}</span>
+      <div>
+        <h2>${esc(any.ownerName || "")}</h2>
+        ${any.ownerCity ? `<p class="muted">${esc(any.ownerCity)}</p>` : ""}
+        <p class="ig-stats"><span><strong>${p.posts ? posts.length : "…"}</strong> ${t("feed_posts")}</span><span><strong>${likes}</strong> ${t("feed_likes")}</span></p>
+      </div>
+    </div>
+    ${p.posts && !posts.length ? `<p class="empty">${t("feed_empty")}</p>` : ""}
+    <div class="ig-grid">${posts.map(c => `<button type="button" class="ig-tile" data-open-post="${esc(c.id)}">
+      ${c.photos?.[0] ? `<img src="${c.photos[0]}" alt="${esc(c.name)}" loading="lazy" draggable="false">` : `<span>1:64</span>`}
+      ${(c.photos || []).length > 1 ? `<i class="ig-multi" aria-hidden="true">❏</i>` : ""}
+      <span class="ig-hover">♥ ${(c.likedBy || []).length}</span></button>`).join("")}</div>`;
+}
+$("#feed-profile").addEventListener("click", (e) => {
+  const tile = e.target.closest("[data-open-post]"); if (!tile) return;
+  const c = (state.feedProfile?.posts || []).find(x => x.id === tile.dataset.openPost); if (!c) return;
+  openModal(`<div class="post-modal">${postHTML(c)}</div>`);
+  $("#modal-body").onclick = null;
+  wireCarousels($("#modal-body"));
+});
+// Tap a name or avatar in a post to open that collector's profile.
+document.addEventListener("click", (e) => {
+  const h = e.target.closest(".post-head[data-owner]"); if (!h) return;
+  if (modal.open) closeModal();
+  location.hash = `#/feed/u/${encodeURIComponent(h.dataset.owner)}`;
+});
+function wireCarousels(root) {
+  root.querySelectorAll(".post-track").forEach(tr => tr.addEventListener("scroll", () => {
+    const i = Math.round(tr.scrollLeft / tr.clientWidth);
+    const post = tr.closest(".post");
+    post.querySelectorAll(".post-dots i").forEach((d, k) => d.classList.toggle("on", k === i));
+    const cnt = post.querySelector(".post-count"); if (cnt) cnt.textContent = `${i + 1}/${tr.children.length}`;
+  }, { passive: true }));
+}
+
+// "+" new post: sign in first; general users can't post to the collection (members only).
+const AFTER_KEY = "rcmi-after";
+const setAfter = (v) => { try { v ? sessionStorage.setItem(AFTER_KEY, v) : sessionStorage.removeItem(AFTER_KEY); } catch (e) {} };
+const getAfter = () => { try { return sessionStorage.getItem(AFTER_KEY) || ""; } catch (e) { return ""; } };
+function feedPlus() {
+  if (!state.user) { toast(t("feed_login_first")); setAfter("feed-add"); openSignInChooser(); return; }
+  if (state.profile?.status !== "approved") { toast(t(state.profile ? "feed_wait_approval" : "feed_finish_signup")); return; }
+  if (isGeneral()) { toast(t("feed_members_only")); return; }
+  openAddCar(() => { location.hash = "#/feed"; state.feedLoaded = true; loadFeed(true); });
+}
+$$(".js-feed-plus").forEach(b => b.addEventListener("click", feedPlus));
 
 /* ================= Events ================= */
 async function loadEvents() {
@@ -851,7 +1021,9 @@ $$("[data-mfilter]").forEach(b => b.addEventListener("click", () => {
 }));
 $("#listings").addEventListener("click", (e) => {
   const el = e.target.closest("[data-listing]"); if (!el) return;
-  const l = state.listings.find(x => x.id === el.dataset.listing); if (!l) return;
+  const l = state.listings.find(x => x.id === el.dataset.listing); if (l) openListing(l);
+});
+function openListing(l) {
   const ig = igHandle(l.ownerInstagram);
   const member = state.profile?.status === "approved";
   openModal(`
@@ -863,6 +1035,7 @@ $("#listings").addEventListener("click", (e) => {
     ${l.description ? `<p>${esc(l.description)}</p>` : ""}
     <p class="muted">${esc(l.ownerName)} · ${fmtDate(l.createdAt, { day: "numeric", month: "short" })}</p>
     <div class="form-actions">
+      <button type="button" class="btn btn-ghost share-btn" data-act="share">${SHARE_ICON} ${t("share")}</button>
       ${ig ? `<a class="btn btn-ghost" target="_blank" rel="noopener" href="https://instagram.com/${encodeURIComponent(ig)}">Instagram</a>` : ""}
       <span id="listing-wa">${member ? "" : `<button type="button" class="btn btn-ghost" data-act="signin">${t("wa_signin")}</button>`}</span>
       ${canEdit(l.ownerUid) && l.status !== "sold" ? `<button class="btn btn-ghost" data-act="sold">${t("mark_sold")}</button>` : ""}
@@ -878,13 +1051,14 @@ $("#listings").addEventListener("click", (e) => {
   }
   $("#modal-body").onclick = async (ev) => {
     const act = ev.target.dataset.act;
-    if (act === "signin") { closeModal(); setEnter(false); signIn(); return; }
+    if (act === "signin") { closeModal(); openSignInChooser(); return; }
+    if (ev.target.closest("[data-act=share]")) { shareListing(l); return; }
     try {
       if (act === "sold") { await updateDoc(doc(db, "listings", l.id), { status: "sold" }); closeModal(); toast(t("saved")); loadListings(); }
       if (act === "del" && confirm(t("confirm_delete"))) { await deleteDoc(doc(db, "listings", l.id)); closeModal(); toast(t("deleted")); loadListings(); }
     } catch (e2) { fail(e2); }
   };
-});
+}
 $("#btn-add-listing").addEventListener("click", () => {
   openModal(`
     <h2>${t("add_listing")}</h2>
