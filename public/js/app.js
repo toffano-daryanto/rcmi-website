@@ -7,12 +7,12 @@ import {
   getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, collection, query, where,
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig } from "./config.js?v=1792599923";
+import { firebaseConfig } from "./config.js?v=1792600299";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792599923";
-import { SEED_EVENTS } from "./seed-events.js?v=1792599923";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792599923";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792599923";
+import { GALLERY } from "./gallery-data.js?v=1792600299";
+import { SEED_EVENTS } from "./seed-events.js?v=1792600299";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792600299";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792600299";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -227,10 +227,11 @@ const isMemberRoute = () => TABS.includes(location.hash.replace(/^#\/?/, "").spl
 
 function render() {
   const user = state.user, member = isMemberRoute();
+  renderContact();
   $("#btn-signin").hidden = !!user;
   $("#btn-area").hidden = !user || member;
   $("#btn-home").hidden = !user || !member;
-  $$(".js-signin").forEach(b => { b.dataset.i18n = user ? "open_member_area" : "sign_in"; b.textContent = t(b.dataset.i18n); });
+  $$(".js-signin").forEach(b => { b.dataset.i18n = user ? "open_member_area" : "join_cta"; b.textContent = t(b.dataset.i18n); });
   if (location.hash === "#/market") { history.replaceState(null, "", "#market"); }
   if (!member) {
     const wasApp = lastScreen !== "landing";
@@ -278,6 +279,7 @@ onAuthStateChanged(auth, (user) => {
       state.gate = ["pending", "rejected"].includes(state.profile.status) ? state.profile.status : null;
       $("#tab-admin").hidden = state.profile.role !== "admin";
       $("#tab-finance").hidden = state.profile.accountType === "general";
+      if (state.profile.role === "admin") refreshInboxCount();
       $("#btn-add-event").hidden = state.profile.role !== "admin";
       const general = isGeneral();
       $$('.tabs a[data-tab="members"], .tabs a[data-tab="dues"]').forEach(a => { a.hidden = general; });
@@ -1481,9 +1483,90 @@ $("#fin-file").addEventListener("change", async (e) => {
   e.target.value = "";
 });
 
+/* ================= Contact us (signed-in users send; admins read) ================= */
+function renderContact() {
+  const f = $("#form-contact"); if (!f) return;
+  const user = state.user;
+  $("#contact-signin").hidden = !!user;
+  f.hidden = !user || !$("#contact-done").hidden;
+  if (user) {
+    if (!f.name.value) f.name.value = state.profile?.displayName || user.displayName || "";
+    if (!f.contact.value) f.contact.value = state.profile?.whatsapp || user.email || "";
+  }
+}
+$$(".js-contact-signin").forEach(b => b.addEventListener("click", () => { setEnter(false); signIn(); }));
+$("#form-contact").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const f = e.target; const btn = f.querySelector("[type=submit]");
+  if (f.website.value) return; // bot trap
+  btn.disabled = true;
+  try {
+    await addDoc(collection(db, "messages"), {
+      name: f.name.value.trim().slice(0, 80), contact: f.contact.value.trim().slice(0, 120), topic: f.topic.value,
+      message: f.message.value.trim().slice(0, 2000), status: "new", createdAt: serverTimestamp(),
+      uid: state.user.uid, email: state.user.email || "", lang: getLang()
+    });
+    f.reset(); f.hidden = true; $("#contact-done").hidden = false;
+  } catch (err) { fail(err); }
+  btn.disabled = false;
+});
+
+const TOPIC_KEY = { keanggotaan: "topic_membership", iuran: "topic_dues", pasar: "topic_market", acara: "topic_events", lainnya: "topic_other" };
+async function refreshInboxCount() {
+  if (!isAdmin()) return;
+  try {
+    const snap = await getDocs(query(collection(db, "messages"), where("status", "==", "new")));
+    const n = snap.docs.length;
+    $("#tab-admin").dataset.count = n ? String(n) : "";
+    $("#inbox-count").textContent = n ? t("inbox_new", { n }) : "";
+  } catch (e) {}
+}
+async function loadInbox() {
+  if (!isAdmin()) return;
+  try {
+    const snap = await getDocs(query(collection(db, "messages"), orderBy("createdAt", "desc"), limit(100)));
+    state.inbox = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const box = $("#admin-inbox");
+    box.innerHTML = state.inbox.length ? state.inbox.map(m => {
+      const isEmail = /@/.test(m.contact);
+      const wa = !isEmail ? waNumber(m.contact) : "";
+      const reply = isEmail ? `mailto:${encodeURIComponent(m.contact)}?subject=${encodeURIComponent("RCMI — " + t(TOPIC_KEY[m.topic] || "topic_other"))}`
+        : wa ? `https://wa.me/${wa}` : (m.email ? `mailto:${encodeURIComponent(m.email)}` : "");
+      return `<article class="msg ${m.status === "new" ? "msg-new" : ""}">
+        <div class="msg-head">
+          <strong>${esc(m.name)}</strong>
+          <span class="tag">${esc(t(TOPIC_KEY[m.topic] || "topic_other"))}</span>
+          ${m.status === "new" ? `<span class="tag tag-sell">${t("inbox_unread")}</span>` : ""}
+          <small class="muted">${fmtDate(m.createdAt, { day: "numeric", month: "short", year: "numeric" })}${m.createdAt ? " " + toDate(m.createdAt).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" }) : ""}</small>
+        </div>
+        <p class="msg-body">${esc(m.message)}</p>
+        <small class="muted">${esc(m.contact)}${m.email && m.email !== m.contact ? " · " + esc(m.email) : ""}</small>
+        <div class="actions">
+          ${reply ? `<a class="btn btn-sm btn-mat" target="_blank" rel="noopener" href="${reply}">${t(isEmail || !wa ? "inbox_reply_email" : "inbox_reply_wa")}</a>` : ""}
+          ${m.status === "new" ? `<button class="btn btn-sm btn-ghost" data-mact="done" data-m="${esc(m.id)}">${t("inbox_done")}</button>`
+                               : `<button class="btn btn-sm btn-ghost" data-mact="new" data-m="${esc(m.id)}">${t("inbox_mark_new")}</button>`}
+          <button class="btn btn-sm btn-danger" data-mact="del" data-m="${esc(m.id)}">${t("delete")}</button>
+        </div>
+      </article>`;
+    }).join("") : `<p class="muted">${t("inbox_empty")}</p>`;
+    refreshInboxCount();
+  } catch (e) { fail(e); }
+}
+$("#admin-inbox").addEventListener("click", async (e) => {
+  const b = e.target.closest("[data-mact]"); if (!b) return;
+  const ref = doc(db, "messages", b.dataset.m);
+  try {
+    if (b.dataset.mact === "done") await updateDoc(ref, { status: "done" });
+    if (b.dataset.mact === "new") await updateDoc(ref, { status: "new" });
+    if (b.dataset.mact === "del") { if (!confirm(t("confirm_delete"))) return; await deleteDoc(ref); }
+    loadInbox();
+  } catch (err) { fail(err); }
+});
+
 /* ================= Admin ================= */
 async function loadAdmin() {
   if (!isAdmin()) return;
+  loadInbox();
   try {
     const [pend] = await Promise.all([
       getDocs(query(collection(db, "users"), where("status", "==", "pending"))),

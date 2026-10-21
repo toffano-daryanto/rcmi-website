@@ -75,6 +75,12 @@ The landing-page gallery (`public/js/gallery-data.js`) shows the 74 photos and v
 - Set the bank account, amount, due day and the month to start tracking from under **Iuran → Semua anggota → Pengaturan iuran**. The joining month counts as paid (it's covered by the Rp150.000 registration fee).
 - Each member sees only their own payments; admins see everyone's (`dues/{rosterId}_{YYYY-MM}`).
 
+### Contact us
+The **Contact** section on the main website has a form (name, WhatsApp/email, topic, message). Only **signed-in** accounts can send it; each message is tied to the sender's Google account. Only **admins** can read messages: **Admin → Inbox** lists them newest first, with a count of unread ones on the Admin tab, a one-tap reply on WhatsApp or by email, *Mark done* and *Delete*. Messages are stored in `messages/{id}` (create: signed-in users, read/update/delete: admins).
+
+### Language
+The site opens in **English** by default; visitors can switch to Bahasa Indonesia with the ID/EN toggle (the choice is remembered on their device).
+
 ### Custom domain (optional)
 *Hosting → Add custom domain*, then add the domain under *Authentication → Settings → Authorized domains* so Google sign-in works there too.
 
@@ -118,6 +124,7 @@ Without the secret, the workflow skips deploying instead of failing.
 | `counters/members` | `next` member number | admins |
 | `cars/{id}` | model name, caster/maker, notes, up to 3 photos, owner | owner, admins |
 | `events/{id}` + `rsvps/{uid}` | title, date, place, details; one RSVP doc per member | admins create events; each member their own RSVP |
+| `messages/{id}` | contact-form messages: name, contact, topic, message, status (new/done), sender uid & email | signed-in users create; admins read/manage |
 | `listings/{id}` | type (sell/trade/wanted), title, price, condition, photos, status, owner contact | owner, admins |
 
 Collections are created automatically the first time something is saved. Only **approved** members can read any of it — see `firestore.rules`.

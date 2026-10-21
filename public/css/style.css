@@ -518,3 +518,22 @@ dialog::backdrop { background: rgba(18, 20, 28, .65); }
 }
 
 .mem-sync-bar { justify-content: flex-start; background: #FFF6D9; border-left: 5px solid var(--yellow); padding: 10px 14px; border-radius: var(--radius-s); }
+
+/* ---------- Contact & inbox ---------- */
+.contact { padding: clamp(48px, 7vw, 88px) 24px; max-width: 760px; margin: 0 auto; border-top: 1px solid var(--line); }
+.contact-form, .contact-signin, .contact-done { background: var(--surface); border-radius: var(--radius-m); padding: 22px 24px; box-shadow: 0 0 0 1px var(--line); border-top: 6px solid var(--red); margin-top: 18px; }
+.contact-signin p { margin-bottom: 14px; }
+.contact-done { color: var(--good); font-weight: 700; border-top-color: var(--good); }
+.hp { position: absolute !important; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+#tab-admin[data-count]:not([data-count=""])::after { content: attr(data-count); display: inline-grid; place-items: center; min-width: 20px; height: 20px; margin-left: 6px; padding: 0 5px; border-radius: 99px; background: var(--red); color: #fff; font-family: var(--font); font-style: normal; font-size: .75rem; font-weight: 700; vertical-align: 2px; }
+.inbox-count { font-size: 1rem; color: var(--red); font-family: var(--font); font-style: normal; }
+.inbox { margin-bottom: 36px; }
+.msg { background: var(--surface); border-radius: var(--radius-m); padding: 14px 16px; box-shadow: 0 0 0 1px var(--line); }
+.msg-new { box-shadow: 0 0 0 2px var(--red); }
+.msg-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.msg-head .tag { margin: 0; }
+.msg-head small { margin-left: auto; }
+.msg-body { white-space: pre-wrap; margin: 8px 0; }
+.msg .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.msg .actions a { text-decoration: none; display: inline-flex; align-items: center; }
+@media (max-width: 600px) { .contact { padding-left: 16px; padding-right: 16px; } }

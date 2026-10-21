@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="id">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;1,600;1,700;1,800&family=Barlow:wght@400;500;600;700&family=Noto+Serif:wght@700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/style.css?v=1792599923">
+  <link rel="stylesheet" href="/css/style.css?v=1792600299">
   <link rel="icon" type="image/png" href="/img/icon-64.png">
   <link rel="apple-touch-icon" href="/img/icon-192.png">
   <meta property="og:image" content="/img/icon-512.png">
@@ -26,11 +26,12 @@
       <a href="#gallery" data-i18n="nav_gallery">Galeri</a>
       <a href="#market" data-i18n="nav_market">Pasar</a>
       <a href="#join" data-i18n="nav_join">Cara bergabung</a>
+      <a href="#contact" data-i18n="nav_contact">Kontak</a>
     </nav>
     <div class="top-actions">
       <div class="lang" role="group" aria-label="Language">
-        <button type="button" data-lang="id" aria-pressed="true">ID</button>
-        <button type="button" data-lang="en" aria-pressed="false">EN</button>
+        <button type="button" data-lang="id" aria-pressed="false">ID</button>
+        <button type="button" data-lang="en" aria-pressed="true">EN</button>
       </div>
       <button type="button" class="btn btn-amber" id="btn-signin" data-i18n="sign_in">Masuk dengan Google</button>
       <a class="btn btn-amber" id="btn-area" href="#/collection" hidden data-i18n="member_area">Area Anggota</a>
@@ -54,7 +55,7 @@
           <p class="lead"><span data-i18n="hero_lead"></span> <span id="lead-users"></span></p>
           <div class="hero-cta">
             <p class="stats" id="stats" hidden></p>
-            <button type="button" class="btn btn-amber btn-lg js-signin" data-i18n="sign_in">Masuk dengan Google</button>
+            <button type="button" class="btn btn-amber btn-lg js-signin" data-i18n="join_cta">Tertarik? Gabung di sini</button>
           </div>
         </div>
 
@@ -136,7 +137,35 @@
           <li data-i18n="join_3"></li>
           <li data-i18n="join_4"></li>
         </ol>
-        <button type="button" class="btn btn-mat js-signin" data-i18n="sign_in">Masuk dengan Google</button>
+        <button type="button" class="btn btn-mat js-signin" data-i18n="join_cta">Tertarik? Gabung di sini</button>
+      </section>
+
+      <section class="contact" id="contact">
+        <h2 data-i18n="contact_title">Hubungi kami</h2>
+        <p class="muted" data-i18n="contact_lead"></p>
+        <div class="contact-signin" id="contact-signin">
+          <p data-i18n="contact_signin"></p>
+          <button type="button" class="btn btn-amber js-contact-signin" data-i18n="sign_in"></button>
+        </div>
+        <form class="form contact-form" id="form-contact" hidden>
+          <div class="row2">
+            <label><span data-i18n="f_name"></span><input name="name" required maxlength="80" autocomplete="name"></label>
+            <label><span data-i18n="contact_reach"></span><input name="contact" required maxlength="120" placeholder="08… / nama@gmail.com" autocomplete="email"></label>
+          </div>
+          <label><span data-i18n="contact_topic"></span>
+            <select name="topic">
+              <option value="keanggotaan" data-i18n="topic_membership"></option>
+              <option value="iuran" data-i18n="topic_dues"></option>
+              <option value="pasar" data-i18n="topic_market"></option>
+              <option value="acara" data-i18n="topic_events"></option>
+              <option value="lainnya" data-i18n="topic_other"></option>
+            </select>
+          </label>
+          <label><span data-i18n="contact_message"></span><textarea name="message" required rows="5" maxlength="2000"></textarea></label>
+          <label class="hp" aria-hidden="true">Website<input name="website" tabindex="-1" autocomplete="off"></label>
+          <div class="form-actions"><button class="btn btn-mat" type="submit" data-i18n="contact_send"></button></div>
+        </form>
+        <p class="contact-done" id="contact-done" hidden data-i18n="contact_thanks"></p>
       </section>
     </section>
 
@@ -263,6 +292,8 @@
       </div>
 
       <div class="view" id="view-admin" hidden>
+        <h2><span data-i18n="inbox_title">Pesan masuk</span> <span class="inbox-count" id="inbox-count"></span></h2>
+        <div class="rows inbox" id="admin-inbox"></div>
         <h2 data-i18n="pending_requests"></h2>
         <div class="rows" id="admin-pending"></div>
         <h2 data-i18n="members"></h2>
@@ -293,6 +324,6 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="/js/app.js?v=1792599923"></script>
+  <script type="module" src="/js/app.js?v=1792600299"></script>
 </body>
 </html>

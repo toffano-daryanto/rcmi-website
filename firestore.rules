@@ -143,6 +143,21 @@ service cloud.firestore {
       allow write: if admin();
     }
 
+    // Contact form: signed-in users can send a message (tied to their account); only admins can read and manage them.
+    match /messages/{id} {
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['name','contact','topic','message','status','createdAt','uid','email','lang'])
+        && str(request.resource.data.name, 80) && request.resource.data.name.size() > 0
+        && str(request.resource.data.contact, 120) && request.resource.data.contact.size() > 0
+        && str(request.resource.data.topic, 40)
+        && str(request.resource.data.message, 2000) && request.resource.data.message.size() > 0
+        && request.resource.data.status == 'new'
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.email == request.auth.token.email;
+      allow read, update, delete: if admin();
+    }
+
     // Public numbers for the home page (total members, provinces). Anyone reads; admins write.
     match /public/{id} {
       allow read: if true;
