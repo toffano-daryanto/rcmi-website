@@ -240,6 +240,41 @@ service cloud.firestore {
       allow delete: if staff();
     }
 
+    // Direct messages: only the two people in a chat can read it; admins/moderators only after one of them reports it.
+    function inChat(c) { return signedIn() && request.auth.uid in c.members; }
+    match /chats/{chatId} {
+      allow read: if (signedIn() && request.auth.uid in resource.data.members) || (staff() && resource.data.get('reported', false) == true);
+      allow create: if approved()
+        && request.resource.data.keys().hasOnly(['members', 'names', 'photos', 'createdAt', 'lastAt', 'lastText', 'lastFrom', 'readAt', 'blockedBy'])
+        && request.resource.data.members is list && request.resource.data.members.size() == 2
+        && request.auth.uid in request.resource.data.members
+        && request.resource.data.members[0] != request.resource.data.members[1]
+        && chatId == request.resource.data.members[0] + '_' + request.resource.data.members[1]
+        && request.resource.data.blockedBy.size() == 0 && request.resource.data.lastText == '';
+      allow update: if (signedIn() && request.auth.uid in resource.data.members
+          && request.resource.data.members == resource.data.members
+          && onlyKeys(['lastText', 'lastAt', 'lastFrom', 'readAt', 'names', 'photos', 'blockedBy', 'reported', 'reportedBy', 'reportNote', 'reportedAt'])
+          && str(request.resource.data.lastText, 120)
+          && (!('lastFrom' in request.resource.data.diff(resource.data).affectedKeys()) || request.resource.data.lastFrom == request.auth.uid)
+          && (!('reportedBy' in request.resource.data.diff(resource.data).affectedKeys()) || request.resource.data.reportedBy == request.auth.uid)
+          // Each person can only add or remove themselves from the block list.
+          && (!('blockedBy' in request.resource.data.diff(resource.data).affectedKeys())
+              || request.resource.data.blockedBy.toSet().difference(resource.data.blockedBy.toSet()).union(resource.data.blockedBy.toSet().difference(request.resource.data.blockedBy.toSet())).hasOnly([request.auth.uid])))
+        || (staff() && resource.data.get('reported', false) == true && onlyKeys(['reported']));
+
+      match /messages/{mid} {
+        allow read: if inChat(get(/databases/$(database)/documents/chats/$(chatId)).data)
+          || (staff() && get(/databases/$(database)/documents/chats/$(chatId)).data.get('reported', false) == true);
+        allow create: if approved()
+          && inChat(get(/databases/$(database)/documents/chats/$(chatId)).data)
+          && get(/databases/$(database)/documents/chats/$(chatId)).data.get('blockedBy', []).size() == 0
+          && request.resource.data.keys().hasOnly(['from', 'text', 'photo', 'at'])
+          && request.resource.data.from == request.auth.uid && request.resource.data.at == request.time
+          && str(request.resource.data.text, 1000) && str(request.resource.data.photo, 400000);
+        allow delete: if (signedIn() && resource.data.from == request.auth.uid) || admin();
+      }
+    }
+
     // Shipping address: private — only the person and admins can read it.
     match /addresses/{uid} {
       allow read: if (signedIn() && request.auth.uid == uid) || admin();

@@ -37,6 +37,10 @@
       <button type="button" class="btn btn-amber" id="btn-signin" data-i18n="sign_in">Masuk dengan Google</button>
       <a class="btn btn-amber" id="btn-area" href="#/collection" hidden data-i18n="member_area">Area Anggota</a>
       <a class="btn btn-ghost-light" id="btn-home" href="#/" hidden data-i18n="home">Beranda</a>
+      <a class="bell dm-btn" id="dm-wrap" href="#/dm" hidden aria-label="Messages">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M21 3 10 14M21 3l-7 18-4-7-7-4 18-7Z"/></svg>
+        <span class="bell-count" id="dm-count" hidden></span>
+      </a>
       <div class="bell-wrap" id="bell-wrap" hidden>
         <button type="button" class="bell" id="btn-bell" aria-haspopup="true" aria-expanded="false" aria-label="Notifications">
           <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22Zm7-6V11a7 7 0 0 0-5.5-6.84V3.5a1.5 1.5 0 0 0-3 0v.66A7 7 0 0 0 5 11v5l-2 2v1h18v-1Z"/></svg>
@@ -197,6 +201,17 @@
           <p class="market-hint muted" id="market-hint" data-i18n="market_hint"></p>
         </div>
         <div class="grid" id="listings"></div>
+      </section>
+    </section>
+
+    <!-- ===== Direct messages (#/dm, #/dm/<chatId>) ===== -->
+    <section id="dmpage" hidden>
+      <section class="dm-sec">
+        <h1 data-i18n="dm_title">Pesan</h1>
+        <div class="dm-layout" id="dm-body">
+          <nav class="dm-list" id="dm-list"></nav>
+          <div class="dm-chat" id="dm-chat"></div>
+        </div>
       </section>
     </section>
 
@@ -393,6 +408,8 @@
         <div class="rows" id="admin-general"></div>
         <h2><span data-i18n="del_req_list"></span> <span class="inbox-count" id="admin-delreq-count"></span></h2>
         <div class="rows" id="admin-delreq"></div>
+        <h2><span data-i18n="dm_rep_list"></span> <span class="inbox-count" id="admin-repchats-count"></span></h2>
+        <div class="rows" id="admin-repchats"></div>
         <h2><span data-i18n="del_log_list"></span> <span class="inbox-count" id="admin-dellog-count"></span></h2>
         <p class="muted" data-i18n="del_log_lead"></p>
         <div class="rows" id="admin-dellog"></div>

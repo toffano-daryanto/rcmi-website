@@ -299,10 +299,11 @@ let unsubProfile = null;
 
 /* ================= Admin notifications (bell in the top bar, live) ================= */
 const notif = { unsubs: [], pending: [], messages: [], recent: [], proofs: {}, notices: [], seenAt: 0, lastCount: null, uid: null };
-function stopNotifs() { notif.unsubs.forEach(u => u()); notif.unsubs = []; notif.uid = null; notif.lastCount = null; $("#bell-wrap").hidden = true; }
+function stopNotifs() { notif.unsubs.forEach(u => u()); notif.unsubs = []; notif.uid = null; notif.lastCount = null; $("#bell-wrap").hidden = true; if (typeof stopDM === "function" && dm.uid) stopDM(); }
 function startNotifs() {
   if (notif.uid === state.user.uid) return;
   stopNotifs(); notif.uid = state.user.uid; notif.startedAt = Date.now();
+  startDM();
   $("#bell-wrap").hidden = false;
   const since = Timestamp.fromDate(new Date(Date.now() - 30 * 864e5));
   const on = (q, fn) => notif.unsubs.push(onSnapshot(q, fn, () => {}));
@@ -437,6 +438,7 @@ function show(screen) {
   $("#landing").hidden = screen !== "landing";
   $("#feedpage").hidden = screen !== "feed";
   $("#marketpage").hidden = screen !== "market";
+  $("#dmpage").hidden = screen !== "dm";
   // The main-site menu stays in the top bar everywhere; "How to join" only on the public pages.
   $("#landing-nav").hidden = false;
   const joinLink = $('#landing-nav a[href="#join"]'); if (joinLink) joinLink.hidden = screen === "app" || screen === "gate";
@@ -508,6 +510,13 @@ function render() {
     $("#market-hint").hidden = canPost;
     const done = () => openDeepLink();
     if (!state.listingsLoaded) { state.listingsLoaded = true; loadListings().then(done); } else { renderListings(); done(); }
+    return;
+  }
+  // Direct messages: signed-in accounts only.
+  if (location.hash.startsWith("#/dm")) {
+    show("dm");
+    if (!user) { $("#dm-chat").innerHTML = ""; $("#dm-list").innerHTML = `<p class="empty">${t("dm_signin")}</p>`; return; }
+    renderDM();
     return;
   }
   // Collection: its own page on the main website, open to everyone.
@@ -1558,6 +1567,7 @@ function paintProfile() {
         ${any.ownerCity ? `<p class="muted">${esc(any.ownerCity)}</p>` : ""}
         <p class="ig-stats"><span><strong>${p.posts ? posts.length : "…"}</strong> ${t("feed_posts")}</span><span><strong>${likes}</strong> ${t("feed_likes")}</span></p>
         <p class="ig-rep">${t("rep_seller")}: ${repBadge(p.uid) || "…"}</p>
+        ${p.uid !== state.user?.uid ? `<button type="button" class="btn btn-sm btn-mat ig-dm" data-dm="${esc(p.uid)}" data-dm-name="${esc(any.ownerName || "")}" data-dm-photo="${esc(any.ownerPhoto || "")}">✉️ ${t("dm_message")}</button>` : ""}
       </div>
     </div>
     ${p.posts && !posts.length ? `<p class="empty">${t("feed_empty")}</p>` : ""}
@@ -1738,6 +1748,204 @@ $("#btn-add-event").addEventListener("click", () => {
       closeModal(); toast(t("saved")); loadEvents();
     } catch (err) { fail(err); }
   });
+});
+
+/* ================= Direct messages (private, 1-to-1) =================
+   chats/{uidA_uidB} (uids sorted) → members, names, photos, last message, readAt per person, blockedBy, report fields.
+   chats/{id}/messages → from, text, photo, at. Only the two people can read a chat; admins/moderators only once it's reported. */
+const dm = { chats: [], unsub: null, uid: null, open: null, unsubMsgs: null, lastSeenAt: 0 };
+const chatIdOf = (a, b) => [a, b].sort().join("_");
+const otherOf = (c) => (c.members || []).find(u => u !== state.user?.uid) || "";
+const chatUnread = (c) => c.lastFrom && c.lastFrom !== state.user?.uid && ms(c.lastAt) > ms(c.readAt?.[state.user?.uid]);
+function startDM() {
+  if (dm.uid === state.user.uid) return;
+  stopDM(); dm.uid = state.user.uid; dm.startedAt = Date.now();
+  $("#dm-wrap").hidden = false;
+  dm.unsub = onSnapshot(query(collection(db, "chats"), where("members", "array-contains", state.user.uid)), s => {
+    const before = dm.chats.filter(chatUnread).length;
+    dm.chats = s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => ms(b.lastAt) - ms(a.lastAt));
+    const n = dm.chats.filter(chatUnread).length;
+    const c = $("#dm-count"); c.hidden = !n; c.textContent = n > 99 ? "99+" : String(n);
+    if (Date.now() - dm.startedAt > 4000 && n > before && !location.hash.startsWith("#/dm/")) toast(t("dm_new_toast"));
+    if (location.hash.startsWith("#/dm")) renderDM();
+  }, () => {});
+}
+function stopDM() { dm.unsub?.(); dm.unsub = null; dm.uid = null; dm.chats = []; dm.unsubMsgs?.(); dm.unsubMsgs = null; const w = $("#dm-wrap"); if (w) w.hidden = true; }
+
+// Start (or open) a chat with someone: from a profile or a market listing.
+async function openChatWith(uid, name = "", photo = "", context = "") {
+  if (!state.user) { toast(t("dm_signin")); openSignInChooser(); return; }
+  if (state.profile?.status !== "approved") { toast(t("cmt_need_active")); return; }
+  if (!uid || uid === state.user.uid) return;
+  const id = chatIdOf(state.user.uid, uid);
+  try {
+    const ref = doc(db, "chats", id), snap = await getDoc(ref);
+    if (!snap.exists()) {
+      const me = state.user.uid;
+      await setDoc(ref, { members: [me, uid].sort(), names: { [me]: String(state.profile.displayName || "").slice(0, 80), [uid]: String(name || "").slice(0, 80) },
+        photos: { [me]: String(state.profile.photoURL || state.user.photoURL || "").slice(0, 600), [uid]: String(photo || "").slice(0, 600) },
+        createdAt: serverTimestamp(), lastAt: serverTimestamp(), lastText: "", lastFrom: "", readAt: {}, blockedBy: [] });
+    }
+  } catch (e) { fail(e); return; }
+  dm.draft = context;
+  if (modal.open) closeModal();
+  location.hash = `#/dm/${encodeURIComponent(id)}`;
+}
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-dm]"); if (!b) return;
+  e.preventDefault(); e.stopPropagation();
+  openChatWith(b.dataset.dm, b.dataset.dmName || "", b.dataset.dmPhoto || "", b.dataset.dmContext || "");
+}, true);
+
+function renderDM() {
+  const box = $("#dm-body"); if (!box) return;
+  if (!state.user) { box.innerHTML = `<p class="empty">${t("dm_signin")}</p>`; return; }
+  const m = location.hash.match(/^#\/dm\/([^/]+)/);
+  const id = m ? decodeURIComponent(m[1]) : "";
+  $("#dmpage").classList.toggle("in-chat", !!id);
+  const list = dm.chats.filter(c => c.lastFrom || c.id === id);
+  $("#dm-list").innerHTML = list.length ? list.map(c => {
+    const o = otherOf(c), nm = c.names?.[o] || "RCMI", ph = c.photos?.[o] || "";
+    return `<a class="dm-row ${c.id === id ? "on" : ""} ${chatUnread(c) ? "unread" : ""}" href="#/dm/${encodeURIComponent(c.id)}">
+      <span class="cmt-av">${ph ? `<img src="${esc(ph)}" alt="" referrerpolicy="no-referrer">` : esc(initials(nm))}</span>
+      <span class="dm-row-t"><strong>${esc(nm)}</strong><small>${c.lastFrom === state.user.uid ? t("dm_you") + ": " : ""}${esc(c.lastText || "")}</small></span>
+      <small class="dm-time">${ms(c.lastAt) ? ago(c.lastAt) : ""}</small></a>`;
+  }).join("") : `<p class="empty">${t("dm_none")}</p>`;
+  if (!id) { dm.unsubMsgs?.(); dm.unsubMsgs = null; dm.open = null; $("#dm-chat").innerHTML = `<p class="empty dm-pick">${t("dm_pick")}</p>`; return; }
+  const c = dm.chats.find(x => x.id === id);
+  if (!c) { $("#dm-chat").innerHTML = `<p class="empty">…</p>`; return; }
+  const o = otherOf(c), nm = c.names?.[o] || "RCMI";
+  const blocked = (c.blockedBy || []).length > 0, iBlocked = (c.blockedBy || []).includes(state.user.uid);
+  if (dm.open !== id) {
+    dm.open = id; dm.footKey = ""; dm.unsubMsgs?.();
+    $("#dm-chat").innerHTML = `
+      <header class="dm-head">
+        <a class="dm-back" href="#/dm" aria-label="${t("dm_back")}">←</a>
+        <a class="dm-who" href="#/feed/u/${encodeURIComponent(o)}"><strong>${esc(nm)}</strong></a>
+        <button type="button" class="post-mod" data-dm-menu aria-label="${t("dm_menu")}">⋯</button>
+      </header>
+      <div class="dm-msgs" id="dm-msgs"><p class="empty">…</p></div>
+      <div id="dm-foot"></div>`;
+    dm.unsubMsgs = onSnapshot(query(collection(db, "chats", id, "messages"), orderBy("at", "asc"), limit(500)), s => {
+      dm.msgs = s.docs.map(d => ({ id: d.id, ...d.data() }));
+      paintMsgs();
+      markChatRead(id);
+    }, () => { $("#dm-msgs").innerHTML = `<p class="empty">${t("not_found")}</p>`; });
+  }
+  const footKey = `${id}|${blocked}|${iBlocked}`;
+  if (dm.footKey === footKey && $("#dm-foot")?.children.length) return;
+  dm.footKey = footKey;
+  $("#dm-foot").innerHTML = blocked
+    ? `<p class="muted dm-blocked">${t(iBlocked ? "dm_you_blocked" : "dm_blocked")}</p>`
+    : `<form class="dm-form" id="f-dm">
+        <label class="dm-photo" title="${esc(t("photos"))}"><input type="file" name="photo" accept="image/*" hidden>📷</label>
+        <textarea name="text" rows="1" maxlength="1000" placeholder="${esc(t("dm_ph"))}"></textarea>
+        <button class="btn btn-mat" type="submit">${t("dm_send")}</button>
+      </form>`;
+  const f = $("#f-dm");
+  if (f) {
+    if (dm.draft) { f.text.value = dm.draft; dm.draft = ""; }
+    f.text.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && !matchMedia("(pointer: coarse)").matches) { e.preventDefault(); f.requestSubmit(); } });
+    f.photo.addEventListener("change", () => { f.querySelector(".dm-photo").classList.toggle("on", !!f.photo.files.length); });
+    f.addEventListener("submit", (e) => { e.preventDefault(); sendDM(c, f); });
+  }
+}
+function paintMsgs() {
+  const box = $("#dm-msgs"); if (!box) return;
+  const me = state.user.uid;
+  box.innerHTML = (dm.msgs || []).length ? dm.msgs.map(m => `
+    <div class="dm-msg ${m.from === me ? "me" : ""}" data-msg="${esc(m.id)}">
+      ${m.photo ? `<img src="${photoSrc(m.photo)}" alt="" loading="lazy">` : ""}
+      ${m.text ? `<p>${esc(m.text).replace(/\n/g, "<br>")}</p>` : ""}
+      <small>${ms(m.at) ? new Date(ms(m.at)).toLocaleString(locale(), { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "…"}
+        ${m.from === me ? ` · <button type="button" class="cmt-act" data-unsend="${esc(m.id)}">${t("dm_unsend")}</button>` : ""}</small>
+    </div>`).join("") : `<p class="empty">${t("dm_say_hi")}</p>`;
+  box.scrollTop = box.scrollHeight;
+}
+function markChatRead(id) {
+  const c = dm.chats.find(x => x.id === id);
+  if (c && chatUnread(c)) updateDoc(doc(db, "chats", id), { [`readAt.${state.user.uid}`]: serverTimestamp() }).catch(() => {});
+}
+async function sendDM(c, f) {
+  const text = f.text.value.trim();
+  if (!text && !f.photo.files.length) return;
+  const btn = f.querySelector("[type=submit]"); btn.disabled = true;
+  try {
+    const photos = f.photo.files.length ? await storePhotos(f.photo, "market", 1, 0, btn) : [];
+    const batch = writeBatch(db);
+    batch.set(doc(collection(db, "chats", c.id, "messages")), { from: state.user.uid, text: text.slice(0, 1000), photo: photos[0] || "", at: serverTimestamp() });
+    batch.update(doc(db, "chats", c.id), { lastText: (text || "📷").slice(0, 120), lastAt: serverTimestamp(), lastFrom: state.user.uid,
+      [`readAt.${state.user.uid}`]: serverTimestamp(), [`names.${state.user.uid}`]: String(state.profile.displayName || "").slice(0, 80) });
+    await batch.commit();
+    f.text.value = ""; f.photo.value = ""; f.querySelector(".dm-photo").classList.remove("on");
+  } catch (err) { fail(err); }
+  btn.disabled = false; btn.textContent = t("dm_send"); f.text.focus();
+}
+$("#dmpage").addEventListener("click", async (e) => {
+  const u = e.target.closest("[data-unsend]");
+  if (u) {
+    if (!confirm(t("dm_unsend_confirm"))) return;
+    try { await deleteDoc(doc(db, "chats", dm.open, "messages", u.dataset.unsend)); } catch (err) { fail(err); }
+    return;
+  }
+  if (e.target.closest("[data-dm-menu]")) {
+    const c = dm.chats.find(x => x.id === dm.open); if (!c) return;
+    const iBlocked = (c.blockedBy || []).includes(state.user.uid);
+    openModal(`
+      <h2>${esc(c.names?.[otherOf(c)] || "")}</h2>
+      <div class="form-actions dm-menu">
+        <a class="btn btn-ghost" href="#/feed/u/${encodeURIComponent(otherOf(c))}" data-act="close">${t("dm_profile")}</a>
+        <button type="button" class="btn btn-ghost" data-act="${iBlocked ? "unblock" : "block"}">${t(iBlocked ? "dm_unblock" : "dm_block")}</button>
+        <button type="button" class="btn btn-danger" data-act="report">${t("dm_report")}</button>
+        <button type="button" class="btn btn-ghost" data-act="close">${t("close")}</button>
+      </div>`);
+    $("#modal-body").onclick = async (ev) => {
+      const act = ev.target.dataset.act; if (!act) return;
+      if (act === "close") { closeModal(); return; }
+      try {
+        if (act === "block") { if (!confirm(t("dm_block_confirm"))) return; await updateDoc(doc(db, "chats", c.id), { blockedBy: arrayUnion(state.user.uid) }); toast(t("dm_blocked_done")); }
+        if (act === "unblock") { await updateDoc(doc(db, "chats", c.id), { blockedBy: arrayRemove(state.user.uid) }); toast(t("saved")); }
+        if (act === "report") {
+          const why = prompt(t("dm_report_why")); if (!why || why.trim().length < 5) { if (why !== null) toast(t("del_reason_required")); return; }
+          await updateDoc(doc(db, "chats", c.id), { reported: true, reportedBy: state.user.uid, reportNote: why.trim().slice(0, 300), reportedAt: serverTimestamp() });
+          toast(t("dm_reported"));
+        }
+        closeModal();
+      } catch (err) { fail(err); }
+    };
+  }
+});
+
+/* Staff: reported chats — read the conversation, then mark it resolved. */
+async function loadReportedChats() {
+  if (!isStaff()) return;
+  try {
+    const s = await getDocs(query(collection(db, "chats"), where("reported", "==", true)));
+    const list = state.repChats = s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => ms(b.reportedAt) - ms(a.reportedAt));
+    $("#admin-repchats-count").textContent = `(${list.length})`;
+    $("#admin-repchats").innerHTML = list.length ? list.map(c => `
+      <div class="row"><div class="grow"><strong>${(c.members || []).map(u => esc(c.names?.[u] || u)).join(" ↔ ")}</strong>
+        <small>${t("dm_reported_by", { name: esc(c.names?.[c.reportedBy] || "") })}${c.reportedAt ? " · " + fmtDate(c.reportedAt, { day: "numeric", month: "short", year: "numeric" }) : ""}</small>
+        <small><strong>${t("mod_reason")}:</strong> ${esc(c.reportNote || "")}</small></div>
+        <div class="actions"><button class="btn btn-sm btn-mat" data-repchat="${esc(c.id)}">${t("dm_read")}</button>
+          <button class="btn btn-sm btn-ghost" data-repchat-ok="${esc(c.id)}">${t("dm_resolve")}</button></div></div>`).join("") : `<p class="muted">${t("dm_rep_none")}</p>`;
+  } catch (e) { console.warn(e); }
+}
+$("#admin-repchats").addEventListener("click", async (e) => {
+  const r = e.target.closest("[data-repchat]"), ok = e.target.closest("[data-repchat-ok]");
+  if (ok) { try { await updateDoc(doc(db, "chats", ok.dataset.repchatOk), { reported: false }); toast(t("saved")); loadReportedChats(); } catch (err) { fail(err); } return; }
+  if (!r) return;
+  const c = (state.repChats || []).find(x => x.id === r.dataset.repchat); if (!c) return;
+  try {
+    const s = await getDocs(query(collection(db, "chats", c.id, "messages"), orderBy("at", "asc"), limit(500)));
+    openModal(`<h2>${(c.members || []).map(u => esc(c.names?.[u] || "")).join(" ↔ ")}</h2>
+      <div class="dm-msgs dm-audit">${s.docs.map(d => { const m = d.data(); return `<div class="dm-msg ${m.from === c.reportedBy ? "me" : ""}">
+        <small><strong>${esc(c.names?.[m.from] || "")}</strong></small>
+        ${m.photo ? `<img src="${photoSrc(m.photo)}" alt="" loading="lazy">` : ""}${m.text ? `<p>${esc(m.text).replace(/\n/g, "<br>")}</p>` : ""}
+        <small>${fmtDate(m.at, { day: "numeric", month: "short", year: "numeric" })}</small></div>`; }).join("") || `<p class="empty">—</p>`}</div>
+      <div class="form-actions"><button class="btn btn-ghost" data-act="close">${t("close")}</button></div>`);
+    $("#modal-body").onclick = (ev) => { if (ev.target.dataset.act === "close") closeModal(); };
+  } catch (err) { fail(err); }
 });
 
 /* ================= Seller reputation =================
@@ -1984,6 +2192,7 @@ function openListing(l) {
       ${!isAdmin() ? "" : l.modHidden ? `<button type="button" class="btn btn-sm btn-mat" data-act="unhide">${t("mod_unhide")}</button>` : `<button type="button" class="btn btn-sm btn-ghost" data-act="modhide">${t("mod_hide")}</button>`}
       <button type="button" class="btn btn-sm btn-danger" data-act="moddel">${t("mod_delete")}</button></div>` : ""}
     <div class="form-actions">
+      ${l.ownerUid && l.ownerUid !== state.user?.uid ? `<button type="button" class="btn btn-mat" data-dm="${esc(l.ownerUid)}" data-dm-name="${esc(l.ownerName || "")}" data-dm-context="${esc(t("dm_about", { title: l.title }))}">✉️ ${t("dm_msg_seller")}</button>` : ""}
       <button type="button" class="btn btn-ghost" data-act="report">${t("mn_report_listing")}</button>
       ${ig ? `<a class="btn btn-ghost" target="_blank" rel="noopener" href="https://instagram.com/${encodeURIComponent(ig)}">Instagram</a>` : ""}
       <span id="listing-wa">${member ? "" : `<button type="button" class="btn btn-ghost" data-act="signin">${t("wa_signin")}</button>`}</span>
@@ -3062,6 +3271,7 @@ $("#admin-inbox").addEventListener("click", async (e) => {
 async function loadAdmin() {
   if (!isStaff()) return;
   $("#view-admin").classList.toggle("mod-view", !isAdmin());
+  loadReportedChats();
   if (!isAdmin()) return loadModerator();
   refreshMigrate(); loadModHidden(); loadDelRequests(); loadDelLog();
   loadInbox();
