@@ -262,6 +262,8 @@ service cloud.firestore {
         && request.resource.data.get('hidden', false) == false
         && !request.resource.data.keys().hasAny(['modHidden', 'modNote', 'modBy', 'modAt'])
         && request.resource.data.type in ['sell','trade','wanted']
+        // Market rule 3: every listing has a price (budget for wanted, value for trade).
+        && request.resource.data.price is number && request.resource.data.price > 0
         && !('ownerWhatsapp' in request.resource.data)
         && str(request.resource.data.title, 100)
         && photosOk(request.resource.data.photos);

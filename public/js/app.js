@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792607593";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792607658";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792607593";
-import { SEED_EVENTS } from "./seed-events.js?v=1792607593";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792607593";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792607593";
+import { GALLERY } from "./gallery-data.js?v=1792607658";
+import { SEED_EVENTS } from "./seed-events.js?v=1792607658";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792607658";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792607658";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -1324,10 +1324,11 @@ $("#btn-add-listing").addEventListener("click", () => {
       </div>
     </form>`);
   const f = $("#f-l"); bindPhotoPreview(f);
-  // Rule 3: price must be listed (for "wanted": the budget). Trade posts may skip it.
+  // Rule 3: a price is always required (for "wanted": the budget; for "trade": the value).
+  f.price.required = true; f.price.min = "1000";
   const syncPrice = () => {
-    const ty = f.type.value; f.price.required = ty !== "trade";
-    f.price.closest("label").querySelector("span").textContent = t(ty === "wanted" ? "l_budget" : "l_price") + (ty !== "trade" ? " *" : " " + t("l_optional"));
+    const ty = f.type.value;
+    f.price.closest("label").querySelector("span").textContent = t(ty === "wanted" ? "l_budget" : ty === "trade" ? "l_value" : "l_price") + " *";
     f.description.required = ty === "wanted";
     f.description.placeholder = ty === "wanted" ? t("l_wanted_ph") : "";
   };
@@ -1337,11 +1338,13 @@ $("#btn-add-listing").addEventListener("click", () => {
     if (ev.target.dataset.act === "rules") { ev.preventDefault(); closeModal(); const d = $("#market-rules"); d.open = true; d.scrollIntoView({ behavior: "smooth" }); }
   };
   f.addEventListener("submit", async (e) => {
-    e.preventDefault(); const btn = f.querySelector('[type="submit"]'); btn.disabled = true;
+    e.preventDefault(); const btn = f.querySelector('[type="submit"]');
+    if (!(Number(f.price.value) > 0)) { toast(t("l_price_required")); f.price.focus(); return; }
+    btn.disabled = true;
     try {
       const photos = await storePhotos(f.photos, "market", 3, 0, f.querySelector('[type="submit"]'));
       await addDoc(collection(db, "listings"), {
-        type: f.type.value, title: f.title.value.trim(), price: f.price.value ? Number(f.price.value) : null,
+        type: f.type.value, title: f.title.value.trim(), price: Number(f.price.value),
         condition: f.condition.value.trim(), description: f.description.value.trim(), photos, status: "open",
         ownerUid: state.user.uid, ownerName: state.profile.displayName,
         ownerInstagram: state.profile.instagram || "",
