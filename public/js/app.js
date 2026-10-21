@@ -308,7 +308,7 @@ function startNotifs() {
   const on = (q, fn) => notif.unsubs.push(onSnapshot(q, fn, () => {}));
   notif.pending = []; notif.messages = []; notif.recent = []; notif.proofs = {}; notif.notices = [];
   // Everyone: notices from the admins (post hidden / removed / visible again).
-  on(query(collection(db, "notices"), where("uid", "==", state.user.uid)), s => { notif.notices = s.docs.map(d => ({ id: d.id, ...d.data() })); renderBell(); });
+  on(query(collection(db, "notices"), where("uid", "==", state.user.uid)), s => { notif.notices = s.docs.map(d => ({ id: d.id, ...d.data() })); renderBell(); if (state.tab === "activity") renderActivity(); });
   if (!isAdmin()) return;
   on(query(collection(db, "users"), where("status", "==", "pending")), s => { notif.pending = s.docs.map(d => ({ id: d.id, ...d.data() })); renderBell(); });
   on(query(collection(db, "messages"), where("status", "==", "new")), s => { notif.messages = s.docs.map(d => ({ id: d.id, ...d.data() })); renderBell(); });
@@ -319,10 +319,9 @@ const ms = (ts) => toDate(ts)?.getTime() || 0;
 function bellItems() {
   const seen = ms(state.profile?.notifSeenAt);
   const items = [];
-  for (const n of notif.notices) items.push(n.kind === "comment" || n.kind === "reply" || n.kind === "claim"
+  for (const n of notif.notices) items.push(ACT_KINDS.includes(n.kind)
     ? { at: ms(n.at), unread: !n.read, notice: n.id, href: n.target === "market" ? `#/market/${encodeURIComponent(n.postId)}` : `#/feed/p/${encodeURIComponent(n.postId)}`,
-        text: n.kind === "claim" ? t("nt_claim", { name: esc(n.fromName || ""), n: esc(n.note), title: esc(n.title) })
-          : t(n.kind === "reply" ? "nt_reply" : "nt_comment", { name: esc(n.fromName || ""), title: esc(n.title) }) + `<em class="bell-note">“${esc(n.note)}”</em>` }
+        text: activityText(n) }
     : { at: ms(n.at), unread: !n.read, href: "#", notice: n.id,
         text: t({ hidden: "nt_hidden", deleted: "nt_deleted", unhidden: "nt_unhidden" }[n.kind] || "nt_hidden", { title: esc(n.title), where: t(n.target === "market" ? "nav_market" : "nav_feed") })
           + (n.note ? `<em class="bell-note">${t("mod_reason")}: ${esc(n.note)}</em>` : "") });
@@ -360,9 +359,9 @@ $("#bell-panel").addEventListener("click", (e) => {
 function openNotice(id) {
   const n = notif.notices.find(x => x.id === id); if (!n) return;
   if (!n.read) updateDoc(doc(db, "notices", id), { read: true }).catch(() => {});
-  if (n.kind === "comment" || n.kind === "reply" || n.kind === "claim") {   // open the post, then its comments
+  if (ACT_KINDS.includes(n.kind)) {   // open the post (for comments: then its comments)
     const h = n.target === "market" ? `#/market/${encodeURIComponent(n.postId)}` : `#/feed/p/${encodeURIComponent(n.postId)}`;
-    state.deepOpened = null; state.openCommentsAfter = n.target === "market" ? null : `cars:${n.postId}`;
+    state.deepOpened = null; state.openCommentsAfter = n.target === "market" || n.kind === "like" || n.kind === "claim" ? null : `cars:${n.postId}`;
     if (location.hash === h) openDeepLink(); else location.hash = h;
     return;
   }
@@ -388,6 +387,41 @@ $("#bell-seen").addEventListener("click", async (e) => {
     if (isAdmin()) await updateDoc(doc(db, "users", state.user.uid), { notifSeenAt: serverTimestamp() });
   } catch (err) { fail(err); }
 });
+
+/* ================= Activity tab: likes, comments and buys on your posts ================= */
+const ACT_KINDS = ["like", "comment", "reply", "claim"];
+function activityText(n) {
+  const name = esc(n.fromName || ""), title = esc(n.title);
+  if (n.kind === "claim") return t("nt_claim", { name, n: esc(n.note), title });
+  if (n.kind === "like") return t(n.target === "market" ? "nt_like_listing" : "nt_like", { name, title });
+  return t(n.kind === "reply" ? "nt_reply" : "nt_comment", { name, title }) + `<em class="bell-note">“${esc(n.note)}”</em>`;
+}
+const ACT_ICON = { like: "♥", comment: "💬", reply: "💬", claim: "⚡" };
+let actFilter = "all";
+function renderActivity() {
+  const box = $("#activity-list"); if (!box) return;
+  const list = notif.notices.filter(n => ACT_KINDS.includes(n.kind))
+    .filter(n => actFilter === "all" || n.kind === actFilter || (actFilter === "comment" && n.kind === "reply"))
+    .sort((a, b) => ms(b.at) - ms(a.at));
+  box.innerHTML = list.length ? list.map(n => `
+    <a class="act-item ${n.read ? "" : "unread"}" href="#" data-notice="${esc(n.id)}">
+      <span class="act-ic act-${esc(n.kind)}" aria-hidden="true">${ACT_ICON[n.kind]}</span>
+      <span class="act-body"><span>${activityText(n)}</span>
+        <small>${t(n.target === "market" ? "nav_market" : "tab_collection")} · ${ms(n.at) ? new Date(ms(n.at)).toLocaleString(locale(), { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : ""}</small></span>
+    </a>`).join("") : `<p class="empty">${t("act_empty")}</p>`;
+}
+$("#view-activity").addEventListener("click", (e) => {
+  const f = e.target.closest("[data-afilter]");
+  if (f) { actFilter = f.dataset.afilter; $$("#view-activity [data-afilter]").forEach(b => b.setAttribute("aria-pressed", String(b === f))); renderActivity(); return; }
+  const a = e.target.closest("[data-notice]");
+  if (a) { e.preventDefault(); openNotice(a.dataset.notice); }
+});
+// Tell the post owner when someone likes their post (only when the heart turns on, never for your own post).
+function likeNotice(target, item) {
+  if (!item?.ownerUid || item.ownerUid === state.user.uid) return;
+  addDoc(collection(db, "notices"), { uid: item.ownerUid, kind: "like", target, postId: item.id, title: String(item.name || item.title || "").slice(0, 100),
+    note: "", from: state.user.uid, fromName: String(state.profile?.displayName || "").slice(0, 80), at: serverTimestamp(), read: false }).catch(() => {});
+}
 
 let lastScreen = "";
 function show(screen) {
@@ -787,7 +821,7 @@ document.addEventListener("click", (e) => {
 });
 
 /* ---------------- routing ---------------- */
-const TABS = ["collection", "events", "members", "dues", "card", "finance", "admin"];
+const TABS = ["collection", "events", "members", "dues", "activity", "card", "finance", "admin"];
 window.addEventListener("hashchange", render);
 function route() {
   if (!state.profile || state.profile.status !== "approved" || !isMemberRoute()) return;
@@ -800,11 +834,11 @@ function route() {
   state.tab = tab;
   $$(".tabs a").forEach(a => { if (a.dataset.tab === tab) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
   TABS.forEach(n => { $(`#view-${n}`).hidden = n !== tab; });
-  ({ collection: loadCars, events: loadEvents, members: loadMembers, dues: loadDues, finance: loadFinance, card: () => fetchRoster().catch(() => {}).then(renderCard), admin: loadAdmin })[tab]();
+  ({ collection: loadCars, events: loadEvents, members: loadMembers, dues: loadDues, activity: renderActivity, finance: loadFinance, card: () => fetchRoster().catch(() => {}).then(renderCard), admin: loadAdmin })[tab]();
 }
 function rerender() {
   if ($("#app").hidden) return;
-  ({ collection: renderCars, events: renderEvents, members: showMembers, dues: renderDues, finance: renderFinance, card: renderCard, admin: loadAdmin })[state.tab]();
+  ({ collection: renderCars, events: renderEvents, members: showMembers, dues: renderDues, activity: renderActivity, finance: renderFinance, card: renderCard, admin: loadAdmin })[state.tab]();
 }
 const isAdmin = () => state.profile?.role === "admin";
 // Two account types: RCMI members, and general users (non-members). Older accounts without the field are members.
@@ -1073,7 +1107,7 @@ async function toggleLike(id, forceOn = false) {
   if (forceOn && on) return;
   c.likedBy = on ? c.likedBy.filter(x => x !== uid) : [...(c.likedBy || []), uid];
   paintLike(c);
-  try { await updateDoc(doc(db, "cars", id), { likedBy: on ? arrayRemove(uid) : arrayUnion(uid) }); }
+  try { await updateDoc(doc(db, "cars", id), { likedBy: on ? arrayRemove(uid) : arrayUnion(uid) }); if (!on) likeNotice("collection", c); }
   catch (e) { c.likedBy = on ? [...c.likedBy, uid] : c.likedBy.filter(x => x !== uid); paintLike(c); fail(e); }
 }
 // Update one post's heart and count in place (keeps the photo carousel where it is).
@@ -1137,7 +1171,7 @@ document.addEventListener("click", async (e) => {
   const paint = () => { const n = l.likedBy.length; b.classList.toggle("on", l.likedBy.includes(uid));
     b.parentElement.querySelector(".like-count").textContent = n ? t(n === 1 ? "likes_one" : "likes_n", { n }) : ""; };
   paint();
-  try { await updateDoc(doc(db, "listings", l.id), { likedBy: on ? arrayRemove(uid) : arrayUnion(uid) }); renderListings(); }
+  try { await updateDoc(doc(db, "listings", l.id), { likedBy: on ? arrayRemove(uid) : arrayUnion(uid) }); if (!on) likeNotice("market", l); renderListings(); }
   catch (err) { l.likedBy = on ? [...l.likedBy, uid] : l.likedBy.filter(x => x !== uid); paint(); fail(err); }
 });
 

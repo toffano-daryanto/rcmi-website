@@ -277,6 +277,7 @@
         <a href="#/events" data-tab="events" data-i18n="tab_events">Acara</a>
         <a href="#/members" data-tab="members" data-i18n="tab_members">Anggota</a>
         <a href="#/dues" data-tab="dues" data-i18n="tab_dues">Iuran</a>
+        <a href="#/activity" data-tab="activity" data-i18n="tab_activity">Aktivitas</a>
         <a href="#/card" data-tab="card" data-i18n="tab_card" id="tab-card">Kartu saya</a>
         <a href="#/finance" data-tab="finance" data-i18n="tab_finance" id="tab-finance" hidden>Keuangan</a>
         <a href="#/admin" data-tab="admin" data-i18n="tab_admin" id="tab-admin" hidden>Admin</a>
@@ -288,6 +289,17 @@
           <button type="button" class="btn btn-mat" id="btn-add-car" data-i18n="add_car"></button>
         </div>
         <div class="grid" id="cars"></div>
+      </div>
+
+      <div class="view" id="view-activity" hidden>
+        <p class="muted" data-i18n="act_lead"></p>
+        <div class="seg act-filter" role="group">
+          <button type="button" data-afilter="all" aria-pressed="true" data-i18n="all"></button>
+          <button type="button" data-afilter="like" aria-pressed="false" data-i18n="act_likes"></button>
+          <button type="button" data-afilter="comment" aria-pressed="false" data-i18n="act_comments"></button>
+          <button type="button" data-afilter="claim" aria-pressed="false" data-i18n="act_buys"></button>
+        </div>
+        <div class="act-list" id="activity-list"></div>
       </div>
 
       <div class="view" id="view-events" hidden>
