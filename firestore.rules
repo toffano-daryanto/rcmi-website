@@ -263,7 +263,8 @@ service cloud.firestore {
     match /cars/{carId} {
       // Public: the Collection feed on the main website shows everyone's cars.
       allow read: if true;
-      allow create: if member()
+      // Any active account (RCMI members and general users) can post to the Collection.
+      allow create: if approved()
         && request.resource.data.ownerUid == request.auth.uid
         && request.resource.data.get('hidden', false) == false
         && !request.resource.data.keys().hasAny(['modHidden', 'modNote', 'modBy', 'modAt'])

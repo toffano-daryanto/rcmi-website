@@ -578,7 +578,7 @@ onAuthStateChanged(auth, (user) => {
       const general = isGeneral();
       $$('.tabs a[data-tab="members"], .tabs a[data-tab="dues"]').forEach(a => { a.hidden = general; });
       const ct = $("#tab-card"); ct.dataset.i18n = general ? "tab_profile" : "tab_card"; ct.textContent = t(ct.dataset.i18n);
-      $("#btn-add-car").hidden = general;
+      $("#btn-add-car").hidden = false;
       if (state.profile.status === "approved" && state.contactSyncedFor !== user.uid) { state.contactSyncedFor = user.uid; saveContact(state.profile); }
     }
     // Just signed in from a "Masuk" button → open the members area; otherwise stay where they are.
@@ -1645,7 +1645,6 @@ const getAfter = () => { try { return sessionStorage.getItem(AFTER_KEY) || ""; }
 function feedPlus() {
   if (!state.user) { toast(t("feed_login_first")); setAfter("feed-add"); openSignInChooser(); return; }
   if (state.profile?.status !== "approved") { toast(t(state.profile ? "feed_wait_approval" : "feed_finish_signup")); return; }
-  if (isGeneral()) { toast(t("feed_members_only")); return; }
   openAddCar(() => { location.hash = "#/feed"; state.feedLoaded = true; loadFeed(true); });
 }
 $$(".js-feed-plus").forEach(b => b.addEventListener("click", feedPlus));
