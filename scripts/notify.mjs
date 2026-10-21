@@ -36,12 +36,16 @@ if (!st.exists) {
 }
 const since = st.data().lastCheck;
 
-const newer = async (col) =>
-  (await db.collection(col).where("createdAt", ">", since).where("createdAt", "<=", now).get()).docs.map(d => ({ id: d.id, ...d.data() }));
+const newer = async (col, field = "createdAt") =>
+  (await db.collection(col).where(field, ">", since).where(field, "<=", now).get()).docs.map(d => ({ id: d.id, ...d.data() }));
 
-const [users, proofs, messages] = await Promise.all([newer("users"), newer("joinPayments"), newer("messages")]);
-console.log(`New: ${users.length} sign-ups, ${proofs.length} payment proofs, ${messages.length} messages.`);
-if (!users.length && !proofs.length && !messages.length) { await stateRef.set({ lastCheck: now }); process.exit(0); }
+const [users, proofs, messages, delReqs0, reports, ownerDels] = await Promise.all([
+  newer("users"), newer("joinPayments"), newer("messages"),
+  newer("listings", "delReqAt"), newer("chats", "reportedAt"), newer("deleteLog", "at")
+]);
+const delReqs = delReqs0.filter(l => l.delReq === true);
+console.log(`New: ${users.length} sign-ups, ${proofs.length} payment proofs, ${messages.length} messages, ${delReqs.length} delete requests, ${reports.length} chat reports, ${ownerDels.length} deleted posts.`);
+if (!users.length && !proofs.length && !messages.length && !delReqs.length && !reports.length && !ownerDels.length) { await stateRef.set({ lastCheck: now }); process.exit(0); }
 
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 const no = (n) => `RCMI-${String(n).padStart(4, "0")}`;
@@ -62,10 +66,19 @@ const msgRows = messages.map(m => card(`<strong>${esc(m.name)}</strong> · ${esc
   <span style="color:#555">${esc(m.contact)}${m.email && m.email !== m.contact ? " · " + esc(m.email) : ""}</span>
   <p style="white-space:pre-wrap;margin:6px 0 0">${esc(m.message)}</p>`));
 
+const delRows = delReqs.map(l => card(`<strong>${esc(l.ownerName)}</strong> asks to delete the market listing <strong>${esc(l.title)}</strong><br>
+  <span style="color:#555">Reason: ${esc(l.delReason)}</span>`));
+const repRows = reports.map(c => card(`<strong>${esc(c.names?.[c.reportedBy] || "A member")}</strong> reported a private chat${c.reportNote ? `<br><span style="color:#555">Reason: ${esc(c.reportNote)}</span>` : ""}`));
+const ownDelRows = ownerDels.map(x => card(`<strong>${esc(x.name)}</strong> deleted their Collection post <strong>${esc(x.title)}</strong><br>
+  <span style="color:#555">Reason: ${esc(x.reason)}</span>`));
+
 const parts = [
   users.length && `${users.length} new sign-up${users.length > 1 ? "s" : ""}`,
   proofs.length && `${proofs.length} payment proof${proofs.length > 1 ? "s" : ""}`,
-  messages.length && `${messages.length} message${messages.length > 1 ? "s" : ""}`
+  messages.length && `${messages.length} message${messages.length > 1 ? "s" : ""}`,
+  delReqs.length && `${delReqs.length} delete request${delReqs.length > 1 ? "s" : ""}`,
+  reports.length && `${reports.length} chat report${reports.length > 1 ? "s" : ""}`,
+  ownerDels.length && `${ownerDels.length} deleted post${ownerDels.length > 1 ? "s" : ""}`
 ].filter(Boolean);
 
 const html = `<div style="font-family:Arial,sans-serif;max-width:600px;color:#12141C">
@@ -74,6 +87,9 @@ const html = `<div style="font-family:Arial,sans-serif;max-width:600px;color:#12
   ${section("New accounts", userRows)}
   ${section("Joining-fee payment proofs", proofRows)}
   ${section("Contact messages", msgRows)}
+  ${section("Market delete requests (need your approval)", delRows)}
+  ${section("Reported chats", repRows)}
+  ${section("Collection posts deleted by their owners", ownDelRows)}
   <p style="margin-top:20px"><a href="${SITE}/#/admin" style="background:#D6102B;color:#fff;padding:10px 16px;border-radius:6px;text-decoration:none;font-weight:bold">Open the Admin page</a></p>
 </div>`;
 
