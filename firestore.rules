@@ -207,7 +207,8 @@ service cloud.firestore {
 
     // ---------- Collection showcase ----------
     match /cars/{carId} {
-      allow read: if approved();
+      // Public: the Collection feed on the main website shows everyone's cars.
+      allow read: if true;
       allow create: if member()
         && request.resource.data.ownerUid == request.auth.uid
         && request.resource.data.get('hidden', false) == false
@@ -217,7 +218,15 @@ service cloud.firestore {
       allow update: if (approved() && resource.data.ownerUid == request.auth.uid
           && request.resource.data.ownerUid == request.auth.uid
           && request.resource.data.get('hidden', false) == resource.data.get('hidden', false)
-          && photosOk(request.resource.data.photos)) || admin();
+          && photosOk(request.resource.data.photos)) || admin()
+        // Likes: any active account can add or remove only its own uid in likedBy.
+        || (approved()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likedBy'])
+          && request.resource.data.likedBy is list && request.resource.data.likedBy.size() <= 5000
+          && ((request.resource.data.likedBy.toSet().difference(resource.data.get('likedBy', []).toSet()) == [request.auth.uid].toSet()
+               && resource.data.get('likedBy', []).toSet().difference(request.resource.data.likedBy.toSet()).size() == 0)
+           || (resource.data.get('likedBy', []).toSet().difference(request.resource.data.likedBy.toSet()) == [request.auth.uid].toSet()
+               && request.resource.data.likedBy.toSet().difference(resource.data.get('likedBy', []).toSet()).size() == 0)));
       allow delete: if (approved() && resource.data.ownerUid == request.auth.uid) || admin();
     }
 

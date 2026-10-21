@@ -608,3 +608,48 @@ img[src*="drive.google.com"] { -webkit-user-drag: none; user-select: none; -webk
 .deact-box p { margin: 0; flex-basis: 100%; }
 .r-deact { margin-top: 6px; margin-left: 10px; background: none; border: 0; padding: 0; color: var(--muted); font: inherit; font-size: .8rem; text-decoration: underline; cursor: pointer; }
 .r-deact:hover { color: var(--red); }
+
+/* ---------- Collection feed (Instagram-style) ---------- */
+.feed-sec { padding: clamp(48px, 7vw, 88px) 24px; border-top: 1px solid var(--line); }
+.feed-sec > h2, .feed-sec > p, .feed-actions { max-width: 520px; margin-left: auto; margin-right: auto; }
+.feed-actions { margin-top: 12px; margin-bottom: 20px; }
+.feed-actions .btn { text-decoration: none; display: inline-block; }
+.feed { max-width: 520px; margin: 0 auto; display: grid; gap: 22px; }
+.post { background: var(--surface); border-radius: var(--radius-m); box-shadow: 0 0 0 1px var(--line); overflow: hidden; }
+.post-head { display: flex; align-items: center; gap: 10px; padding: 10px 14px; }
+.post-head strong { display: block; font-size: .95rem; }
+.post-head small { display: block; color: var(--muted); font-size: .78rem; }
+.post-av { width: 38px; height: 38px; border-radius: 50%; overflow: hidden; display: grid; place-items: center; flex: none;
+  background: var(--navy); color: #fff; font-weight: 700; font-size: .85rem; box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--red); }
+.post-av img { width: 100%; height: 100%; object-fit: cover; }
+.post-media { position: relative; background: #0d0f15; aspect-ratio: 1 / 1; user-select: none; }
+.post-track { display: flex; width: 100%; height: 100%; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; }
+.post-track::-webkit-scrollbar { display: none; }
+.post-track img { flex: 0 0 100%; width: 100%; height: 100%; object-fit: cover; scroll-snap-align: start; -webkit-user-drag: none; }
+.post-empty { height: 100%; display: grid; place-items: center; color: rgba(255,255,255,.25); font-size: 3rem; font-weight: 800; font-style: italic; }
+.post-dots { position: absolute; bottom: 10px; left: 0; right: 0; display: flex; justify-content: center; gap: 5px; pointer-events: none; }
+.post-dots i { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,.5); }
+.post-dots i.on { background: #fff; }
+.post-count { position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,.6); color: #fff; font-size: .75rem; padding: 3px 8px; border-radius: 99px; }
+.post-heart { position: absolute; inset: 0; display: grid; place-items: center; font-size: 6rem; color: #fff; opacity: 0; transform: scale(.4); pointer-events: none; text-shadow: 0 4px 20px rgba(0,0,0,.35); }
+.post-heart.pop { animation: heartpop .8s ease forwards; }
+@keyframes heartpop { 15% { opacity: .95; transform: scale(1.15); } 30% { transform: scale(.95); } 70% { opacity: .95; transform: scale(1); } 100% { opacity: 0; transform: scale(1); } }
+.post-actions { display: flex; align-items: center; gap: 8px; padding: 8px 10px 0; }
+.like { background: none; border: 0; padding: 4px; cursor: pointer; color: var(--ink); display: grid; }
+.like svg path { fill: none; stroke: currentColor; stroke-width: 1.8; }
+.like.on { color: var(--red); }
+.like.on svg path { fill: currentColor; }
+.like:active { transform: scale(.88); }
+.like-count { font-weight: 700; font-size: .9rem; }
+.post-cap { padding: 4px 14px 0; margin: 0; font-size: .95rem; line-height: 1.45; overflow-wrap: anywhere; }
+.post-maker { color: var(--muted); }
+.post-time { display: block; padding: 6px 14px 14px; color: var(--muted); font-size: .75rem; text-transform: uppercase; letter-spacing: .03em; }
+.feed-more-wrap { text-align: center; margin-top: 22px; }
+@media (max-width: 600px) { .feed-sec { padding-left: 0; padding-right: 0; } .feed-sec > h2, .feed-sec > p, .feed-actions { padding: 0 16px; } .post { border-radius: 0; box-shadow: none; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); } }
+/* Phones: the main-page sections become a swipeable row under the top bar. */
+@media (max-width: 600px) {
+  .topbar { flex-wrap: wrap; row-gap: 8px; }
+  .topnav:not([hidden]) { display: flex; order: 3; width: 100%; overflow-x: auto; gap: 18px; padding: 2px 0 0; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  .topnav::-webkit-scrollbar { display: none; }
+  .topnav a { font-size: .95rem; white-space: nowrap; flex: none; }
+}

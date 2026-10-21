@@ -5,14 +5,15 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
 import {
   getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, collection, query, where,
-  orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch
+  orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
+  startAfter, arrayUnion, arrayRemove
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig } from "./config.js?v=1792604003";
+import { firebaseConfig } from "./config.js?v=1792604141";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792604003";
-import { SEED_EVENTS } from "./seed-events.js?v=1792604003";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792604003";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792604003";
+import { GALLERY } from "./gallery-data.js?v=1792604141";
+import { SEED_EVENTS } from "./seed-events.js?v=1792604141";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792604141";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792604141";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -364,7 +365,8 @@ function render() {
     const canPost = state.profile?.status === "approved";
     $("#btn-add-listing").hidden = !canPost;
     $("#market-hint").hidden = canPost;
-    if (!state.listingsLoaded) { state.listingsLoaded = true; loadListings(); } else renderListings();
+    if (!state.listingsLoaded) { state.listingsLoaded = true; loadListings(); loadFeed(true); } else { renderListings(); renderFeed(); }
+    $("#btn-feed-add").hidden = !(state.profile?.status === "approved" && !isGeneral());
     const id = location.hash.slice(1);
     if (id && !id.startsWith("/")) requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView());
     else if (wasApp) window.scrollTo(0, 0);
@@ -632,11 +634,104 @@ $("#btn-add-car").addEventListener("click", () => {
       const photos = await readPhotos(f.photos);
       await addDoc(collection(db, "cars"), {
         name: f.name.value.trim(), maker: f.maker.value.trim(), notes: f.notes.value.trim(), photos,
-        ownerUid: state.user.uid, ownerName: state.profile.displayName, createdAt: serverTimestamp()
+        ownerUid: state.user.uid, ownerName: state.profile.displayName, ownerPhoto: state.profile.photoURL || state.user.photoURL || "",
+        ownerCity: state.profile.city || "", createdAt: serverTimestamp()
       });
       closeModal(); toast(t("saved")); loadCars();
     } catch (err) { fail(err); btn.disabled = false; }
   });
+});
+
+/* ================= Collection feed on the main website (Instagram-style) ================= */
+const FEED_PAGE = 6;
+state.feed = []; state.feedCursor = null; state.feedDone = false;
+async function loadFeed(reset = false) {
+  if (reset) { state.feed = []; state.feedCursor = null; state.feedDone = false; }
+  if (state.feedDone || state.feedLoading) return;
+  state.feedLoading = true; $("#feed-more").disabled = true;
+  try {
+    const parts = [collection(db, "cars"), orderBy("createdAt", "desc")];
+    if (state.feedCursor) parts.push(startAfter(state.feedCursor));
+    parts.push(limit(FEED_PAGE));
+    const snap = await getDocs(query(...parts));
+    state.feedCursor = snap.docs[snap.docs.length - 1] || state.feedCursor;
+    state.feedDone = snap.docs.length < FEED_PAGE;
+    state.feed.push(...snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(c => !c.hidden));
+    renderFeed();
+  } catch (e) { console.warn(e); }
+  state.feedLoading = false; $("#feed-more").disabled = false;
+}
+const ago = (ts) => {
+  const d = toDate(ts); if (!d) return "";
+  const s = (Date.now() - d.getTime()) / 1000;
+  if (s < 3600) return t("ago_min", { n: Math.max(1, Math.round(s / 60)) });
+  if (s < 86400) return t("ago_hour", { n: Math.round(s / 3600) });
+  if (s < 7 * 86400) return t("ago_day", { n: Math.round(s / 86400) });
+  return fmtDate(d, { day: "numeric", month: "long", year: "numeric" });
+};
+function postHTML(c) {
+  const likes = c.likedBy || [];
+  const mine = !!state.user && likes.includes(state.user.uid);
+  const photos = c.photos || [];
+  return `<article class="post" data-post="${esc(c.id)}">
+    <header class="post-head">
+      <span class="post-av">${c.ownerPhoto ? `<img src="${esc(c.ownerPhoto)}" alt="" referrerpolicy="no-referrer">` : esc(initials(c.ownerName))}</span>
+      <div><strong>${esc(c.ownerName || "RCMI")}</strong>${c.ownerCity ? `<small>${esc(c.ownerCity)}</small>` : ""}</div>
+    </header>
+    <div class="post-media">
+      ${photos.length ? `<div class="post-track">${photos.map(p => `<img src="${p}" alt="${esc(c.name)}" loading="lazy" draggable="false">`).join("")}</div>
+        ${photos.length > 1 ? `<div class="post-dots">${photos.map((_, i) => `<i class="${i ? "" : "on"}"></i>`).join("")}</div><span class="post-count">1/${photos.length}</span>` : ""}`
+        : `<div class="post-empty">1:64</div>`}
+      <span class="post-heart" aria-hidden="true">♥</span>
+    </div>
+    <div class="post-actions">
+      <button type="button" class="like ${mine ? "on" : ""}" data-like="${esc(c.id)}" aria-pressed="${mine}" aria-label="${t("like")}">
+        <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M12 21s-7.5-4.6-9.6-9.2C.9 8.4 3 4.5 6.8 4.5c2.2 0 3.6 1.2 4.2 2.3h2c.6-1.1 2-2.3 4.2-2.3 3.8 0 5.9 3.9 4.4 7.3C19.5 16.4 12 21 12 21Z"/></svg>
+      </button>
+      <span class="like-count">${likes.length ? t(likes.length === 1 ? "likes_one" : "likes_n", { n: likes.length }) : ""}</span>
+    </div>
+    <p class="post-cap"><strong>${esc(c.name)}</strong>${c.maker ? ` <span class="post-maker">· ${esc(c.maker)}</span>` : ""}${c.notes ? `<br>${esc(c.notes)}` : ""}</p>
+    <time class="post-time">${ago(c.createdAt)}</time>
+  </article>`;
+}
+function renderFeed() {
+  const box = $("#feed-list"); if (!box) return;
+  box.innerHTML = state.feed.length ? state.feed.map(postHTML).join("") : `<p class="empty">${t("feed_empty")}</p>`;
+  $("#feed-more").hidden = state.feedDone || !state.feed.length;
+  box.querySelectorAll(".post-track").forEach(tr => tr.addEventListener("scroll", () => {
+    const i = Math.round(tr.scrollLeft / tr.clientWidth);
+    const post = tr.closest(".post");
+    post.querySelectorAll(".post-dots i").forEach((d, k) => d.classList.toggle("on", k === i));
+    const cnt = post.querySelector(".post-count"); if (cnt) cnt.textContent = `${i + 1}/${tr.children.length}`;
+  }, { passive: true }));
+}
+$("#feed-more").addEventListener("click", () => loadFeed());
+async function toggleLike(id, forceOn = false) {
+  if (!state.user || state.profile?.status !== "approved") { openSignInChooser(); return; }
+  const c = state.feed.find(x => x.id === id); if (!c) return;
+  const uid = state.user.uid; const on = (c.likedBy || []).includes(uid);
+  if (forceOn && on) return;
+  c.likedBy = on ? c.likedBy.filter(x => x !== uid) : [...(c.likedBy || []), uid];
+  paintLike(c);
+  try { await updateDoc(doc(db, "cars", id), { likedBy: on ? arrayRemove(uid) : arrayUnion(uid) }); }
+  catch (e) { c.likedBy = on ? [...c.likedBy, uid] : c.likedBy.filter(x => x !== uid); paintLike(c); fail(e); }
+}
+// Update one post's heart and count in place (keeps the photo carousel where it is).
+function paintLike(c) {
+  const post = $(`.post[data-post="${CSS.escape(c.id)}"]`); if (!post) return;
+  const n = (c.likedBy || []).length, mine = (c.likedBy || []).includes(state.user?.uid);
+  const b = post.querySelector(".like"); b.classList.toggle("on", mine); b.setAttribute("aria-pressed", String(mine));
+  post.querySelector(".like-count").textContent = n ? t(n === 1 ? "likes_one" : "likes_n", { n }) : "";
+}
+$("#feed-list").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-like]"); if (b) toggleLike(b.dataset.like);
+});
+// Double-tap a photo to like it, like Instagram.
+$("#feed-list").addEventListener("dblclick", (e) => {
+  const m = e.target.closest(".post-media"); if (!m) return;
+  const post = m.closest(".post"); const h = m.querySelector(".post-heart");
+  h.classList.remove("pop"); void h.offsetWidth; h.classList.add("pop");
+  setTimeout(() => toggleLike(post.dataset.post, true), 350);
 });
 
 /* ================= Events ================= */

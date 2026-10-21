@@ -52,6 +52,9 @@ When an existing member signs in, the **Admin** tab suggests their record by nam
 
 It shows totals, the P&L by category, the IDS 2025 event result, the RCMI x Hellios rims result, month-by-month cash, a check of the sheet's running balance, and every transaction with its category. **Cetak / PDF** prints the report. The ledger is stored in Firestore (`finance/ledger`) — readable by members, writable by admins; the sheet link (`finance/source`) is admins only. Nothing financial is in this repo. Categories come from keywords in *Deskripsi/Keterangan* (see `public/js/finance.js`); combined payments like "IURAN/VELG/KAS" are split (velg Rp175.000, kas Rp50.000, rest IDS).
 
+### Collection feed (main website)
+**Collection** in the top menu (a swipeable menu row on phones) is an Instagram-style feed of every member's cars, newest first: owner photo and name, swipeable photos, a heart to like (or double-tap the photo), caption and time. It loads 6 posts at a time (*Load more*). Anyone can view it; signed-in active accounts can like (`cars/{id}.likedBy`, each account can only add/remove itself). Members add cars from *+ Add to my collection* (the Koleksi tab). Cars of deactivated accounts are hidden.
+
 ### Two account types
 - **Anggota (member):** RCMI members. Sign up with the registered phone → active immediately (or admin approval). Full access: member list & profiles, member card, monthly dues, collection, events, market.
 - **Sign up:** the top-bar button is *Sign in or create account*. New accounts are asked "Create your account as an RCMI member?" — **Yes**: registered members (matching phone) are active right away; new members see the Rp150.000 joining fee (QRIS / bank from *Pengaturan iuran*), upload the payment proof (`joinPayments/{uid}`, visible to them and admins only) and wait for admin approval — admins see a *View payment proof* button on the request. **No**: general users just register and are active right away.
