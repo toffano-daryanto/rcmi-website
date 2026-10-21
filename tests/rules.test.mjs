@@ -95,11 +95,11 @@ test("market: like + comment on listing", async () => {
   await assertSucceeds(addDoc(collection(as(U.gen), "listings", "lst1", "comments"), { uid: U.gen, name: "G", photo: "", text: "Nego?", at: serverTimestamp() }));
 });
 test("market: war buy — slot taken in a transaction, never above qty", async () => {
-  const take = (uid) => runTransaction(as(uid), async (tx) => {
-    const db = as(uid), ref = doc(db, "listings", "war1"), d = (await tx.get(ref)).data();
+  const take = (uid) => { const db = as(uid); return runTransaction(db, async (tx) => {
+    const ref = doc(db, "listings", "war1"), d = (await tx.get(ref)).data();
     tx.update(ref, { claimed: (d.claimed || 0) + 1 });
     tx.set(doc(db, "listings", "war1", "claims", uid), { uid, name: uid, photo: "", n: (d.claimed || 0) + 1, at: serverTimestamp() });
-  });
+  }); };
   await assertSucceeds(take(U.m2));
   await assertSucceeds(take(U.gen));
   await assertFails(take(U.admin));   // qty 2: third buyer refused
@@ -173,9 +173,10 @@ test("admin: hide a post with a reason and notify", async () => {
   await assertSucceeds(b.commit());
 });
 test("notices: owner reads own and marks read", async () => {
-  const n = await env.withSecurityRulesDisabled(async (ctx) => addDoc(collection(ctx.firestore(), "notices"), { uid: U.m1, kind: "like", read: false, at: Timestamp.now() }));
+  await env.withSecurityRulesDisabled(async (ctx) => { await setDoc(doc(ctx.firestore(), "notices", "n1"), { uid: U.m1, kind: "like", read: false, at: Timestamp.now() }); });
   await assertSucceeds(getDocs(query(collection(as(U.m1), "notices"), where("uid", "==", U.m1))));
-  await assertSucceeds(updateDoc(doc(as(U.m1), "notices", n.id), { read: true }));
+  await assertSucceeds(updateDoc(doc(as(U.m1), "notices", "n1"), { read: true }));
+  await assertFails(getDoc(doc(as(U.m2), "notices", "n1")));
 });
 test("contact form: signed-in user sends; only admins read", async () => {
   await assertSucceeds(addDoc(collection(as(U.gen), "messages"), { name: "G", contact: "0811", topic: "pasar", message: "Hi", status: "new", createdAt: serverTimestamp(), uid: U.gen, email: `${U.gen}@gmail.com`, lang: "en" }));
