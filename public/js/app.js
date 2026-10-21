@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792611078";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792611163";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792611078";
-import { SEED_EVENTS } from "./seed-events.js?v=1792611078";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792611078";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792611078";
+import { GALLERY } from "./gallery-data.js?v=1792611163";
+import { SEED_EVENTS } from "./seed-events.js?v=1792611163";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792611163";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792611163";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -1141,6 +1141,31 @@ document.addEventListener("click", async (e) => {
   catch (err) { l.likedBy = on ? [...l.likedBy, uid] : l.likedBy.filter(x => x !== uid); paint(); fail(err); }
 });
 
+// Stock line on a war listing card: "3 pcs left", a bar, or SOLD OUT / starts at… — kept live (see watchWars).
+function warStockHTML(l) {
+  const left = Math.max(0, (l.qty || 0) - (l.claimed || 0)), pct = l.qty ? Math.min(100, (l.claimed || 0) / l.qty * 100) : 0;
+  const start = ms(l.warStart);
+  return `<div class="l-stock ${left ? "" : "out"}" data-stock="${esc(l.id)}">
+    <span>${left ? `🔥 ${t("war_pcs_left", { n: left })}` : t("war_soldout")}</span><small>${t("war_of", { qty: l.qty })}</small>
+    <i style="--p:${pct}%"></i>
+    ${start > Date.now() ? `<small class="l-start">⏳ ${new Date(start).toLocaleString(locale(), { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</small>` : ""}
+  </div>`;
+}
+// Live stock for every war listing while the market is open.
+function watchWars() {
+  if (state.warUnsub) return;
+  state.warUnsub = onSnapshot(query(collection(db, "listings"), where("war", "==", true)), (snap) => {
+    let changed = false;
+    snap.docs.forEach(d => {
+      const x = d.data(), l = state.listings.find(y => y.id === d.id); if (!l) return;
+      if (l.claimed !== x.claimed || l.status !== x.status || l.qty !== x.qty) { l.claimed = x.claimed; l.status = x.status; l.qty = x.qty; changed = true; }
+    });
+    if (changed) document.querySelectorAll("[data-stock]").forEach(el => {
+      const l = state.listings.find(y => y.id === el.dataset.stock); if (l) el.outerHTML = warStockHTML(l);
+    });
+  }, () => {});
+}
+
 /* ================= War buy: limited quantity, first come first served, live ================= */
 function startWar(l0) {
   const box = $(`#modal-body [data-war="${CSS.escape(l0.id)}"]`); if (!box) return;
@@ -1675,6 +1700,7 @@ async function loadListings() {
     state.listings = snap.docs.map(d => ({ id: d.id, ...d.data() }))
       .filter(l => !l.hidden && (!l.modHidden || l.ownerUid === state.user?.uid || isAdmin()))
       .filter(l => !isArchived(l));
+    if (state.listings.some(l => l.war)) watchWars();
     renderListings();
   } catch (e) { fail(e); }
 }
@@ -1692,9 +1718,10 @@ function renderListings() {
     <button type="button" class="item" data-listing="${esc(l.id)}">
       ${l.photos?.[0] ? `<img class="ph" src="${photoSrc(l.photos[0])}" alt="" loading="lazy">` : `<div class="ph ph-empty">1:64</div>`}
       <div class="meta">
-        <span class="tag ${l.status === "sold" ? "tag-sold" : "tag-" + esc(l.type)}">${l.status === "sold" ? t("sold") : typeLabel(l.type)}</span>${l.war && l.status !== "sold" ? ` <span class="tag tag-war">${(l.claimed || 0) >= l.qty ? t("war_soldout") : `⚡ WAR ${l.claimed || 0}/${l.qty}`}</span>` : ""}${l.modHidden ? ` <span class="tag tag-hidden">${t("mod_hidden_tag")}</span>` : ""}
+        ${l.status === "sold" ? `<span class="tag tag-sold">${t("sold")}</span>` : l.war ? `<span class="tag tag-war">⚡ ${t("war_tag")}</span>` : `<span class="tag tag-${esc(l.type)}">${typeLabel(l.type)}</span>`}${l.modHidden ? ` <span class="tag tag-hidden">${t("mod_hidden_tag")}</span>` : ""}
         <h3>${esc(l.title)}</h3>
         <p>${l.price ? `<span class="price">${fmtIDR(l.price)}</span> · ` : ""}${esc(l.ownerName)}</p>
+        ${l.war && l.status !== "sold" ? warStockHTML(l) : ""}
         ${(l.likedBy || []).length ? `<p class="l-likes">♥ ${(l.likedBy || []).length}</p>` : ""}
       </div>
     </button>`).join("") : `<p class="empty">${t(words.length ? "search_none" : "empty_market")}</p>`;

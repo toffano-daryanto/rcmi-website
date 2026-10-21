@@ -895,3 +895,13 @@ input[readonly] { background: rgba(0,0,0,.04); color: var(--muted); }
 #form-profile.locked .addr-same, #form-profile.locked input::placeholder, #form-profile.locked textarea::placeholder { visibility: hidden; }
 #form-profile.locked fieldset.addr { border-style: dashed; }
 input.autofilled { box-shadow: 0 0 0 3px rgba(31, 138, 76, .35); transition: box-shadow .3s; }
+
+/* Live war stock on cards */
+.l-stock { position: relative; margin: 6px 0 2px; padding: 6px 8px 10px; border-radius: 8px; background: #FFF4D6; display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.l-stock span { font-weight: 800; color: var(--red); }
+.l-stock small { color: var(--muted); font-size: .78rem; }
+.l-stock i { position: absolute; left: 8px; right: 8px; bottom: 4px; height: 4px; border-radius: 99px; background: rgba(0,0,0,.1); overflow: hidden; }
+.l-stock i::after { content: ""; position: absolute; inset: 0 auto 0 0; width: var(--p); background: linear-gradient(90deg, var(--yellow), var(--red)); }
+.l-stock.out { background: rgba(0,0,0,.06); }
+.l-stock.out span { color: var(--ink); }
+.l-start { flex-basis: 100%; }
