@@ -192,6 +192,17 @@ service cloud.firestore {
               : (d.parentId is string && get(/databases/$(database)/documents/$(col)/$(d.postId)/comments/$(d.parentId)).data.uid == d.uid));
     }
 
+    // Owner deletes a collection post: the reason is kept for the admins.
+    match /deleteLog/{id} {
+      allow read, delete: if admin();
+      allow create: if approved()
+        && request.resource.data.keys().hasOnly(['uid', 'name', 'target', 'postId', 'title', 'reason', 'at'])
+        && request.resource.data.uid == request.auth.uid && request.resource.data.at == request.time
+        && request.resource.data.target == 'collection' && request.resource.data.postId is string
+        && str(request.resource.data.reason, 300) && request.resource.data.reason.size() >= 5
+        && str(request.resource.data.title, 100) && str(request.resource.data.name, 80);
+    }
+
     // Shipping address: private — only the person and admins can read it.
     match /addresses/{uid} {
       allow read: if (signedIn() && request.auth.uid == uid) || admin();
@@ -353,7 +364,8 @@ service cloud.firestore {
           && request.resource.data.ownerUid == request.auth.uid
           && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['hidden', 'modHidden', 'modNote', 'modBy', 'modAt'])
           && photosOk(request.resource.data.photos)) || admin() || likeOnly() || warClaim(listingId);
-      allow delete: if (approved() && resource.data.ownerUid == request.auth.uid) || admin();
+      // Sellers can't delete a listing themselves: they send a delete request (delReq + a reason) and an admin approves it.
+      allow delete: if admin();
 
       // War buy slots: one per account; the listing's 'claimed' counter moves by exactly one in the same transaction.
       match /claims/{uid} {

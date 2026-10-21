@@ -306,12 +306,13 @@ function startNotifs() {
   $("#bell-wrap").hidden = false;
   const since = Timestamp.fromDate(new Date(Date.now() - 30 * 864e5));
   const on = (q, fn) => notif.unsubs.push(onSnapshot(q, fn, () => {}));
-  notif.pending = []; notif.messages = []; notif.recent = []; notif.proofs = {}; notif.notices = [];
+  notif.pending = []; notif.messages = []; notif.delReqs = []; notif.recent = []; notif.proofs = {}; notif.notices = [];
   // Everyone: notices from the admins (post hidden / removed / visible again).
   on(query(collection(db, "notices"), where("uid", "==", state.user.uid)), s => { notif.notices = s.docs.map(d => ({ id: d.id, ...d.data() })); renderBell(); if (state.tab === "activity") renderActivity(); });
   if (!isAdmin()) return;
   on(query(collection(db, "users"), where("status", "==", "pending")), s => { notif.pending = s.docs.map(d => ({ id: d.id, ...d.data() })); renderBell(); });
   on(query(collection(db, "messages"), where("status", "==", "new")), s => { notif.messages = s.docs.map(d => ({ id: d.id, ...d.data() })); renderBell(); });
+  on(query(collection(db, "listings"), where("delReq", "==", true)), s => { notif.delReqs = s.docs.map(d => ({ id: d.id, ...d.data() })); renderBell(); if (state.tab === "admin" && !$("#app").hidden) loadDelRequests(); });
   on(query(collection(db, "users"), where("createdAt", ">", since)), s => { notif.recent = s.docs.map(d => ({ id: d.id, ...d.data() })).filter(u => u.status === "approved"); renderBell(); });
   on(collection(db, "joinPayments"), s => { notif.proofs = Object.fromEntries(s.docs.map(d => [d.id, d.data()])); renderBell(); });
 }
@@ -323,10 +324,12 @@ function bellItems() {
     ? { at: ms(n.at), unread: !n.read, notice: n.id, href: n.target === "market" ? `#/market/${encodeURIComponent(n.postId)}` : `#/feed/p/${encodeURIComponent(n.postId)}`,
         text: activityText(n) }
     : { at: ms(n.at), unread: !n.read, href: "#", notice: n.id,
-        text: t({ hidden: "nt_hidden", deleted: "nt_deleted", unhidden: "nt_unhidden" }[n.kind] || "nt_hidden", { title: esc(n.title), where: t(n.target === "market" ? "nav_market" : "nav_feed") })
+        text: t(NT_TEXT[n.kind] || "nt_hidden", { title: esc(n.title), where: t(n.target === "market" ? "nav_market" : "nav_feed") })
           + (n.note ? `<em class="bell-note">${t("mod_reason")}: ${esc(n.note)}</em>` : "") });
   for (const u of notif.pending) items.push({ at: ms(notif.proofs[u.id]?.createdAt) || ms(u.createdAt), unread: true, href: "#/admin",
     text: t(u.accountType === "general" ? "notif_pending_general" : notif.proofs[u.id] ? "notif_pending_paid" : "notif_pending_member", { name: esc(u.displayName) }) });
+  for (const x of notif.delReqs || []) items.push({ at: ms(x.delReqAt), unread: true, href: "#/admin",
+    text: t("notif_delreq", { name: esc(x.ownerName || ""), title: esc(x.title || "") }) + `<em class="bell-note">${t("del_reason")}: ${esc(x.delReason || "")}</em>` });
   for (const m of notif.messages) items.push({ at: ms(m.createdAt), unread: true, href: "#/admin",
     text: t("notif_message", { name: esc(m.name), msg: esc(String(m.message).slice(0, 80)) }) });
   for (const u of notif.recent) items.push({ at: ms(u.approvedAt || u.createdAt), unread: ms(u.createdAt) > seen, href: u.accountType === "general" ? "#/admin" : `#/members/${encodeURIComponent(u.rosterId || "")}`,
@@ -356,6 +359,7 @@ $("#bell-panel").addEventListener("click", (e) => {
   if (nt) { e.preventDefault(); openNotice(nt.dataset.notice); }
   if (e.target.closest("a")) toggleBell(false);
 });
+const NT_TEXT = { hidden: "nt_hidden", deleted: "nt_deleted", unhidden: "nt_unhidden", delapproved: "nt_delapproved", delrejected: "nt_delrejected" };
 function openNotice(id) {
   const n = notif.notices.find(x => x.id === id); if (!n) return;
   if (!n.read) updateDoc(doc(db, "notices", id), { read: true }).catch(() => {});
@@ -367,13 +371,13 @@ function openNotice(id) {
   }
   const where = t(n.target === "market" ? "nav_market" : "nav_feed");
   openModal(`
-    <h2>${t({ hidden: "nt_hidden_title", deleted: "nt_deleted_title", unhidden: "nt_unhidden_title" }[n.kind] || "nt_hidden_title")}</h2>
-    <p>${t({ hidden: "nt_hidden", deleted: "nt_deleted", unhidden: "nt_unhidden" }[n.kind] || "nt_hidden", { title: `<strong>${esc(n.title)}</strong>`, where })}</p>
+    <h2>${t({ hidden: "nt_hidden_title", deleted: "nt_deleted_title", unhidden: "nt_unhidden_title", delapproved: "nt_delapproved_title", delrejected: "nt_delrejected_title" }[n.kind] || "nt_hidden_title")}</h2>
+    <p>${t(NT_TEXT[n.kind] || "nt_hidden", { title: `<strong>${esc(n.title)}</strong>`, where })}</p>
     ${n.note ? `<p class="mod-note"><strong>${t("mod_reason")}:</strong> ${esc(n.note)}</p>` : ""}
-    ${n.kind !== "unhidden" ? `<p class="muted">${t("nt_contact")}</p>` : ""}
+    ${n.kind !== "unhidden" && n.kind !== "delapproved" ? `<p class="muted">${t("nt_contact")}</p>` : ""}
     <p class="muted">${fmtDate(n.at, { day: "numeric", month: "long", year: "numeric" })}</p>
     <div class="form-actions">
-      ${n.kind !== "unhidden" ? `<a class="btn btn-ghost" href="#contact" data-act="close">${t("nav_contact")}</a>` : ""}
+      ${n.kind !== "unhidden" && n.kind !== "delapproved" ? `<a class="btn btn-ghost" href="#contact" data-act="close">${t("nav_contact")}</a>` : ""}
       <button type="button" class="btn btn-mat" data-act="close">${t("close")}</button>
     </div>`);
   $("#modal-body").onclick = (ev) => { if (ev.target.dataset.act === "close") closeModal(); };
@@ -884,9 +888,7 @@ $("#cars").addEventListener("click", (e) => {
   $("#modal-body").onclick = async (ev) => {
     const act = ev.target.dataset.act;
     if (act === "close") closeModal();
-    if (act === "del" && confirm(t("confirm_delete"))) {
-      try { await deleteDoc(doc(db, "cars", c.id)); closeModal(); toast(t("deleted")); loadCars(); } catch (e2) { fail(e2); }
-    }
+    if (act === "del") openDeleteReason("cars", c);
   };
 });
 $("#btn-add-car").addEventListener("click", () => openAddCar(loadCars));
@@ -1068,7 +1070,8 @@ function postHTML(c) {
     <header class="post-head" data-owner="${esc(c.ownerUid || "")}" role="link" tabindex="0">
       <span class="post-av">${c.ownerPhoto ? `<img src="${esc(c.ownerPhoto)}" alt="" referrerpolicy="no-referrer">` : esc(initials(c.ownerName))}</span>
       <div><strong>${esc(c.ownerName || "RCMI")}</strong>${c.ownerCity ? `<small>${esc(c.ownerCity)}</small>` : ""}</div>
-      ${isAdmin() ? `<button type="button" class="post-mod" data-mod-post="${esc(c.id)}" aria-label="${t("mod_title")}" title="${t("mod_title")}">⋯</button>` : ""}
+      ${isAdmin() ? `<button type="button" class="post-mod" data-mod-post="${esc(c.id)}" aria-label="${t("mod_title")}" title="${t("mod_title")}">⋯</button>`
+        : state.user && c.ownerUid === state.user.uid ? `<button type="button" class="post-mod post-del" data-del-post="${esc(c.id)}" aria-label="${t("delete")}" title="${t("delete")}">🗑</button>` : ""}
     </header>
     <div class="post-media">
       ${photos.length ? `<div class="post-track">${photos.map(p => `<img src="${photoSrc(p)}" alt="${esc(c.name)}" loading="lazy" draggable="false">`).join("")}</div>
@@ -1783,6 +1786,7 @@ function openListing(l) {
     ${l.description ? `<p>${tagify(l.description, "market")}</p>` : ""}
     <p class="muted">${esc(l.ownerName)} · ${fmtDate(l.createdAt, { day: "numeric", month: "short" })}</p>
     ${l.modHidden ? `<p class="mod-note">🚫 ${t(isAdmin() && l.ownerUid !== state.user?.uid ? "mod_hidden_admin" : "mod_hidden_owner")}${l.modNote ? `<br><strong>${t("mod_reason")}:</strong> ${esc(l.modNote)}` : ""}</p>` : ""}
+    ${l.delReq && (l.ownerUid === state.user?.uid || isAdmin()) ? `<p class="mod-note">🗑 ${t("del_req_pending")}${l.delReason ? `<br><strong>${t("del_reason")}:</strong> ${esc(l.delReason)}` : ""}</p>` : ""}
     <p class="listing-risk">⚠️ ${t("mn_short")}</p>
     ${l.status === "sold" ? `<p class="sold-note">✅ ${t(isArchived(l) ? "sold_archived" : "sold_note", { days: Math.max(1, Math.ceil((soldTime(l) + ARCHIVE_DAYS * 864e5 - Date.now()) / 864e5)) })}</p>` : ""}
     ${l.war ? `<section class="war-box" data-war="${esc(l.id)}"></section>` : ""}
@@ -1803,7 +1807,9 @@ function openListing(l) {
       ${ig ? `<a class="btn btn-ghost" target="_blank" rel="noopener" href="https://instagram.com/${encodeURIComponent(ig)}">Instagram</a>` : ""}
       <span id="listing-wa">${member ? "" : `<button type="button" class="btn btn-ghost" data-act="signin">${t("wa_signin")}</button>`}</span>
       ${canEdit(l.ownerUid) && l.status !== "sold" ? `<button class="btn btn-ghost" data-act="sold">${t("mark_sold")}</button>` : ""}
-      ${canEdit(l.ownerUid) ? `<button class="btn btn-danger" data-act="del">${t("delete")}</button>` : ""}
+      ${isAdmin() ? `<button class="btn btn-danger" data-act="del">${t("delete")}</button>`
+        : l.ownerUid === state.user?.uid ? (l.delReq ? `<button class="btn btn-ghost" data-act="delcancel">${t("del_req_cancel")}</button>`
+        : `<button class="btn btn-danger" data-act="delreq">${t("del_req")}</button>`) : ""}
     </div>`);
   state.cmtItems[`listings:${l.id}`] = l;
   if (l.war) startWar(l);
@@ -1820,6 +1826,11 @@ function openListing(l) {
     const act = ev.target.dataset.act;
     if (act === "signin") { closeModal(); openSignInChooser(); return; }
     if (ev.target.closest("[data-act=share]")) { shareListing(l); return; }
+    if (act === "delreq") { openDeleteReason("listings", l); return; }
+    if (act === "delcancel") {
+      try { await updateDoc(doc(db, "listings", l.id), { delReq: false, delReason: "" }); l.delReq = false; closeModal(); toast(t("del_req_cancelled")); loadListings(); } catch (e2) { fail(e2); }
+      return;
+    }
     if (ev.target.closest("[data-act=cmt]")) { const i = $("#modal-body .cmt-form [name=text]"); if (i) { i.scrollIntoView({ behavior: "smooth", block: "center" }); i.focus(); } return; }
     if (act === "report") { closeModal(); openReport(l); return; }
     if (act === "modhide" || act === "moddel") { openModerate("listings", l, act === "moddel" ? "delete" : "hide"); return; }
@@ -2870,7 +2881,7 @@ $("#admin-inbox").addEventListener("click", async (e) => {
 /* ================= Admin ================= */
 async function loadAdmin() {
   if (!isAdmin()) return;
-  refreshMigrate(); loadModHidden();
+  refreshMigrate(); loadModHidden(); loadDelRequests();
   loadInbox();
   try {
     const [pend] = await Promise.all([
@@ -3026,6 +3037,93 @@ $("#mig-run").addEventListener("click", async () => {
   } catch (e) { fail(e); }
   btn.disabled = false; state.feedLoaded = false; state.listingsLoaded = false;
   refreshMigrate();
+});
+
+/* ================= Owner delete: a reason is mandatory.
+   Collection posts are deleted straight away (the reason is logged for the admins);
+   market listings only get a delete REQUEST that an admin approves or rejects. ================= */
+function openDeleteReason(col, item) {
+  const market = col === "listings";
+  openModal(`
+    <h2>${t(market ? "del_req" : "delete")}</h2>
+    <p class="muted">${esc(item.name || item.title || "")}</p>
+    <form class="form" id="f-delr">
+      <label><span>${t("del_reason")} *</span><textarea name="reason" rows="3" minlength="5" maxlength="300" required placeholder="${esc(t("del_reason_ph"))}"></textarea></label>
+      <small class="muted">${t(market ? "del_req_explain" : "del_now_explain")}</small>
+      <div class="form-actions">
+        <button type="button" class="btn btn-ghost" data-act="close">${t("cancel")}</button>
+        <button class="btn btn-danger" type="submit">${t(market ? "del_req_send" : "delete")}</button>
+      </div>
+    </form>`);
+  $("#modal-body").onclick = (ev) => { if (ev.target.dataset.act === "close") closeModal(); };
+  const f = $("#f-delr");
+  f.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const reason = f.reason.value.trim();
+    if (reason.length < 5) { toast(t("del_reason_required")); f.reason.focus(); return; }
+    const btn = f.querySelector("[type=submit]"); btn.disabled = true;
+    try {
+      if (market) {
+        await updateDoc(doc(db, "listings", item.id), { delReq: true, delReason: reason.slice(0, 300), delReqAt: serverTimestamp() });
+        item.delReq = true; item.delReason = reason;
+        closeModal(); toast(t("del_req_sent")); loadListings();
+      } else {
+        const batch = writeBatch(db);
+        batch.set(doc(collection(db, "deleteLog")), { uid: state.user.uid, name: String(state.profile?.displayName || "").slice(0, 80),
+          target: "collection", postId: item.id, title: String(item.name || "").slice(0, 100), reason: reason.slice(0, 300), at: serverTimestamp() });
+        batch.delete(doc(db, "cars", item.id));
+        await batch.commit();
+        closeModal(); toast(t("deleted"));
+        document.querySelectorAll(`.post[data-post="${CSS.escape(item.id)}"]`).forEach(p => p.remove());
+        afterModeration("cars"); if (state.tab === "collection" && !$("#app").hidden) loadCars();
+      }
+    } catch (err) { fail(err); btn.disabled = false; }
+  });
+}
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-del-post]"); if (!b) return;
+  e.stopPropagation();
+  const id = b.dataset.delPost;
+  const c = state.feed.find(x => x.id === id) || (state.feedProfile?.posts || []).find(x => x.id === id) || state.searchPosts.find(x => x.id === id) || state.deepPost;
+  if (c && c.ownerUid === state.user?.uid) openDeleteReason("cars", c);
+});
+
+/* Admin: market delete requests — approve (delete) or reject; the seller gets a notice either way. */
+async function loadDelRequests() {
+  if (!isAdmin()) return;
+  try {
+    const s = await getDocs(query(collection(db, "listings"), where("delReq", "==", true)));
+    const list = state.delReqs = s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => ms(b.delReqAt) - ms(a.delReqAt));
+    $("#admin-delreq-count").textContent = `(${list.length})`;
+    $("#admin-delreq").innerHTML = list.length ? list.map(x => `
+      <div class="row">
+        ${x.photos?.[0] ? `<img src="${photoSrc(x.photos[0])}" alt="" style="border-radius:8px">` : ""}
+        <div class="grow"><strong><a href="#/market/${esc(x.id)}">${esc(x.title || "")}</a></strong><span class="type-tag">${t("nav_market")}</span>
+          <small>${esc(x.ownerName || "")}${x.delReqAt ? " · " + fmtDate(x.delReqAt, { day: "numeric", month: "short", year: "numeric" }) : ""}</small>
+          <small><strong>${t("del_reason")}:</strong> ${esc(x.delReason || "")}</small></div>
+        <div class="actions">
+          <button class="btn btn-sm btn-danger" data-delok="${esc(x.id)}">${t("del_approve")}</button>
+          <button class="btn btn-sm btn-ghost" data-delno="${esc(x.id)}">${t("del_reject")}</button>
+        </div>
+      </div>`).join("") : `<p class="muted">${t("del_req_none")}</p>`;
+  } catch (e) { console.warn(e); }
+}
+$("#admin-delreq").addEventListener("click", async (e) => {
+  const ok = e.target.closest("[data-delok]"), no = e.target.closest("[data-delno]"); if (!ok && !no) return;
+  const x = (state.delReqs || []).find(y => y.id === (ok || no).dataset[ok ? "delok" : "delno"]); if (!x) return;
+  let note = x.delReason || "";
+  if (no) { note = prompt(t("del_reject_why")) ?? null; if (note === null) return; }
+  else if (!confirm(t("del_approve_confirm", { title: x.title || "" }))) return;
+  try {
+    const batch = writeBatch(db);
+    const ref = doc(db, "listings", x.id);
+    if (ok) batch.delete(ref); else batch.update(ref, { delReq: false, delReason: "" });
+    if (x.ownerUid) batch.set(doc(collection(db, "notices")), { uid: x.ownerUid, kind: ok ? "delapproved" : "delrejected", target: "market",
+      postId: x.id, title: String(x.title || "").slice(0, 100), note: String(note).slice(0, 500), by: state.user.uid, at: serverTimestamp(), read: false });
+    await batch.commit();
+    toast(t(ok ? "del_approved_done" : "del_rejected_done"));
+    loadDelRequests(); afterModeration("listings");
+  } catch (err) { fail(err); }
 });
 
 /* ================= Admin moderation: hide or delete a post with a reason; the owner gets a notice ================= */
