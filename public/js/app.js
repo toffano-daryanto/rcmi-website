@@ -7,12 +7,12 @@ import {
   getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, collection, query, where,
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig } from "./config.js?v=1792599367";
+import { firebaseConfig } from "./config.js?v=1792599528";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792599367";
-import { SEED_EVENTS } from "./seed-events.js?v=1792599367";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792599367";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792599367";
+import { GALLERY } from "./gallery-data.js?v=1792599528";
+import { SEED_EVENTS } from "./seed-events.js?v=1792599528";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792599528";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792599528";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -1202,6 +1202,8 @@ $("#dues-all").addEventListener("click", async (e) => {
 });
 
 /* ================= Member card + profile ================= */
+// Google profile photos come small (…=s96-c); ask for a sharper square version for the card.
+const bigPhoto = (u) => String(u || "").replace(/=s\d+(-c)?$/, "=s400-c");
 // Digital version of the printed RCMI member card: pearl card, EXCLUSIVE MEMBER, logo, RCMI QR, name and number.
 function cardHTML({ no, name, city, instagram, photoURL, since }) {
   const sub = [city, instagram ? "@" + igHandle(instagram) : "", since ? `${t("card_since")} ${fmtDate(since, { month: "short", year: "numeric" })}` : ""].filter(Boolean).map(esc).join(" · ");
@@ -1209,7 +1211,9 @@ function cardHTML({ no, name, city, instagram, photoURL, since }) {
     <div class="mcard" role="img" aria-label="RCMI ${esc(name)} ${no ? "#" + no : ""}">
       <p class="mcard-kicker">Exclusive Member</p>
       <img class="mcard-logo" src="/img/logo-dark.png" alt="">
-      <img class="mcard-qr" src="/img/card-qr.png" alt="">
+      ${photoURL
+        ? `<img class="mcard-photo" src="${esc(bigPhoto(photoURL))}" alt="" referrerpolicy="no-referrer" onerror="this.outerHTML='<div class=&quot;mcard-photo mcard-initials&quot;>${esc(initials(name))}</div>'">`
+        : `<div class="mcard-photo mcard-initials">${esc(initials(name))}</div>`}
       <p class="mcard-name">${esc(name)}</p>
       <p class="mcard-no">${no ? "#" + no : esc(t("applicant"))}</p>
       ${sub ? `<p class="mcard-sub">${sub}</p>` : ""}

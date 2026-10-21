@@ -258,7 +258,8 @@ a { color: var(--red); }
 .mcard > * { position: relative; z-index: 1; margin: 0; }
 .mcard-kicker { font-family: "Noto Serif", Georgia, serif; font-weight: 700; text-transform: uppercase; font-size: clamp(.95rem, 4.6vw, 1.35rem); letter-spacing: .01em; }
 .mcard-logo { width: 88%; height: auto; margin-top: 4%; }
-.mcard-qr { width: 46%; height: auto; margin-top: 4%; background: #fff; }
+.mcard-photo { width: 46%; aspect-ratio: 1; height: auto; margin-top: 5%; object-fit: cover; background: #fff; border: 5px solid #fff; border-radius: 6px; box-shadow: 0 6px 16px -8px rgba(18, 20, 28, .45); }
+.mcard-initials { display: grid; place-items: center; font-family: "Noto Serif", Georgia, serif; font-weight: 700; font-size: clamp(2rem, 11vw, 3.4rem); color: #3A3A3A; background: linear-gradient(160deg, #F4F6F8, #E3E8EE); }
 .mcard-name { font-family: "Noto Serif", Georgia, serif; font-weight: 700; text-transform: uppercase; font-size: clamp(1.1rem, 5.6vw, 1.6rem); line-height: 1.15; margin-top: 7%; }
 .mcard-no { font-family: "Noto Serif", Georgia, serif; font-weight: 700; font-size: clamp(1.2rem, 6vw, 1.7rem); line-height: 1.1; }
 .mcard-sub { font-size: .78rem; color: #6B6E78; margin-top: auto; padding-top: 6%; }
