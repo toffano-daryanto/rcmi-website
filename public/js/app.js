@@ -2880,7 +2880,7 @@ $("#admin-inbox").addEventListener("click", async (e) => {
 /* ================= Admin ================= */
 async function loadAdmin() {
   if (!isAdmin()) return;
-  refreshMigrate(); loadModHidden(); loadDelRequests();
+  refreshMigrate(); loadModHidden(); loadDelRequests(); loadDelLog();
   loadInbox();
   try {
     const [pend] = await Promise.all([
@@ -3085,6 +3085,27 @@ document.addEventListener("click", (e) => {
   const id = b.dataset.delPost;
   const c = state.feed.find(x => x.id === id) || (state.feedProfile?.posts || []).find(x => x.id === id) || state.searchPosts.find(x => x.id === id) || state.deepPost;
   if (c && c.ownerUid === state.user?.uid) openDeleteReason("cars", c);
+});
+
+/* Admin: collection posts their owners deleted, with the reason they gave (newest first). */
+async function loadDelLog() {
+  if (!isAdmin()) return;
+  try {
+    const s = await getDocs(query(collection(db, "deleteLog"), orderBy("at", "desc"), limit(100)));
+    const list = state.delLog = s.docs.map(d => ({ id: d.id, ...d.data() }));
+    $("#admin-dellog-count").textContent = `(${list.length})`;
+    $("#admin-dellog").innerHTML = list.length ? list.map(x => `
+      <div class="row">
+        <div class="grow"><strong>${esc(x.title || "")}</strong><span class="type-tag">${t("nav_feed")}</span>
+          <small>${esc(x.name || "")}${x.at ? " · " + fmtDate(x.at, { day: "numeric", month: "short", year: "numeric" }) + " " + toDate(x.at).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" }) : ""}</small>
+          <small><strong>${t("del_reason")}:</strong> ${esc(x.reason || "")}</small></div>
+        <div class="actions"><button class="btn btn-sm btn-ghost" data-dellog-rm="${esc(x.id)}">${t("del_log_clear")}</button></div>
+      </div>`).join("") : `<p class="muted">${t("del_log_none")}</p>`;
+  } catch (e) { console.warn(e); }
+}
+$("#admin-dellog").addEventListener("click", async (e) => {
+  const b = e.target.closest("[data-dellog-rm]"); if (!b) return;
+  try { await deleteDoc(doc(db, "deleteLog", b.dataset.dellogRm)); loadDelLog(); } catch (err) { fail(err); }
 });
 
 /* Admin: market delete requests — approve (delete) or reject; the seller gets a notice either way. */
