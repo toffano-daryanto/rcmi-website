@@ -76,7 +76,7 @@ a { color: var(--red); }
   background: linear-gradient(to top, var(--red) 0 4px, var(--white) 4px 6px, var(--navy) 6px);
 }
 .wordmark { display: block; margin-right: auto; line-height: 0; }
-.wordmark .logo { height: 56px; width: auto; }
+.wordmark .logo { height: 42px; width: auto; }
 .topnav { display: flex; gap: 20px; }
 .topnav a { color: #fff; text-decoration: none; opacity: .85; font-family: var(--display); font-style: italic; font-weight: 700; font-size: 1.1rem; }
 .topnav a:hover { opacity: 1; color: var(--yellow); }
@@ -167,7 +167,7 @@ a { color: var(--red); }
   display: flex; gap: 12px; align-items: baseline; padding: 30px 24px 24px; color: rgba(255,255,255,.75); font-size: .9rem;
   background: linear-gradient(to bottom, var(--red) 0 4px, var(--white) 4px 6px, var(--navy) 6px);
 }
-.foot .logo { height: 54px; width: auto; }
+.foot .logo { height: 40px; width: auto; }
 
 /* ---------- Gate panels ---------- */
 #gate { padding: 48px 24px; }
@@ -408,7 +408,7 @@ dialog::backdrop { background: rgba(18, 20, 28, .65); }
   body { font-size: 16px; }
   .topbar { padding: 10px 16px 16px; }
   .topnav { display: none; }
-  .wordmark .logo { height: 34px; }
+  .wordmark .logo { height: 28px; }
   .hero, .about, .join, #gate { padding-left: 16px; padding-right: 16px; }
   .pitlane-track { padding: 0 16px; }
   #app { padding: 0 16px 48px; }
