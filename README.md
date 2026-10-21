@@ -81,6 +81,12 @@ The seller (or an admin) taps **Mark as sold**: the listing shows *Sold*, commen
 ### Comments & replies
 Collection posts (💬 icon, "View all N comments", "Add a comment…") and market listings (comments under the listing) have Instagram-style comments. Tap **Reply** under a comment to answer it; replies show indented with "@name". Anyone can read; active accounts can comment; the author, the post's owner and admins can delete a comment. The post's owner gets a bell notification for new comments, and the person replied to gets one for replies; tapping it opens the post. Stored in `cars/{id}/comments` and `listings/{id}/comments`.
 
+### Address
+Signing up requires a full shipping address (recipient, phone, street/RT/RW, kelurahan, kecamatan, city, province, postal code, optional landmark); it can be edited under **My card / My profile**. It's stored privately in `addresses/{uid}` — only the person and admins can read it (admins see it on the member's profile). Accounts created before this see a banner asking them to complete it.
+
+### Market post types
+Want to Sell · Want to Buy · Want to Barter · ⚡ War Sell (filters: All, Want to Sell, Want to Buy, Want to Barter, ⚡ War).
+
 ### Two account types
 - **Anggota (member):** RCMI members. Sign up with the registered phone → active immediately (or admin approval). Full access: member list & profiles, member card, monthly dues, collection, events, market.
 - **Sign up:** the top-bar button is *Sign in or create account*. New accounts are asked "Create your account as an RCMI member?" — **Yes**: registered members (matching phone) are active right away; new members see the Rp150.000 joining fee (QRIS / bank from *Pengaturan iuran*), upload the payment proof (`joinPayments/{uid}`, visible to them and admins only) and wait for admin approval — admins see a *View payment proof* button on the request. **No**: general users just register and are active right away.

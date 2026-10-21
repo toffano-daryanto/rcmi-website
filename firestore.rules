@@ -192,6 +192,22 @@ service cloud.firestore {
               : (d.parentId is string && get(/databases/$(database)/documents/$(col)/$(d.postId)/comments/$(d.parentId)).data.uid == d.uid));
     }
 
+    // Shipping address: private — only the person and admins can read it.
+    match /addresses/{uid} {
+      allow read: if (signedIn() && request.auth.uid == uid) || admin();
+      allow create, update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['recipient', 'phone', 'street', 'village', 'district', 'city', 'province', 'postal', 'note', 'updatedAt'])
+        && str(request.resource.data.recipient, 80) && request.resource.data.recipient.size() > 0
+        && str(request.resource.data.phone, 20) && request.resource.data.phone.size() > 0
+        && str(request.resource.data.street, 300) && request.resource.data.street.size() > 0
+        && str(request.resource.data.village, 80) && str(request.resource.data.district, 80) && request.resource.data.district.size() > 0
+        && str(request.resource.data.city, 80) && request.resource.data.city.size() > 0
+        && str(request.resource.data.province, 60) && request.resource.data.province.size() > 0
+        && str(request.resource.data.postal, 10) && str(request.resource.data.note, 200)
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if (signedIn() && request.auth.uid == uid) || admin();
+    }
+
     // Notices to a user from the admins (e.g. "your post was hidden", with the reason).
     match /notices/{id} {
       allow read: if (signedIn() && resource.data.uid == request.auth.uid) || admin();

@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792610022";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792610152";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792610022";
-import { SEED_EVENTS } from "./seed-events.js?v=1792610022";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792610022";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792610022";
+import { GALLERY } from "./gallery-data.js?v=1792610152";
+import { SEED_EVENTS } from "./seed-events.js?v=1792610152";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792610152";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792610152";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -535,7 +535,7 @@ onAuthStateChanged(auth, (user) => {
       $("#tab-finance").hidden = state.profile.accountType === "general";
       if (state.profile.role === "admin") refreshInboxCount();
       // The bell: admins get sign-ups/messages too; everyone gets notices about their own posts.
-      if (state.profile.status === "approved") { startNotifs(); renderBell(); } else stopNotifs();
+      if (state.profile.status === "approved") { startNotifs(); renderBell(); if (state.addrFor !== user.uid) { state.addrFor = user.uid; loadMyAddr(); } } else stopNotifs();
       $("#btn-add-event").hidden = state.profile.role !== "admin";
       const general = isGeneral();
       $$('.tabs a[data-tab="members"], .tabs a[data-tab="dues"]').forEach(a => { a.hidden = general; });
@@ -618,6 +618,8 @@ $("#form-onboarding").addEventListener("submit", async (e) => {
         if (choice === "fix") { btn.disabled = false; f.whatsapp.focus(); f.whatsapp.select(); return; }
       }
     }
+    // Shipping address first (private), then the profile.
+    await saveAddr(readAddr(f));
     await setDoc(doc(db, "users", u.uid), {
       displayName: f.displayName.value.trim(),
       email: u.email,
@@ -657,6 +659,49 @@ $("#form-onboarding").addEventListener("submit", async (e) => {
     btn.disabled = false;
   }
 });
+
+/* ================= Shipping address (private: the person + admins) ================= */
+const ID_PROVINCES = ["Aceh","Sumatera Utara","Sumatera Barat","Riau","Kepulauan Riau","Jambi","Bengkulu","Sumatera Selatan","Kepulauan Bangka Belitung","Lampung",
+  "Banten","DKI Jakarta","Jawa Barat","Jawa Tengah","DI Yogyakarta","Jawa Timur","Bali","Nusa Tenggara Barat","Nusa Tenggara Timur",
+  "Kalimantan Barat","Kalimantan Tengah","Kalimantan Selatan","Kalimantan Timur","Kalimantan Utara",
+  "Sulawesi Utara","Gorontalo","Sulawesi Tengah","Sulawesi Barat","Sulawesi Selatan","Sulawesi Tenggara",
+  "Maluku","Maluku Utara","Papua","Papua Barat","Papua Barat Daya","Papua Selatan","Papua Tengah","Papua Pegunungan"];
+const ADDR_KEYS = ["recipient", "phone", "street", "village", "district", "city", "province", "postal", "note"];
+function addrFieldsHTML() {
+  return `<fieldset class="addr">
+    <legend>${t("addr_title")} <small>${t("addr_private")}</small></legend>
+    <div class="row2">
+      <label><span>${t("addr_recipient")} *</span><input name="addr_recipient" required maxlength="80" autocomplete="name"></label>
+      <label><span>${t("addr_phone")} *</span><input name="addr_phone" required maxlength="20" inputmode="tel" autocomplete="tel" placeholder="08…"></label>
+    </div>
+    <label><span>${t("addr_street")} *</span><textarea name="addr_street" required rows="2" maxlength="300" autocomplete="street-address" placeholder="${esc(t("addr_street_ph"))}"></textarea></label>
+    <div class="row2">
+      <label><span>${t("addr_village")}</span><input name="addr_village" maxlength="80"></label>
+      <label><span>${t("addr_district")} *</span><input name="addr_district" required maxlength="80"></label>
+    </div>
+    <div class="row2">
+      <label><span>${t("addr_city")} *</span><input name="addr_city" required maxlength="80" autocomplete="address-level2"></label>
+      <label><span>${t("addr_province")} *</span><select name="addr_province" required><option value="">—</option>${ID_PROVINCES.map(p => `<option>${p}</option>`).join("")}</select></label>
+    </div>
+    <div class="row2">
+      <label><span>${t("addr_postal")} *</span><input name="addr_postal" required maxlength="5" pattern="[0-9]{5}" inputmode="numeric" autocomplete="postal-code" placeholder="12345"></label>
+      <label><span>${t("addr_note")}</span><input name="addr_note" maxlength="200" placeholder="${esc(t("addr_note_ph"))}"></label>
+    </div>
+  </fieldset>`;
+}
+function fillAddrSlots() { $$(".addr-slot").forEach(el => { if (!el.dataset.ready) { el.dataset.ready = "1"; el.innerHTML = addrFieldsHTML(); } }); }
+fillAddrSlots();
+const readAddr = (f) => Object.fromEntries(ADDR_KEYS.map(k => [k, String(f["addr_" + k]?.value || "").trim()]));
+function writeAddr(f, a) { ADDR_KEYS.forEach(k => { const el = f["addr_" + k]; if (el && document.activeElement !== el) el.value = a?.[k] || ""; }); }
+const saveAddr = (a) => setDoc(doc(db, "addresses", state.user.uid), { ...a, updatedAt: serverTimestamp() });
+const addrLines = (a) => a ? [a.recipient + (a.phone ? ` (${a.phone})` : ""), a.street, [a.village, a.district].filter(Boolean).join(", "),
+  [a.city, a.province, a.postal].filter(Boolean).join(", "), a.note ? `(${a.note})` : ""].filter(Boolean) : [];
+async function loadMyAddr() {
+  try { const s = await getDoc(doc(db, "addresses", state.user.uid)); state.myAddr = s.exists() ? s.data() : null; }
+  catch (e) { state.myAddr = null; }
+  $("#addr-banner").hidden = !!state.myAddr;
+  if ($("#form-profile")) writeAddr($("#form-profile"), state.myAddr);
+}
 
 /* ---------------- routing ---------------- */
 const TABS = ["collection", "events", "members", "dues", "card", "finance", "admin"];
@@ -1558,7 +1603,7 @@ const typeLabel = (ty) => t({ sell: "t_sell", trade: "t_trade", wanted: "t_wante
 function renderListings() {
   const f = state.marketFilter;
   const words = norm($("#market-q")?.value || "").split(" ").filter(Boolean);
-  const list = (f === "all" ? state.listings : state.listings.filter(l => l.type === f))
+  const list = (f === "all" ? state.listings : f === "war" ? state.listings.filter(l => l.war) : state.listings.filter(l => l.type === f && (f !== "sell" || !l.war)))
     .filter(l => { if (!words.length) return true; const h = searchText(l.title, l.description, l.condition, l.ownerName, typeLabel(l.type)); return words.every(w => h.includes(w)); });
   $("#listings").innerHTML = list.length ? list.map(l => `
     <button type="button" class="item" data-listing="${esc(l.id)}">
@@ -1649,10 +1694,10 @@ $("#btn-add-listing").addEventListener("click", () => {
       <div class="row2">
         <label><span>${t("l_type")}</span>
           <select name="type">
-            <option value="sell">${t("t_sell_regular")}</option>
-            <option value="war">⚡ ${t("t_war_sell")}</option>
-            <option value="trade">${t("t_trade")}</option>
+            <option value="sell">${t("t_sell")}</option>
             <option value="wanted">${t("t_wanted")}</option>
+            <option value="trade">${t("t_trade")}</option>
+            <option value="war">⚡ ${t("t_war_sell")}</option>
           </select>
         </label>
         <label><span>${t("l_price")}</span><input name="price" type="number" min="0" step="1000" inputmode="numeric"></label>
@@ -1961,6 +2006,7 @@ async function renderProfile(id) {
           ${priv.phone ? `${t("phone")}: <a href="https://wa.me/${waNumber(priv.phone)}" target="_blank" rel="noopener">${esc(priv.phone)}</a><br>` : ""}
           ${priv.shirtSize ? `${t("shirt")}: ${esc(priv.shirtSize)} × ${priv.shirtQty || 1} — ${priv.shirtPaid ? t("paid") : t("unpaid")}<br>` : ""}
           <span id="profile-dues"></span>
+          <div id="profile-addr-admin"></div>
           <form class="invite-form" id="f-invite" data-r="${esc(r.id)}">
             <label for="invite-phone">${t("phone_label_admin")}</label>
             <div class="invite-row">
@@ -1977,6 +2023,12 @@ async function renderProfile(id) {
         <div id="profile-extra"></div>
       </div>
     </div>`;
+  if (isAdmin() && u) {
+    getDoc(doc(db, "addresses", u.id)).then(a => {
+      const el = $("#profile-addr-admin"); if (!el || state.sub !== id) return;
+      el.innerHTML = `<p class="addr-admin"><strong>${t("addr_title")}:</strong><br>${a.exists() ? addrLines(a.data()).map(esc).join("<br>") : `<span class="muted">${t("addr_none")}</span>`}</p>`;
+    }).catch(() => {});
+  }
   if (isAdmin() && r.memberNo) {
     loadPaySettings().then(() => getDoc(doc(db, "dues", `${r.id}_${ym()}`))).then(snap => {
       const el = $("#profile-dues"); if (!el || state.sub !== id) return;
@@ -2351,6 +2403,7 @@ $("#form-profile").addEventListener("submit", async (e) => {
       whatsapp: f.whatsapp.value.trim(), bio: f.bio.value.trim(), updatedAt: serverTimestamp()
     });
     saveContact({ displayName: f.displayName.value.trim(), whatsapp: f.whatsapp.value.trim(), instagram: f.instagram.value });
+    await saveAddr(readAddr(f)); state.myAddr = readAddr(f); $("#addr-banner").hidden = true;
     toast(t("profile_saved"));
   } catch (err) { fail(err); }
 });

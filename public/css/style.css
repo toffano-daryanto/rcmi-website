@@ -868,3 +868,11 @@ section[id], [id="contact"], [id="join"] { scroll-margin-top: 96px; }
 .war-box .btn-ghost { color: #fff; border-color: rgba(255,255,255,.4); }
 .war-opts input[type=checkbox] { width: 18px; height: 18px; margin-top: 3px; flex: none; }
 .war-explain { margin: 0 0 8px; }
+
+/* Address */
+fieldset.addr { border: 1px solid var(--line); border-radius: var(--radius-m); padding: 12px 14px 4px; margin: 6px 0 10px; display: grid; gap: 10px; }
+fieldset.addr legend { font-weight: 800; padding: 0 6px; }
+fieldset.addr legend small { font-weight: 500; color: var(--muted); }
+.addr-banner { display: block; margin: 16px 0 0; padding: 12px 16px; border-radius: var(--radius-m); background: #FFF4D6; border-left: 5px solid var(--yellow); color: #4A3800; font-weight: 700; text-decoration: none; }
+.addr-banner[hidden] { display: none; }
+.addr-admin { margin: 8px 0 0; font-size: .9rem; }
