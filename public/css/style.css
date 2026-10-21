@@ -840,3 +840,30 @@ section[id], [id="contact"], [id="join"] { scroll-margin-top: 96px; }
 .l-likes { color: var(--red); font-weight: 700; font-size: .85rem; margin: 2px 0 0; }
 .sold-note { background: #E6F4EA; color: #14532D; padding: 10px 12px; border-radius: var(--radius-s); border-left: 4px solid var(--good); }
 .cmt-closed { margin-top: 12px; }
+
+/* ---------- War buy ---------- */
+.war-opts { padding: 10px 12px; border-radius: var(--radius-s); background: #FFF4D6; }
+.war-opts .lay-check { align-items: flex-start !important; }
+.war-fields { margin-top: 8px; }
+.tag-war { background: var(--yellow) !important; color: var(--ink) !important; }
+.war-box { margin: 14px 0; padding: 14px 16px; border-radius: var(--radius-m); background: var(--navy); color: #fff; }
+.war-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.war-head strong { color: var(--yellow); letter-spacing: .04em; }
+.war-bar { height: 8px; border-radius: 99px; background: rgba(255,255,255,.15); margin: 10px 0; overflow: hidden; }
+.war-bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--yellow), var(--red)); transition: width .3s; }
+.war-start { color: rgba(255,255,255,.7) !important; margin: 0 0 8px; font-size: .85rem; }
+.war-action { margin: 10px 0 14px; }
+.war-action .muted { color: rgba(255,255,255,.75); }
+.war-buy { width: 100%; font-size: 1.15rem; padding: .8em; }
+.war-buy:disabled { background: rgba(255,255,255,.15); color: rgba(255,255,255,.7); border: 0; }
+.war-got { font-weight: 800; color: var(--yellow); margin: 0 0 8px; }
+.war-box h4 { margin: 0 0 8px; font-size: .95rem; }
+.war-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; max-height: 260px; overflow-y: auto; }
+.war-list li { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 8px; background: rgba(255,255,255,.06); }
+.war-list li.me { background: rgba(255,199,44,.18); }
+.war-n { font-weight: 800; color: var(--yellow); min-width: 28px; }
+.war-name { flex: 1; font-weight: 600; }
+.war-list small { color: rgba(255,255,255,.6); }
+.war-list .cmt-act { color: rgba(255,255,255,.7); }
+.war-box .btn-ghost { color: #fff; border-color: rgba(255,255,255,.4); }
+.war-opts input[type=checkbox] { width: 18px; height: 18px; margin-top: 3px; flex: none; }

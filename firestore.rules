@@ -182,12 +182,12 @@ service cloud.firestore {
       let d = request.resource.data;
       let col = d.target == 'market' ? 'listings' : 'cars';
       return approved()
-        && d.kind in ['comment', 'reply'] && d.target in ['collection', 'market']
+        && d.kind in ['comment', 'reply', 'claim'] && d.target in ['collection', 'market']
         && d.from == request.auth.uid && d.uid != request.auth.uid
         && d.keys().hasOnly(['uid', 'kind', 'target', 'postId', 'parentId', 'title', 'note', 'from', 'fromName', 'at', 'read'])
         && d.read == false && d.at == request.time
         && str(d.note, 200) && str(d.title, 100) && str(d.fromName, 80) && d.postId is string
-        && (d.kind == 'comment'
+        && (d.kind in ['comment', 'claim']
               ? get(/databases/$(database)/documents/$(col)/$(d.postId)).data.ownerUid == d.uid
               : (d.parentId is string && get(/databases/$(database)/documents/$(col)/$(d.postId)/comments/$(d.parentId)).data.uid == d.uid));
     }
@@ -262,6 +262,21 @@ service cloud.firestore {
              && request.resource.data.likedBy.toSet().difference(resource.data.get('likedBy', []).toSet()).size() == 0));
     }
 
+    // War buy: a buyer takes (or gives back) one slot. Not the seller; only while open; never more than qty.
+    function warClaim(listingId) {
+      let claims = /databases/$(database)/documents/listings/$(listingId)/claims/$(request.auth.uid);
+      return approved() && resource.data.get('war', false) == true
+        && resource.data.ownerUid != request.auth.uid
+        && resource.data.get('status', 'open') != 'sold'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['claimed'])
+        && ((request.resource.data.claimed == resource.data.get('claimed', 0) + 1
+              && request.resource.data.claimed <= resource.data.qty
+              && (resource.data.get('warStart', null) == null || resource.data.warStart <= request.time)
+              && !exists(claims) && existsAfter(claims))
+          || (request.resource.data.claimed == resource.data.get('claimed', 0) - 1
+              && exists(claims) && !existsAfter(claims)));
+    }
+
     // Comments (and replies: parent = the comment replied to) on collection posts and market listings.
     // Anyone can read; active accounts can write; the author, the post's owner and admins can delete.
     function commentOk() {
@@ -309,6 +324,11 @@ service cloud.firestore {
         && request.resource.data.type in ['sell','trade','wanted']
         // Market rule 3: every listing has a price (budget for wanted, value for trade).
         && request.resource.data.price is number && request.resource.data.price > 0
+        // War buy: limited quantity, first come first served.
+        && (!('war' in request.resource.data) || (request.resource.data.war == true && request.resource.data.type == 'sell'
+              && request.resource.data.qty is int && request.resource.data.qty >= 1 && request.resource.data.qty <= 500
+              && request.resource.data.claimed == 0
+              && (!('warStart' in request.resource.data) || request.resource.data.warStart == null || request.resource.data.warStart is timestamp)))
         && !('ownerWhatsapp' in request.resource.data)
         && str(request.resource.data.title, 100)
         && photosOk(request.resource.data.photos);
@@ -316,8 +336,23 @@ service cloud.firestore {
       allow update: if (approved() && resource.data.ownerUid == request.auth.uid
           && request.resource.data.ownerUid == request.auth.uid
           && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['hidden', 'modHidden', 'modNote', 'modBy', 'modAt'])
-          && photosOk(request.resource.data.photos)) || admin() || likeOnly();
+          && photosOk(request.resource.data.photos)) || admin() || likeOnly() || warClaim(listingId);
       allow delete: if (approved() && resource.data.ownerUid == request.auth.uid) || admin();
+
+      // War buy slots: one per account; the listing's 'claimed' counter moves by exactly one in the same transaction.
+      match /claims/{uid} {
+        allow read: if true;
+        allow create: if approved() && uid == request.auth.uid
+          && request.resource.data.keys().hasOnly(['uid', 'name', 'photo', 'n', 'at'])
+          && request.resource.data.uid == uid && request.resource.data.at == request.time
+          && str(request.resource.data.name, 80) && str(request.resource.data.photo, 600)
+          && getAfter(/databases/$(database)/documents/listings/$(listingId)).data.claimed == get(/databases/$(database)/documents/listings/$(listingId)).data.get('claimed', 0) + 1
+          && request.resource.data.n == getAfter(/databases/$(database)/documents/listings/$(listingId)).data.claimed;
+        allow delete: if admin()
+          || (signedIn() && get(/databases/$(database)/documents/listings/$(listingId)).data.ownerUid == request.auth.uid)
+          || (signedIn() && uid == request.auth.uid
+              && getAfter(/databases/$(database)/documents/listings/$(listingId)).data.claimed == get(/databases/$(database)/documents/listings/$(listingId)).data.claimed - 1);
+      }
     }
   }
 }

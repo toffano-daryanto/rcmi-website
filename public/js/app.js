@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792609591";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792609845";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792609591";
-import { SEED_EVENTS } from "./seed-events.js?v=1792609591";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792609591";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792609591";
+import { GALLERY } from "./gallery-data.js?v=1792609845";
+import { SEED_EVENTS } from "./seed-events.js?v=1792609845";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792609845";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792609845";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -319,9 +319,10 @@ const ms = (ts) => toDate(ts)?.getTime() || 0;
 function bellItems() {
   const seen = ms(state.profile?.notifSeenAt);
   const items = [];
-  for (const n of notif.notices) items.push(n.kind === "comment" || n.kind === "reply"
+  for (const n of notif.notices) items.push(n.kind === "comment" || n.kind === "reply" || n.kind === "claim"
     ? { at: ms(n.at), unread: !n.read, notice: n.id, href: n.target === "market" ? `#/market/${encodeURIComponent(n.postId)}` : `#/feed/p/${encodeURIComponent(n.postId)}`,
-        text: t(n.kind === "reply" ? "nt_reply" : "nt_comment", { name: esc(n.fromName || ""), title: esc(n.title) }) + `<em class="bell-note">“${esc(n.note)}”</em>` }
+        text: n.kind === "claim" ? t("nt_claim", { name: esc(n.fromName || ""), n: esc(n.note), title: esc(n.title) })
+          : t(n.kind === "reply" ? "nt_reply" : "nt_comment", { name: esc(n.fromName || ""), title: esc(n.title) }) + `<em class="bell-note">“${esc(n.note)}”</em>` }
     : { at: ms(n.at), unread: !n.read, href: "#", notice: n.id,
         text: t({ hidden: "nt_hidden", deleted: "nt_deleted", unhidden: "nt_unhidden" }[n.kind] || "nt_hidden", { title: esc(n.title), where: t(n.target === "market" ? "nav_market" : "nav_feed") })
           + (n.note ? `<em class="bell-note">${t("mod_reason")}: ${esc(n.note)}</em>` : "") });
@@ -359,7 +360,7 @@ $("#bell-panel").addEventListener("click", (e) => {
 function openNotice(id) {
   const n = notif.notices.find(x => x.id === id); if (!n) return;
   if (!n.read) updateDoc(doc(db, "notices", id), { read: true }).catch(() => {});
-  if (n.kind === "comment" || n.kind === "reply") {   // open the post, then its comments
+  if (n.kind === "comment" || n.kind === "reply" || n.kind === "claim") {   // open the post, then its comments
     const h = n.target === "market" ? `#/market/${encodeURIComponent(n.postId)}` : `#/feed/p/${encodeURIComponent(n.postId)}`;
     state.deepOpened = null; state.openCommentsAfter = n.target === "market" ? null : `cars:${n.postId}`;
     if (location.hash === h) openDeepLink(); else location.hash = h;
@@ -1012,6 +1013,95 @@ document.addEventListener("click", async (e) => {
   catch (err) { l.likedBy = on ? [...l.likedBy, uid] : l.likedBy.filter(x => x !== uid); paint(); fail(err); }
 });
 
+/* ================= War buy: limited quantity, first come first served, live ================= */
+function startWar(l0) {
+  const box = $(`#modal-body [data-war="${CSS.escape(l0.id)}"]`); if (!box) return;
+  let l = { ...l0 }, claims = [], timer = null;
+  const unsubs = [
+    onSnapshot(doc(db, "listings", l0.id), s => { if (s.exists()) { l = { id: s.id, ...s.data() }; Object.assign(l0, l); paint(); } }, () => {}),
+    onSnapshot(query(collection(db, "listings", l0.id, "claims"), orderBy("at", "asc")), s => { claims = s.docs.map(d => ({ id: d.id, ...d.data() })); paint(); }, () => {})
+  ];
+  const stop = () => { unsubs.forEach(u => u()); clearInterval(timer); };
+  modal.addEventListener("close", stop, { once: true });
+  timer = setInterval(() => { if (ms(l.warStart) > Date.now() - 1500) paint(); }, 1000);
+  function paint() {
+    if (!box.isConnected) return stop();
+    const me = state.user?.uid, mine = claims.find(c => c.uid === me);
+    const taken = Math.max(l.claimed || 0, claims.length), left = Math.max(0, l.qty - taken);
+    const startAt = ms(l.warStart), waiting = startAt && startAt > Date.now();
+    const isOwner = me && me === l.ownerUid;
+    let btn;
+    if (l.status === "sold") btn = `<button class="btn war-buy" disabled>${t("sold")}</button>`;
+    else if (mine) btn = `<p class="war-got">🎉 ${t("war_got", { n: claims.indexOf(mine) + 1 })}</p><button type="button" class="btn btn-ghost btn-sm" data-war-cancel>${t("war_cancel")}</button>`;
+    else if (isOwner) btn = `<p class="muted">${t("war_owner")}</p>`;
+    else if (!left) btn = `<button class="btn war-buy" disabled>${t("war_soldout")}</button>`;
+    else if (waiting) btn = `<button class="btn war-buy" disabled>⏳ ${t("war_starts_in", { time: countdown(startAt - Date.now()) })}</button>`;
+    else btn = `<button type="button" class="btn btn-mat war-buy" data-war-buy>⚡ ${t("war_buy")}</button>`;
+    box.innerHTML = `
+      <div class="war-head"><strong>⚡ WAR BUY</strong><span>${t("war_left", { left, qty: l.qty })}</span></div>
+      <div class="war-bar"><i style="width:${Math.min(100, taken / l.qty * 100)}%"></i></div>
+      ${startAt ? `<p class="muted war-start">${t("war_start_at", { when: new Date(startAt).toLocaleString(locale(), { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) })}</p>` : ""}
+      <div class="war-action">${btn}</div>
+      <h4>${t("war_buyers")} (${claims.length}/${l.qty})</h4>
+      ${claims.length ? `<ol class="war-list">${claims.map((c, i) => `<li class="${c.uid === me ? "me" : ""}">
+        <span class="war-n">#${i + 1}</span><span class="cmt-av">${c.photo ? `<img src="${esc(c.photo)}" alt="" referrerpolicy="no-referrer">` : esc(initials(c.name))}</span>
+        <span class="war-name">${esc(c.name)}</span><small>${ms(c.at) ? new Date(ms(c.at)).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : ""}</small>
+        ${(isOwner || isAdmin()) && l.status !== "sold" ? `<button type="button" class="cmt-act" data-war-remove="${esc(c.id)}">${t("war_remove")}</button>` : ""}</li>`).join("")}</ol>`
+        : `<p class="muted">${t("war_none")}</p>`}`;
+  }
+  box.addEventListener("click", async (e) => {
+    if (e.target.closest("[data-war-buy]")) {
+      if (!state.user) { toast(t("war_signin")); closeModal(); openSignInChooser(); return; }
+      if (state.profile?.status !== "approved") { toast(t("cmt_need_active")); return; }
+      const b = e.target.closest("[data-war-buy]"); b.disabled = true; b.textContent = "…";
+      try {
+        const n = await runTransaction(db, async (tx) => {
+          const ref = doc(db, "listings", l.id), cref = doc(db, "listings", l.id, "claims", state.user.uid);
+          const [snap, mineSnap] = [await tx.get(ref), await tx.get(cref)];
+          const d = snap.data();
+          if (d.status === "sold") throw new Error(t("sold"));
+          if (mineSnap.exists()) throw new Error(t("war_already"));
+          if (ms(d.warStart) > Date.now()) throw new Error(t("war_not_started"));
+          const next = (d.claimed || 0) + 1;
+          if (next > d.qty) throw new Error(t("war_soldout"));
+          tx.update(ref, { claimed: next });
+          tx.set(cref, { uid: state.user.uid, name: String(state.profile.displayName || "").slice(0, 80),
+            photo: String(state.profile.photoURL || state.user.photoURL || "").slice(0, 600), n: next, at: serverTimestamp() });
+          return next;
+        });
+        toast(t("war_got", { n }));
+        addDoc(collection(db, "notices"), { uid: l.ownerUid, kind: "claim", target: "market", postId: l.id, title: String(l.title || "").slice(0, 100),
+          note: `#${n}`, from: state.user.uid, fromName: String(state.profile.displayName || "").slice(0, 80), at: serverTimestamp(), read: false }).catch(() => {});
+      } catch (err) { toast(err.message === "Missing or insufficient permissions." ? t("war_soldout") : err.message); paint(); }
+    }
+    if (e.target.closest("[data-war-cancel]")) {
+      if (!confirm(t("war_cancel_confirm"))) return;
+      try {
+        await runTransaction(db, async (tx) => {
+          const ref = doc(db, "listings", l.id), cref = doc(db, "listings", l.id, "claims", state.user.uid);
+          const snap = await tx.get(ref);
+          tx.update(ref, { claimed: Math.max(0, (snap.data().claimed || 1) - 1) }); tx.delete(cref);
+        });
+      } catch (err) { fail(err); }
+    }
+    const rm = e.target.closest("[data-war-remove]");
+    if (rm) {
+      if (!confirm(t("war_remove_confirm"))) return;
+      try {
+        const batch = writeBatch(db);
+        batch.delete(doc(db, "listings", l.id, "claims", rm.dataset.warRemove));
+        batch.update(doc(db, "listings", l.id), { claimed: Math.max(0, (l.claimed || 1) - 1) });
+        await batch.commit();
+      } catch (err) { fail(err); }
+    }
+  });
+  paint();
+}
+function countdown(msLeft) {
+  const s = Math.max(0, Math.round(msLeft / 1000)), d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60), x = s % 60;
+  return d ? `${d}d ${h}h ${m}m` : h ? `${h}:${String(m).padStart(2, "0")}:${String(x).padStart(2, "0")}` : `${m}:${String(x).padStart(2, "0")}`;
+}
+
 /* ---- Share (WhatsApp & co.): the phone's share sheet when available, otherwise a small menu ---- */
 const SHARE_ICON = `<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M21 3 10 14M21 3l-7 18-4-7-7-4 18-7Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>`;
 const SITE_URL = location.origin + "/";
@@ -1474,7 +1564,7 @@ function renderListings() {
     <button type="button" class="item" data-listing="${esc(l.id)}">
       ${l.photos?.[0] ? `<img class="ph" src="${photoSrc(l.photos[0])}" alt="" loading="lazy">` : `<div class="ph ph-empty">1:64</div>`}
       <div class="meta">
-        <span class="tag ${l.status === "sold" ? "tag-sold" : "tag-" + esc(l.type)}">${l.status === "sold" ? t("sold") : typeLabel(l.type)}</span>${l.modHidden ? ` <span class="tag tag-hidden">${t("mod_hidden_tag")}</span>` : ""}
+        <span class="tag ${l.status === "sold" ? "tag-sold" : "tag-" + esc(l.type)}">${l.status === "sold" ? t("sold") : typeLabel(l.type)}</span>${l.war && l.status !== "sold" ? ` <span class="tag tag-war">${(l.claimed || 0) >= l.qty ? t("war_soldout") : `⚡ WAR ${l.claimed || 0}/${l.qty}`}</span>` : ""}${l.modHidden ? ` <span class="tag tag-hidden">${t("mod_hidden_tag")}</span>` : ""}
         <h3>${esc(l.title)}</h3>
         <p>${l.price ? `<span class="price">${fmtIDR(l.price)}</span> · ` : ""}${esc(l.ownerName)}</p>
         ${(l.likedBy || []).length ? `<p class="l-likes">♥ ${(l.likedBy || []).length}</p>` : ""}
@@ -1506,6 +1596,7 @@ function openListing(l) {
     ${l.modHidden ? `<p class="mod-note">🚫 ${t(isAdmin() && l.ownerUid !== state.user?.uid ? "mod_hidden_admin" : "mod_hidden_owner")}${l.modNote ? `<br><strong>${t("mod_reason")}:</strong> ${esc(l.modNote)}` : ""}</p>` : ""}
     <p class="listing-risk">⚠️ ${t("mn_short")}</p>
     ${l.status === "sold" ? `<p class="sold-note">✅ ${t(isArchived(l) ? "sold_archived" : "sold_note", { days: Math.max(1, Math.ceil((soldTime(l) + ARCHIVE_DAYS * 864e5 - Date.now()) / 864e5)) })}</p>` : ""}
+    ${l.war ? `<section class="war-box" data-war="${esc(l.id)}"></section>` : ""}
     <section class="cmt-inline" data-cmt-inline="listings:${esc(l.id)}"></section>
     ${isAdmin() ? `<div class="mod-bar"><small>${t("admin_only")}</small>
       ${l.modHidden ? `<button type="button" class="btn btn-sm btn-mat" data-act="unhide">${t("mod_unhide")}</button>` : `<button type="button" class="btn btn-sm btn-ghost" data-act="modhide">${t("mod_hide")}</button>`}
@@ -1525,6 +1616,7 @@ function openListing(l) {
       ${canEdit(l.ownerUid) ? `<button class="btn btn-danger" data-act="del">${t("delete")}</button>` : ""}
     </div>`);
   state.cmtItems[`listings:${l.id}`] = l;
+  if (l.war) startWar(l);
   renderCommentsInto($("#modal-body [data-cmt-inline]"), "listings", l);
   // Members see the seller's WhatsApp (read from the member list, which only approved members can open).
   if (member && l.ownerUid) {
@@ -1560,6 +1652,13 @@ $("#btn-add-listing").addEventListener("click", () => {
         </label>
         <label><span>${t("l_price")}</span><input name="price" type="number" min="0" step="1000" inputmode="numeric"></label>
       </div>
+      <div class="war-opts">
+        <label class="lay-check"><input type="checkbox" name="war"> <span><b>⚡ ${t("war_label")}</b> — ${t("war_label_d")}</span></label>
+        <div class="row2 war-fields" hidden>
+          <label><span>${t("war_qty")} *</span><input name="qty" type="number" min="1" max="500" step="1" value="5" inputmode="numeric"></label>
+          <label><span>${t("war_start")}</span><input name="warStart" type="datetime-local"></label>
+        </div>
+      </div>
       <label><span>${t("l_title")}</span><input name="title" required maxlength="100"></label>
       <label><span>${t("l_condition")}</span><input name="condition" maxlength="80"></label>
       <label><span>${t("l_desc")}</span><textarea name="description" rows="3" maxlength="800"></textarea></label>
@@ -1581,6 +1680,13 @@ $("#btn-add-listing").addEventListener("click", () => {
     f.description.placeholder = ty === "wanted" ? t("l_wanted_ph") : "";
   };
   f.type.addEventListener("change", syncPrice); syncPrice();
+  // War buy only for selling: quantity + optional start time.
+  const syncWar = () => {
+    const sell = f.type.value === "sell";
+    f.querySelector(".war-opts").hidden = !sell; if (!sell) f.war.checked = false;
+    f.querySelector(".war-fields").hidden = !f.war.checked; f.qty.required = f.war.checked;
+  };
+  f.type.addEventListener("change", syncWar); f.war.addEventListener("change", syncWar); syncWar();
   $("#modal-body").onclick = (ev) => {
     if (ev.target.dataset.act === "close") closeModal();
     if (ev.target.dataset.act === "rules") { ev.preventDefault(); closeModal(); const d = $("#market-rules"); d.open = true; d.scrollIntoView({ behavior: "smooth" }); }
@@ -1594,6 +1700,8 @@ $("#btn-add-listing").addEventListener("click", () => {
       await addDoc(collection(db, "listings"), {
         type: f.type.value, title: f.title.value.trim(), price: Number(f.price.value),
         condition: f.condition.value.trim(), description: f.description.value.trim(), photos, status: "open",
+        ...(f.war.checked && f.type.value === "sell" ? { war: true, qty: Math.max(1, Math.min(500, parseInt(f.qty.value, 10) || 1)), claimed: 0,
+          warStart: f.warStart.value ? Timestamp.fromDate(new Date(f.warStart.value)) : null } : {}),
         ownerUid: state.user.uid, ownerName: state.profile.displayName,
         ownerInstagram: state.profile.instagram || "",
         createdAt: serverTimestamp()
