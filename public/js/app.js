@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792610152";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792610326";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792610152";
-import { SEED_EVENTS } from "./seed-events.js?v=1792610152";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792610152";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792610152";
+import { GALLERY } from "./gallery-data.js?v=1792610326";
+import { SEED_EVENTS } from "./seed-events.js?v=1792610326";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792610326";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792610326";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -668,31 +668,68 @@ const ID_PROVINCES = ["Aceh","Sumatera Utara","Sumatera Barat","Riau","Kepulauan
   "Maluku","Maluku Utara","Papua","Papua Barat","Papua Barat Daya","Papua Selatan","Papua Tengah","Papua Pegunungan"];
 const ADDR_KEYS = ["recipient", "phone", "street", "village", "district", "city", "province", "postal", "note"];
 function addrFieldsHTML() {
+  const sel = (name, label, req = true) => `<label><span>${t(label)}${req ? " *" : ""}</span><select name="addr_${name}" ${req ? "required" : ""} disabled><option value="">—</option></select></label>`;
   return `<fieldset class="addr">
     <legend>${t("addr_title")} <small>${t("addr_private")}</small></legend>
     <div class="row2">
       <label><span>${t("addr_recipient")} *</span><input name="addr_recipient" required maxlength="80" autocomplete="name"></label>
       <label><span>${t("addr_phone")} *</span><input name="addr_phone" required maxlength="20" inputmode="tel" autocomplete="tel" placeholder="08…"></label>
     </div>
+    <div class="row2">${sel("province", "addr_province")}${sel("city", "addr_city")}</div>
+    <div class="row2">${sel("district", "addr_district")}${sel("village", "addr_village")}</div>
     <label><span>${t("addr_street")} *</span><textarea name="addr_street" required rows="2" maxlength="300" autocomplete="street-address" placeholder="${esc(t("addr_street_ph"))}"></textarea></label>
-    <div class="row2">
-      <label><span>${t("addr_village")}</span><input name="addr_village" maxlength="80"></label>
-      <label><span>${t("addr_district")} *</span><input name="addr_district" required maxlength="80"></label>
-    </div>
-    <div class="row2">
-      <label><span>${t("addr_city")} *</span><input name="addr_city" required maxlength="80" autocomplete="address-level2"></label>
-      <label><span>${t("addr_province")} *</span><select name="addr_province" required><option value="">—</option>${ID_PROVINCES.map(p => `<option>${p}</option>`).join("")}</select></label>
-    </div>
     <div class="row2">
       <label><span>${t("addr_postal")} *</span><input name="addr_postal" required maxlength="5" pattern="[0-9]{5}" inputmode="numeric" autocomplete="postal-code" placeholder="12345"></label>
       <label><span>${t("addr_note")}</span><input name="addr_note" maxlength="200" placeholder="${esc(t("addr_note_ph"))}"></label>
     </div>
   </fieldset>`;
 }
-function fillAddrSlots() { $$(".addr-slot").forEach(el => { if (!el.dataset.ready) { el.dataset.ready = "1"; el.innerHTML = addrFieldsHTML(); } }); }
+/* Province → city/regency → kecamatan → kelurahan dropdowns, from /wilayah (Kemendagri codes, 38 provinces). */
+let wilIndex = null; const wilReg = {};
+const wilLoadIndex = () => wilIndex || (wilIndex = fetch("/wilayah/index.json").then(r => r.json()));
+const wilLoadReg = (id) => wilReg[id] || (wilReg[id] = fetch(`/wilayah/${id}.json`).then(r => r.json()));
+function setOpts(el, items, keep = "") {   // items: [[value, label]]
+  el.innerHTML = `<option value="">—</option>` + items.map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join("");
+  el.disabled = !items.length;
+  if (keep) { if (!items.some(([v]) => v === keep)) el.insertAdjacentHTML("beforeend", `<option value="${esc(keep)}">${esc(keep)}</option>`); el.value = keep; }
+}
+async function bindWilayah(f, preset = {}) {
+  const P = f.addr_province, C = f.addr_city, D = f.addr_district, V = f.addr_village;
+  if (!P) return;
+  const idx = await wilLoadIndex();
+  const provs = idx.map(p => [p[1], p[1]]);
+  const regsOf = (pname) => (idx.find(p => p[1] === pname)?.[2] || []);
+  let reg = null;
+  async function onProv(keepC, keepD, keepV) {
+    setOpts(C, regsOf(P.value).map(r => [r[1], r[1]]), keepC); setOpts(D, []); setOpts(V, []);
+    if (keepC) await onCity(keepD, keepV);
+  }
+  async function onCity(keepD, keepV) {
+    setOpts(D, []); setOpts(V, []);
+    const r = regsOf(P.value).find(x => x[1] === C.value); if (!r) { if (keepD) setOpts(D, [], keepD); if (keepV) setOpts(V, [], keepV); return; }
+    D.disabled = true; D.options[0].textContent = "…";
+    reg = await wilLoadReg(r[0]);
+    setOpts(D, reg.d.map(d => [d[1], d[1]]), keepD);
+    if (keepD) onDist(keepV);
+  }
+  function onDist(keepV) {
+    const d = reg?.d.find(x => x[1] === D.value);
+    setOpts(V, d ? (reg.v[d[0]] || []).map(v => [v, v]) : [], keepV);
+  }
+  if (!f.dataset.wil) {
+    f.dataset.wil = "1";
+    P.addEventListener("change", () => onProv()); C.addEventListener("change", () => onCity()); D.addEventListener("change", () => onDist());
+  }
+  setOpts(P, provs, preset.province || "");
+  if (preset.province) await onProv(preset.city, preset.district, preset.village);
+}
+function fillAddrSlots() { $$(".addr-slot").forEach(el => { if (!el.dataset.ready) { el.dataset.ready = "1"; el.innerHTML = addrFieldsHTML(); bindWilayah(el.closest("form")).catch(() => {}); } }); }
 fillAddrSlots();
 const readAddr = (f) => Object.fromEntries(ADDR_KEYS.map(k => [k, String(f["addr_" + k]?.value || "").trim()]));
-function writeAddr(f, a) { ADDR_KEYS.forEach(k => { const el = f["addr_" + k]; if (el && document.activeElement !== el) el.value = a?.[k] || ""; }); }
+function writeAddr(f, a) {
+  ["recipient", "phone", "street", "postal", "note"].forEach(k => { const el = f["addr_" + k]; if (el && document.activeElement !== el) el.value = a?.[k] || ""; });
+  if (a) bindWilayah(f, a).catch(() => {});
+}
 const saveAddr = (a) => setDoc(doc(db, "addresses", state.user.uid), { ...a, updatedAt: serverTimestamp() });
 const addrLines = (a) => a ? [a.recipient + (a.phone ? ` (${a.phone})` : ""), a.street, [a.village, a.district].filter(Boolean).join(", "),
   [a.city, a.province, a.postal].filter(Boolean).join(", "), a.note ? `(${a.note})` : ""].filter(Boolean) : [];
