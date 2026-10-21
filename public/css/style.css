@@ -746,3 +746,7 @@ img[src*="drive.google.com"] { -webkit-user-drag: none; user-select: none; -webk
 .migrate { margin: 24px 0; padding: 16px 18px; border-left: 5px solid var(--red); }
 .migrate p { margin: 6px 0 12px; }
 .topnav a[hidden] { display: none !important; }
+/* Top bar stays visible while scrolling */
+.topbar { position: sticky; top: 0; z-index: 60; box-shadow: 0 6px 18px rgba(0,0,0,.18); }
+section[id], [id="contact"], [id="join"] { scroll-margin-top: 96px; }
+@media (max-width: 600px) { section[id] { scroll-margin-top: 120px; } }
