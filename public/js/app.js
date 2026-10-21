@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792606080";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792606139";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792606080";
-import { SEED_EVENTS } from "./seed-events.js?v=1792606080";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792606080";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792606080";
+import { GALLERY } from "./gallery-data.js?v=1792606139";
+import { SEED_EVENTS } from "./seed-events.js?v=1792606139";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792606139";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792606139";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -648,24 +648,21 @@ const canEdit = (ownerUid) => ownerUid === state.user?.uid || isAdmin();
 /* ================= Collection ================= */
 async function loadCars() {
   try {
-    const snap = await getDocs(query(collection(db, "cars"), orderBy("createdAt", "desc"), limit(120)));
-    state.cars = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(c => !c.hidden);
+    // My Collection: only your own cars, newest first.
+    const snap = await getDocs(query(collection(db, "cars"), where("ownerUid", "==", state.user.uid)));
+    state.cars = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(c => !c.hidden)
+      .sort((a, b) => (toDate(b.createdAt)?.getTime() || 0) - (toDate(a.createdAt)?.getTime() || 0));
     renderCars();
   } catch (e) { fail(e); }
 }
 function renderCars() {
-  const list = state.carFilter === "mine" ? state.cars.filter(c => c.ownerUid === state.user.uid) : state.cars;
+  const list = state.cars;
   $("#cars").innerHTML = list.length ? list.map(c => `
     <button type="button" class="item" data-car="${esc(c.id)}">
       ${c.photos?.[0] ? `<img class="ph" src="${photoSrc(c.photos[0])}" alt="" loading="lazy">` : `<div class="ph ph-empty">1:64</div>`}
       <div class="meta"><h3>${esc(c.name)}</h3><p>${esc(c.maker || "")}${c.maker ? " · " : ""}${t("by")} ${esc(c.ownerName)}</p></div>
     </button>`).join("") : `<p class="empty">${t("empty_collection")}</p>`;
 }
-$$("[data-filter]").forEach(b => b.addEventListener("click", () => {
-  state.carFilter = b.dataset.filter;
-  $$("[data-filter]").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
-  renderCars();
-}));
 $("#cars").addEventListener("click", (e) => {
   const el = e.target.closest("[data-car]"); if (!el) return;
   const c = state.cars.find(x => x.id === el.dataset.car); if (!c) return;
