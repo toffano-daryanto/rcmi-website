@@ -1,11 +1,11 @@
-// Paste your Firebase web app config here.
-// Firebase console → Project settings → General → Your apps → Web app → SDK setup and configuration → Config.
-// These values are public by design; the security rules in firestore.rules protect the data.
+// Firebase web app config for the "rcmi-website" project.
+// These values are public by design; firestore.rules protects the data.
 export const firebaseConfig = {
-  apiKey: "PASTE_API_KEY",
-  authDomain: "YOUR-PROJECT-ID.firebaseapp.com",
-  projectId: "YOUR-PROJECT-ID",
-  storageBucket: "YOUR-PROJECT-ID.appspot.com",
-  messagingSenderId: "PASTE_SENDER_ID",
-  appId: "PASTE_APP_ID"
+  apiKey: "AIzaSyCGjAefXgnG_O48Bp2gBRkbMHv0xQVjNuQ",
+  authDomain: "rcmi-website.firebaseapp.com",
+  projectId: "rcmi-website",
+  storageBucket: "rcmi-website.firebasestorage.app",
+  messagingSenderId: "109325988808",
+  appId: "1:109325988808:web:d13a38fa24d5ba216246fd",
+  measurementId: "G-GF1L1N0MP1"
 };
