@@ -867,3 +867,4 @@ section[id], [id="contact"], [id="join"] { scroll-margin-top: 96px; }
 .war-list .cmt-act { color: rgba(255,255,255,.7); }
 .war-box .btn-ghost { color: #fff; border-color: rgba(255,255,255,.4); }
 .war-opts input[type=checkbox] { width: 18px; height: 18px; margin-top: 3px; flex: none; }
+.war-explain { margin: 0 0 8px; }

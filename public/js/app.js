@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792609845";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792610022";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792609845";
-import { SEED_EVENTS } from "./seed-events.js?v=1792609845";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792609845";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792609845";
+import { GALLERY } from "./gallery-data.js?v=1792610022";
+import { SEED_EVENTS } from "./seed-events.js?v=1792610022";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792610022";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792610022";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -1648,13 +1648,18 @@ $("#btn-add-listing").addEventListener("click", () => {
     <form class="form" id="f-l">
       <div class="row2">
         <label><span>${t("l_type")}</span>
-          <select name="type"><option value="sell">${t("t_sell")}</option><option value="trade">${t("t_trade")}</option><option value="wanted">${t("t_wanted")}</option></select>
+          <select name="type">
+            <option value="sell">${t("t_sell_regular")}</option>
+            <option value="war">⚡ ${t("t_war_sell")}</option>
+            <option value="trade">${t("t_trade")}</option>
+            <option value="wanted">${t("t_wanted")}</option>
+          </select>
         </label>
         <label><span>${t("l_price")}</span><input name="price" type="number" min="0" step="1000" inputmode="numeric"></label>
       </div>
-      <div class="war-opts">
-        <label class="lay-check"><input type="checkbox" name="war"> <span><b>⚡ ${t("war_label")}</b> — ${t("war_label_d")}</span></label>
-        <div class="row2 war-fields" hidden>
+      <div class="war-opts" hidden>
+        <p class="war-explain"><b>⚡ ${t("t_war_sell")}</b> — ${t("war_label_d")}</p>
+        <div class="row2 war-fields">
           <label><span>${t("war_qty")} *</span><input name="qty" type="number" min="1" max="500" step="1" value="5" inputmode="numeric"></label>
           <label><span>${t("war_start")}</span><input name="warStart" type="datetime-local"></label>
         </div>
@@ -1680,13 +1685,9 @@ $("#btn-add-listing").addEventListener("click", () => {
     f.description.placeholder = ty === "wanted" ? t("l_wanted_ph") : "";
   };
   f.type.addEventListener("change", syncPrice); syncPrice();
-  // War buy only for selling: quantity + optional start time.
-  const syncWar = () => {
-    const sell = f.type.value === "sell";
-    f.querySelector(".war-opts").hidden = !sell; if (!sell) f.war.checked = false;
-    f.querySelector(".war-fields").hidden = !f.war.checked; f.qty.required = f.war.checked;
-  };
-  f.type.addEventListener("change", syncWar); f.war.addEventListener("change", syncWar); syncWar();
+  // War sell: quantity + optional start time.
+  const syncWar = () => { const war = f.type.value === "war"; f.querySelector(".war-opts").hidden = !war; f.qty.required = war; };
+  f.type.addEventListener("change", syncWar); syncWar();
   $("#modal-body").onclick = (ev) => {
     if (ev.target.dataset.act === "close") closeModal();
     if (ev.target.dataset.act === "rules") { ev.preventDefault(); closeModal(); const d = $("#market-rules"); d.open = true; d.scrollIntoView({ behavior: "smooth" }); }
@@ -1698,9 +1699,9 @@ $("#btn-add-listing").addEventListener("click", () => {
     try {
       const photos = await storePhotos(f.photos, "market", 3, 0, f.querySelector('[type="submit"]'));
       await addDoc(collection(db, "listings"), {
-        type: f.type.value, title: f.title.value.trim(), price: Number(f.price.value),
+        type: f.type.value === "war" ? "sell" : f.type.value, title: f.title.value.trim(), price: Number(f.price.value),
         condition: f.condition.value.trim(), description: f.description.value.trim(), photos, status: "open",
-        ...(f.war.checked && f.type.value === "sell" ? { war: true, qty: Math.max(1, Math.min(500, parseInt(f.qty.value, 10) || 1)), claimed: 0,
+        ...(f.type.value === "war" ? { war: true, qty: Math.max(1, Math.min(500, parseInt(f.qty.value, 10) || 1)), claimed: 0,
           warStart: f.warStart.value ? Timestamp.fromDate(new Date(f.warStart.value)) : null } : {}),
         ownerUid: state.user.uid, ownerName: state.profile.displayName,
         ownerInstagram: state.profile.instagram || "",
