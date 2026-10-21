@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig } from "./config.js?v=1792604767";
+import { firebaseConfig } from "./config.js?v=1792604911";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792604767";
-import { SEED_EVENTS } from "./seed-events.js?v=1792604767";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792604767";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792604767";
+import { GALLERY } from "./gallery-data.js?v=1792604911";
+import { SEED_EVENTS } from "./seed-events.js?v=1792604911";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792604911";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792604911";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -756,6 +756,21 @@ document.addEventListener("dblclick", (e) => {
   setTimeout(() => toggleLike(post.dataset.post, true), 350);
 });
 
+/* Report a market problem to the admins: the Contact form, topic "Market", prefilled. */
+function openReport(l) {
+  location.hash = "#contact";
+  setTimeout(() => {
+    const f = $("#form-contact");
+    if (f && !f.hidden) {
+      f.topic.value = "pasar";
+      if (l) f.message.value = t("mn_report_msg", { title: l.title, seller: l.ownerName || "", url: `${SITE_URL}#/market/${l.id}` });
+      f.message.focus();
+    }
+    document.getElementById("contact")?.scrollIntoView({ behavior: "smooth" });
+  }, 250);
+}
+document.addEventListener("click", (e) => { if (e.target.closest(".js-report")) { e.preventDefault(); openReport(null); } });
+
 /* ---- Share (WhatsApp & co.): the phone's share sheet when available, otherwise a small menu ---- */
 const SHARE_ICON = `<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M21 3 10 14M21 3l-7 18-4-7-7-4 18-7Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>`;
 const SITE_URL = location.origin + "/";
@@ -1034,8 +1049,10 @@ function openListing(l) {
     ${l.condition ? `<p><strong>${t("l_condition")}:</strong> ${esc(l.condition)}</p>` : ""}
     ${l.description ? `<p>${esc(l.description)}</p>` : ""}
     <p class="muted">${esc(l.ownerName)} · ${fmtDate(l.createdAt, { day: "numeric", month: "short" })}</p>
+    <p class="listing-risk">⚠️ ${t("mn_short")}</p>
     <div class="form-actions">
       <button type="button" class="btn btn-ghost share-btn" data-act="share">${SHARE_ICON} ${t("share")}</button>
+      <button type="button" class="btn btn-ghost" data-act="report">${t("mn_report_listing")}</button>
       ${ig ? `<a class="btn btn-ghost" target="_blank" rel="noopener" href="https://instagram.com/${encodeURIComponent(ig)}">Instagram</a>` : ""}
       <span id="listing-wa">${member ? "" : `<button type="button" class="btn btn-ghost" data-act="signin">${t("wa_signin")}</button>`}</span>
       ${canEdit(l.ownerUid) && l.status !== "sold" ? `<button class="btn btn-ghost" data-act="sold">${t("mark_sold")}</button>` : ""}
@@ -1053,6 +1070,7 @@ function openListing(l) {
     const act = ev.target.dataset.act;
     if (act === "signin") { closeModal(); openSignInChooser(); return; }
     if (ev.target.closest("[data-act=share]")) { shareListing(l); return; }
+    if (act === "report") { closeModal(); openReport(l); return; }
     try {
       if (act === "sold") { await updateDoc(doc(db, "listings", l.id), { status: "sold" }); closeModal(); toast(t("saved")); loadListings(); }
       if (act === "del" && confirm(t("confirm_delete"))) { await deleteDoc(doc(db, "listings", l.id)); closeModal(); toast(t("deleted")); loadListings(); }

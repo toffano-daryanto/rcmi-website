@@ -716,3 +716,10 @@ img[src*="drive.google.com"] { -webkit-user-drag: none; user-select: none; -webk
 .share-opt.wa { background: #25D366; } .share-opt.tg { background: #229ED9; } .share-opt.fb { background: #1877F2; } .share-opt.x { background: #000; }
 .share-opt.copy { background: var(--surface); color: var(--ink); box-shadow: 0 0 0 1.5px var(--line); }
 .share-url { width: 100%; margin-top: 12px; padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--radius-s); font: inherit; font-size: .85rem; color: var(--muted); background: transparent; }
+
+/* Market safety notice */
+.market-notice { margin: 16px 0 22px; padding: 14px 18px 12px; border-radius: var(--radius-m); background: #FFF4D6; border-left: 6px solid var(--yellow); color: #4A3800; max-width: 760px; }
+.market-notice strong { display: block; margin-bottom: 6px; color: var(--ink); }
+.market-notice ol { margin: 0; padding-left: 20px; display: grid; gap: 4px; font-size: .95rem; }
+.market-notice a { color: var(--red); font-weight: 700; }
+.listing-risk { font-size: .85rem; background: #FFF4D6; color: #4A3800; padding: 8px 12px; border-radius: var(--radius-s); }
