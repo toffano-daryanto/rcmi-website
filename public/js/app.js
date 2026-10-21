@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792610326";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792610411";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792610326";
-import { SEED_EVENTS } from "./seed-events.js?v=1792610326";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792610326";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792610326";
+import { GALLERY } from "./gallery-data.js?v=1792610411";
+import { SEED_EVENTS } from "./seed-events.js?v=1792610411";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792610411";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792610411";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -738,7 +738,23 @@ async function loadMyAddr() {
   catch (e) { state.myAddr = null; }
   $("#addr-banner").hidden = !!state.myAddr;
   if ($("#form-profile")) writeAddr($("#form-profile"), state.myAddr);
+  renderMyAddr();
 }
+// "My address" on the profile page (private: only you and admins see it).
+function renderMyAddr() {
+  const box = $("#my-addr"); if (!box) return;
+  const a = state.myAddr;
+  box.hidden = false;
+  box.innerHTML = `<h3>📦 ${t("addr_mine")}</h3>
+    ${a ? `<address>${addrLines(a).map(esc).join("<br>")}</address>` : `<p class="muted">${t("addr_none")}</p>`}
+    <p class="muted small">${t("addr_private")}</p>
+    <a class="btn btn-sm btn-ghost" href="#form-profile" data-addr-edit>${t(a ? "addr_edit" : "addr_add")}</a>`;
+}
+document.addEventListener("click", (e) => {
+  if (!e.target.closest("[data-addr-edit]")) return;
+  e.preventDefault();
+  const fs = $("#profile-addr fieldset"); fs?.scrollIntoView({ behavior: "smooth", block: "start" }); fs?.querySelector("input")?.focus();
+});
 
 /* ---------------- routing ---------------- */
 const TABS = ["collection", "events", "members", "dues", "card", "finance", "admin"];
@@ -2440,7 +2456,7 @@ $("#form-profile").addEventListener("submit", async (e) => {
       whatsapp: f.whatsapp.value.trim(), bio: f.bio.value.trim(), updatedAt: serverTimestamp()
     });
     saveContact({ displayName: f.displayName.value.trim(), whatsapp: f.whatsapp.value.trim(), instagram: f.instagram.value });
-    await saveAddr(readAddr(f)); state.myAddr = readAddr(f); $("#addr-banner").hidden = true;
+    await saveAddr(readAddr(f)); state.myAddr = readAddr(f); $("#addr-banner").hidden = true; renderMyAddr();
     toast(t("profile_saved"));
   } catch (err) { fail(err); }
 });
