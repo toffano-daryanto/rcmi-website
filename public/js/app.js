@@ -7,11 +7,11 @@ import {
   getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, collection, query, where,
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig } from "./config.js?v=1792596683";
+import { firebaseConfig } from "./config.js?v=1792596862";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792596683";
-import { SEED_EVENTS } from "./seed-events.js?v=1792596683";
-import { parseLedgerCSV, buildPL, balanceIssues } from "./finance.js?v=1792596683";
+import { GALLERY } from "./gallery-data.js?v=1792596862";
+import { SEED_EVENTS } from "./seed-events.js?v=1792596862";
+import { parseLedgerCSV, buildPL, balanceIssues } from "./finance.js?v=1792596862";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -1105,8 +1105,9 @@ state.finPeriod = "all";
 async function loadFinance() {
   if (!isAdmin()) return;
   try {
-    const snap = await getDoc(doc(db, "finance", "ledger"));
+    const [snap, src] = await Promise.all([getDoc(doc(db, "finance", "ledger")), getDoc(doc(db, "finance", "source"))]);
     state.ledger = snap.exists() ? snap.data() : null;
+    state.finSource = src.exists() ? src.data() : null;
     renderFinance();
   } catch (e) { fail(e); }
 }
@@ -1120,6 +1121,8 @@ function periodRange(p) {
 function renderFinance() {
   const body = $("#fin-body"); if (!body) return;
   const L = state.ledger;
+  $("#fin-source").innerHTML = "";
+  if (state.finSource?.sheetId) $("#fin-source").insertAdjacentHTML("afterend", "");
   $("#fin-source").textContent = L ? t("fin_imported", { n: L.rows.length, date: fmtDate(L.importedAt, { day: "numeric", month: "short", year: "numeric" }), file: L.fileName || "CSV" }) : "";
   const sel = $("#fin-period");
   if (!L || !L.rows?.length) {
@@ -1217,6 +1220,57 @@ function renderFinance() {
 }
 $("#fin-period").addEventListener("change", (e) => { state.finPeriod = e.target.value; renderFinance(); });
 $("#fin-print").addEventListener("click", () => window.print());
+// Pull the ledger straight from the KEUANGAN RCMI Google Sheet. The sheet link is kept in finance/source (admins only),
+// never in the site's code, so it isn't exposed through the public GitHub repo.
+const sheetIdFrom = (s) => (String(s).match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]{20,})/) || String(s).match(/^([a-zA-Z0-9_-]{30,})$/) || [])[1] || "";
+async function syncFromSheet(sheetId, gid) {
+  const url = `https://docs.google.com/spreadsheets/d/${encodeURIComponent(sheetId)}/gviz/tq?tqx=out:csv${gid ? "&gid=" + encodeURIComponent(gid) : ""}`;
+  let text;
+  try {
+    const res = await fetch(url, { credentials: "omit" });
+    if (!res.ok) throw new Error(String(res.status));
+    text = await res.text();
+  } catch (e) { throw new Error(t("fin_sync_fetch_fail")); }
+  if (/^\s*</.test(text)) throw new Error(t("fin_sync_fetch_fail"));
+  const rows = parseLedgerCSV(text);
+  if (!rows.length) throw new Error(t("fin_parse_empty"));
+  await setDoc(doc(db, "finance", "ledger"), { rows, fileName: "Google Sheet", importedAt: serverTimestamp(), importedBy: state.user.uid });
+  return rows.length;
+}
+function askSheetLink() {
+  openModal(`
+    <h2>${t("fin_sync")}</h2>
+    <p class="muted">${t("fin_sync_help")}</p>
+    <form class="form" id="f-sheet">
+      <label><span>${t("fin_sheet_link")}</span><input name="link" required placeholder="https://docs.google.com/spreadsheets/d/…" value="${esc(state.finSource?.link || "")}"></label>
+      <div class="form-actions">
+        <button type="button" class="btn btn-ghost" data-act="close">${t("cancel")}</button>
+        <button class="btn btn-mat" type="submit">${t("fin_sync")}</button>
+      </div>
+    </form>`);
+  $("#modal-body").onclick = (ev) => { if (ev.target.dataset.act === "close") closeModal(); };
+  $("#f-sheet").addEventListener("submit", async (e) => {
+    e.preventDefault(); const btn = e.target.querySelector("[type=submit]"); btn.disabled = true;
+    const link = e.target.link.value.trim(); const id = sheetIdFrom(link);
+    const gid = (link.match(/[#&?]gid=(\d+)/) || [])[1] || "";
+    if (!id) { toast(t("fin_sheet_bad")); btn.disabled = false; return; }
+    try {
+      const n = await syncFromSheet(id, gid);
+      await setDoc(doc(db, "finance", "source"), { link, sheetId: id, gid, savedBy: state.user.uid });
+      closeModal(); toast(t("fin_import_done", { n })); state.finPeriod = "all"; loadFinance();
+    } catch (err) { fail(err); btn.disabled = false; }
+  });
+}
+$("#fin-sync").addEventListener("click", async (e) => {
+  const src = state.finSource;
+  if (!src?.sheetId) return askSheetLink();
+  const btn = e.currentTarget; btn.disabled = true;
+  try { const n = await syncFromSheet(src.sheetId, src.gid); toast(t("fin_import_done", { n })); loadFinance(); }
+  catch (err) { fail(err); }
+  btn.disabled = false;
+});
+$("#fin-sync").addEventListener("contextmenu", (e) => { e.preventDefault(); askSheetLink(); });
+
 $("#fin-file").addEventListener("change", async (e) => {
   const file = e.target.files[0]; if (!file) return;
   try {
