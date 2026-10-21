@@ -1,13 +1,13 @@
-name: Email notifications
+name: Email notifications & phone sync
 
-# Every 10 minutes: emails the admin about new sign-ups (members and general users),
-# joining-fee payment proofs and Contact-form messages. Free on GitHub Actions.
+# Every 10 minutes (free on GitHub Actions):
+#  1. Emails the admin about new sign-ups, joining-fee proofs and Contact messages.
+#  2. Writes members' changed phone numbers back to the "RCMI Member List" Google Sheet.
 #
-# Needs repo secrets:
+# Repo secrets:
 #   FIREBASE_SERVICE_ACCOUNT  - already set (used for deploys)
-#   GMAIL_USER                - the Gmail address that sends the email
-#   GMAIL_APP_PASSWORD        - a Google app password for that address
-#   NOTIFY_TO (optional)      - where to send; defaults to GMAIL_USER
+#   GMAIL_USER, GMAIL_APP_PASSWORD, NOTIFY_TO (optional) - for the emails
+# Phone sync: share the member sheet with the service account's email as Editor.
 
 on:
   schedule:
@@ -27,21 +27,24 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Check for new activity and email the admin
+      - name: Install
         working-directory: scripts
         env:
           SA_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          printf '%s' "$SA_JSON" > "$RUNNER_TEMP/sa.json"
+          npm install --no-audit --no-fund --silent
+      - name: Sync changed phone numbers to the Google Sheet
+        working-directory: scripts
+        run: SA_JSON_PATH="$RUNNER_TEMP/sa.json" node phone-sync.mjs
+      - name: Email the admin about new activity
+        if: always()
+        working-directory: scripts
+        env:
           GMAIL_USER: ${{ secrets.GMAIL_USER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           NOTIFY_TO: ${{ secrets.NOTIFY_TO }}
-        run: |
-          if [ -z "$GMAIL_USER" ] || [ -z "$GMAIL_APP_PASSWORD" ]; then
-            echo "::notice::Email notifications are off: add the GMAIL_USER and GMAIL_APP_PASSWORD secrets."
-            exit 0
-          fi
-          printf '%s' "$SA_JSON" > "$RUNNER_TEMP/sa.json"
-          npm install --no-audit --no-fund --silent
-          SA_JSON_PATH="$RUNNER_TEMP/sa.json" node notify.mjs
+        run: SA_JSON_PATH="$RUNNER_TEMP/sa.json" node notify.mjs
       - name: Clean up
         if: always()
         run: rm -f "$RUNNER_TEMP/sa.json"

@@ -88,6 +88,11 @@ The site opens in **English** by default; visitors can switch to Bahasa Indonesi
 ### Notification bell (admins)
 When an admin is signed in, a bell in the top bar shows a live count (no reload needed) of: pending sign-up requests (and whether the new member has uploaded the payment proof), unread Contact messages, and new accounts (members who activated and general users) since the admin last pressed **Mark all as seen**. A toast pops up when something new arrives while the site is open. Clicking an item opens the Admin page (or the member's profile). "Seen" is saved on the admin's account (`users/{uid}.notifSeenAt`), so it's the same on phone and computer.
 
+### Phone numbers back to the Google Sheet
+When a member changes their phone / WhatsApp number on their profile, the same 10-minute GitHub Action (`scripts/phone-sync.mjs`) writes it into the phone column of their row (matched by member number) on the **RCMI Member List** tab, and updates the site's phone matching. It only acts on numbers members changed on the site, so edits made directly in the sheet aren't overwritten.
+
+One-time setup: Firebase console → *Project settings → Service accounts* → copy the service-account email (`firebase-adminsdk-…@rcmi-website.iam.gserviceaccount.com`) → open the member sheet → **Share** → paste it → **Editor** → uncheck *Notify* → **Share**. The sheet ID comes from Firestore (`sources/members`), saved the first time an admin runs *Sync members*.
+
 ### Email notifications (admins)
 Every 10 minutes a GitHub Action (`.github/workflows/notify.yml`, `scripts/notify.mjs`) checks for **new accounts** (members and general users), **joining-fee payment proofs** and **Contact messages**, and emails a summary with a button to the Admin page. Free — no paid Firebase plan needed. The first run only starts the clock; it doesn't email about older sign-ups.
 
