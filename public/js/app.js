@@ -7,10 +7,10 @@ import {
   getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, collection, query, where,
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig } from "./config.js";
-import { t, getLang, setLang, applyStatic } from "./i18n.js";
-import { GALLERY } from "./gallery-data.js";
-import { SEED_EVENTS } from "./seed-events.js";
+import { firebaseConfig } from "./config.js?v=1792596508";
+import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
+import { GALLERY } from "./gallery-data.js?v=1792596508";
+import { SEED_EVENTS } from "./seed-events.js?v=1792596508";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
