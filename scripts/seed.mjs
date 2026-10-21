@@ -71,7 +71,7 @@ const sRef = db.doc("settings/payment");
 if (!(await sRef.get()).exists) {
   const now = new Date();
   await sRef.set({ amount: 50000, dueDay: 10, bank: "", accountNo: "", accountName: "",
-    trackFrom: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}` });
+    trackFrom: "2025-07" });
 }
 
 // Member-number counter: never move it backwards

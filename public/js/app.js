@@ -7,12 +7,12 @@ import {
   getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, collection, query, where,
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig } from "./config.js?v=1792599016";
+import { firebaseConfig } from "./config.js?v=1792599367";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792599016";
-import { SEED_EVENTS } from "./seed-events.js?v=1792599016";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792599016";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792599016";
+import { GALLERY } from "./gallery-data.js?v=1792599367";
+import { SEED_EVENTS } from "./seed-events.js?v=1792599367";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792599367";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792599367";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -893,7 +893,8 @@ const ym = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).pa
 const addMonth = (m, n) => { const [y, mo] = m.split("-").map(Number); return ym(new Date(y, mo - 1 + n, 1)); };
 const monthRange = (from, to) => { const out = []; for (let m = from, i = 0; m <= to && i < 240; m = addMonth(m, 1), i++) out.push(m); return out; };
 const monthLabel = (m) => { const [y, mo] = m.split("-").map(Number); return new Date(y, mo - 1, 1).toLocaleDateString(locale(), { month: "long", year: "numeric" }); };
-const PAY_DEFAULTS = { amount: 50000, dueDay: 10, bank: "", accountNo: "", accountName: "", trackFrom: ym() };
+// Dues are counted from July 2025 (when RCMI started collecting kas), or from a member's join month if later.
+const PAY_DEFAULTS = { amount: 50000, dueDay: 10, bank: "", accountNo: "", accountName: "", trackFrom: "2025-07" };
 const ST_KEY = { paid: "st_paid", pending: "st_pending", overdue: "st_overdue", due: "st_due", reg: "st_reg", waived: "st_waived", rejected: "st_rejected" };
 const chip = (st) => `<span class="chip chip-${st}">${t(ST_KEY[st])}</span>`;
 state.duesMode = "mine"; state.duesMonth = ym();
@@ -987,7 +988,8 @@ async function renderDuesMine() {
   } catch (e) { fail(e); }
   const joined = myJoinedYm();
   const from = [state.pay.trackFrom, joined].sort().pop();
-  const months = monthRange(from, ym()).reverse();
+  const lastAhead = Object.keys(byMonth).filter(m => m > ym()).sort().pop();
+  const months = monthRange(from, lastAhead || ym()).reverse();
   const cur = ym();
   const stCur = dueStatus(cur, joined, byMonth[cur]);
   const open = months.filter(m => ["due", "overdue", "rejected"].includes(dueStatus(m, joined, byMonth[m])));
@@ -1078,6 +1080,7 @@ async function renderDuesAll() {
           ${["due", "overdue", "rejected"].includes(st) ? `<button class="btn btn-sm btn-mat" data-dact="paid" data-r="${esc(r.id)}">${t("mark_paid")}</button>
             <button class="btn btn-sm btn-ghost" data-dact="waive" data-r="${esc(r.id)}">${t("mark_waived")}</button>` : ""}
           ${["paid", "waived"].includes(st) ? `<button class="btn btn-sm btn-ghost" data-dact="undo" data-r="${esc(r.id)}">${t("mark_unpaid")}</button>` : ""}
+          <button class="btn btn-sm btn-ghost" data-dact="upto" data-r="${esc(r.id)}">${t("paid_upto")}</button>
         </div>
       </div>`).join("")}</div>
     <details class="panel-flat dues-settings">
@@ -1127,6 +1130,48 @@ async function renderDuesAll() {
   });
 }
 
+// Admin: mark every month from the member's start up to a chosen month as paid, in one go (e.g. "paid up to July 2027").
+async function openPaidUpTo(r) {
+  const start = [state.pay.trackFrom || "2025-07", r.joined ? r.joined.slice(0, 7) : ""].sort().pop();
+  const options = monthRange(start, addMonth(ym(), 24));
+  let existing = {};
+  try {
+    const snap = await getDocs(query(collection(db, "dues"), where("rosterId", "==", r.id)));
+    snap.docs.forEach(d => { existing[d.data().month] = d.data(); });
+  } catch (e) { fail(e); return; }
+  const lastPaid = Object.keys(existing).filter(m => ["paid", "waived"].includes(existing[m].status)).sort().pop();
+  openModal(`
+    <h2>${t("paid_upto_title", { name: esc(r.name) })}</h2>
+    <p class="muted">${t("paid_upto_help", { start: monthLabel(start) })}</p>
+    <form class="form" id="f-upto">
+      <label><span>${t("paid_upto_label")}</span>
+        <select name="month">${options.map(m => `<option value="${m}" ${m === (lastPaid || ym()) ? "selected" : ""}>${monthLabel(m)}</option>`).join("")}</select>
+      </label>
+      <div class="form-actions">
+        <button type="button" class="btn btn-ghost" data-act="close">${t("cancel")}</button>
+        <button class="btn btn-mat" type="submit">${t("save")}</button>
+      </div>
+    </form>`);
+  $("#modal-body").onclick = (ev) => { if (ev.target.dataset.act === "close") closeModal(); };
+  $("#f-upto").addEventListener("submit", async (e) => {
+    e.preventDefault(); const btn = e.target.querySelector("[type=submit]"); btn.disabled = true;
+    const until = e.target.month.value;
+    const todo = monthRange(start, until).filter(m => !["paid", "waived"].includes(existing[m]?.status));
+    try {
+      for (let i = 0; i < todo.length; i += 400) {
+        const batch = writeBatch(db);
+        todo.slice(i, i + 400).forEach(m => batch.set(doc(db, "dues", `${r.id}_${m}`), {
+          rosterId: r.id, month: m, memberNo: r.memberNo, name: r.name, uid: existing[m]?.uid || r.claimedBy || null,
+          amount: existing[m]?.amount || state.pay.amount, status: "paid", paidAt: serverTimestamp(), confirmedBy: state.user.uid,
+          note: existing[m]?.note || t("paid_upto_note")
+        }, { merge: true }));
+        await batch.commit();
+      }
+      closeModal(); toast(t("paid_upto_done", { n: todo.length, month: monthLabel(until) })); renderDuesAll();
+    } catch (err) { fail(err); btn.disabled = false; }
+  });
+}
+
 $("#dues-all").addEventListener("click", async (e) => {
   const b = e.target.closest("[data-dact]"); if (!b) return;
   const row = (state.duesRows || []).find(x => x.r.id === b.dataset.r); if (!row) return;
@@ -1134,6 +1179,7 @@ $("#dues-all").addEventListener("click", async (e) => {
   const ref = doc(db, "dues", `${r.id}_${M}`);
   const base = { rosterId: r.id, month: M, memberNo: r.memberNo, name: r.name, uid: d?.uid || r.claimedBy || null, amount: d?.amount || state.pay.amount };
   try {
+    if (b.dataset.dact === "upto") { openPaidUpTo(r); return; }
     if (b.dataset.dact === "proof") {
       openModal(`<h2>${esc(r.name)} — ${monthLabel(M)}</h2><img src="${d.proof}" alt="" style="width:100%;border-radius:8px">
         ${d.note ? `<p>${esc(d.note)}</p>` : ""}<div class="form-actions"><button class="btn btn-ghost" data-act="close">${t("close")}</button></div>`);
