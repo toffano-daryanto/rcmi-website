@@ -40,6 +40,9 @@ When an existing member signs in, the **Admin** tab suggests their record by nam
 
 **What's imported and who sees it:** member number, name, city, province and registration date are visible to approved members. Phone numbers and T-shirt orders are admin-only (`rosterPrivate`). Home addresses, birthdates and payment proofs are **not** imported. `data/roster.json` contains phone numbers, so it is git-ignored.
 
+### Auto-approve by Google email
+Add a member's Gmail on their profile (**Anggota → member → "Email Google anggota"**, admin only), or put `"email": "name@gmail.com"` on their entry in `data/roster.json` and re-import. When that member signs in with that Gmail, their account activates immediately, linked to their member number — no approval needed. Anyone signing in with an email that isn't registered sees a pop-up asking them to switch to their registered Google account, or to continue as a new member (which goes to admin approval). Emails are stored in `rosterPrivate` (admins only) and `invites/{email}` (readable only by the person signed in with that email).
+
 ### Gallery photos and videos
 The landing-page gallery (`public/js/gallery-data.js`) shows the 74 photos and videos from the RCMI Drive folder directly from Google Drive. Each file has to be shared **Anyone with the link → Viewer**, or its tile stays blank. Share the media files individually — **not the whole folder**, which also holds the registration responses and payment proofs.
 

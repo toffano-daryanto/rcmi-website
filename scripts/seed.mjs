@@ -37,8 +37,11 @@ for (const m of roster.members) {
     memberNo: m.no, name: m.name, city: m.city || "", province: m.province || "", joined: m.joined || "", status: "member"
   }, { merge: true });
   batch.set(db.doc(`rosterPrivate/${rid(m.no)}`), {
-    phone: m.phone || "", shirtSize: m.shirt?.size || "", shirtQty: m.shirt?.qty || 0, shirtPaid: !!m.shirt?.paid
+    phone: m.phone || "", shirtSize: m.shirt?.size || "", shirtQty: m.shirt?.qty || 0, shirtPaid: !!m.shirt?.paid,
+    ...(m.email ? { email: m.email.toLowerCase() } : {})
   }, { merge: true });
+  // Members with a known Google email activate themselves when they sign in with it.
+  if (m.email) batch.set(db.doc(`invites/${m.email.toLowerCase()}`), { rosterId: rid(m.no), memberNo: m.no, name: m.name, city: m.city || "" });
 }
 
 // Applicants who filled the Google Form but have no number yet

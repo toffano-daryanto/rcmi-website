@@ -240,8 +240,18 @@ onAuthStateChanged(auth, (user) => {
   unsubProfile = onSnapshot(doc(db, "users", user.uid), (snap) => {
     if (!snap.exists()) {
       const f = $("#form-onboarding");
-      if (!f.displayName.value) f.displayName.value = user.displayName || "";
       state.profile = null; state.gate = "onboarding";
+      // Pre-registered by email? Then the account activates itself on save.
+      getDoc(doc(db, "invites", String(user.email || "").toLowerCase())).then(inv => {
+        state.invite = inv.exists() ? inv.data() : null;
+        if (!f.displayName.value) f.displayName.value = state.invite?.name || user.displayName || "";
+        if (!f.city.value && state.invite?.city) f.city.value = state.invite.city;
+        const note = $("#invite-note");
+        note.hidden = !state.invite;
+        if (state.invite) note.textContent = t("invite_found", { no: memberNo(state.invite.memberNo) });
+        $("#form-onboarding [type=submit]").textContent = t(state.invite ? "activate_account" : "send_request");
+        if (!state.invite && state.emailWarnedFor !== user.uid) { state.emailWarnedFor = user.uid; showEmailMismatch(user.email); }
+      }).catch(() => { state.invite = null; if (!f.displayName.value) f.displayName.value = user.displayName || ""; });
     } else {
       state.profile = { id: snap.id, ...snap.data() };
       state.gate = ["pending", "rejected"].includes(state.profile.status) ? state.profile.status : null;
@@ -254,9 +264,32 @@ onAuthStateChanged(auth, (user) => {
   }, fail);
 });
 
+// Signed in with an email that isn't registered: ask them to use the Gmail they gave RCMI.
+function showEmailMismatch(email) {
+  openModal(`
+    <h2>${t("email_mismatch_title")}</h2>
+    <p>${t("email_mismatch_body", { email: `<strong>${esc(email)}</strong>` })}</p>
+    <p class="muted">${t("email_mismatch_hint")}</p>
+    <div class="form-actions">
+      <button type="button" class="btn btn-ghost" data-act="new">${t("email_mismatch_new")}</button>
+      <button type="button" class="btn btn-mat" data-act="switch">${t("email_mismatch_switch")}</button>
+    </div>`);
+  $("#modal-body").onclick = async (ev) => {
+    const act = ev.target.dataset.act;
+    if (act === "new") closeModal();
+    if (act === "switch") {
+      closeModal();
+      state.emailWarnedFor = null;
+      await signOut(auth);
+      setEnter(true); signIn();
+    }
+  };
+}
+
 $("#form-onboarding").addEventListener("submit", async (e) => {
   e.preventDefault();
-  const f = e.target; const u = state.user;
+  const f = e.target; const u = state.user; const inv = state.invite;
+  const btn = f.querySelector("[type=submit]"); btn.disabled = true;
   try {
     await setDoc(doc(db, "users", u.uid), {
       displayName: f.displayName.value.trim(),
@@ -266,11 +299,16 @@ $("#form-onboarding").addEventListener("submit", async (e) => {
       instagram: igHandle(f.instagram.value),
       whatsapp: f.whatsapp.value.trim(),
       bio: f.bio.value.trim(),
-      status: "pending",
       role: "member",
-      createdAt: serverTimestamp()
+      createdAt: serverTimestamp(),
+      ...(inv ? { status: "approved", memberNo: inv.memberNo, rosterId: inv.rosterId, approvedAt: serverTimestamp() } : { status: "pending" })
     });
-  } catch (err) { fail(err); }
+    if (inv) {
+      await updateDoc(doc(db, "roster", inv.rosterId), { claimedBy: u.uid }).catch(() => {});
+      toast(t("approved_msg", { no: memberNo(inv.memberNo) }));
+      if (!isMemberRoute()) location.hash = "#/card";
+    }
+  } catch (err) { fail(err); btn.disabled = false; }
 });
 
 /* ---------------- routing ---------------- */
@@ -583,6 +621,29 @@ function renderRoster() {
     </button>`;
   }).join("") || `<p class="empty">—</p>`;
 }
+$("#member-profile").addEventListener("submit", async (e) => {
+  if (e.target.id !== "f-invite") return;
+  e.preventDefault();
+  const f = e.target; const id = f.dataset.r; const r = (state.roster || []).find(x => x.id === id);
+  const email = f.email.value.trim().toLowerCase();
+  const btn = f.querySelector("[type=submit]"); btn.disabled = true;
+  try {
+    await setInviteEmail(r, email);
+    toast(t("saved"));
+  } catch (err) { fail(err); }
+  btn.disabled = false;
+});
+// Save a member's Google email: private copy for admins + an invite the member can read at sign-in.
+async function setInviteEmail(r, email) {
+  const old = (state.rosterPrivate[r.id] || {}).email || "";
+  const batch = writeBatch(db);
+  if (old && old !== email) batch.delete(doc(db, "invites", old));
+  if (email) batch.set(doc(db, "invites", email), { rosterId: r.id, memberNo: r.memberNo ?? null, name: r.name || "", city: r.city || "" });
+  batch.set(doc(db, "rosterPrivate", r.id), { email }, { merge: true });
+  await batch.commit();
+  state.rosterPrivate[r.id] = { ...(state.rosterPrivate[r.id] || {}), email };
+}
+
 $("#member-search").addEventListener("input", (e) => { state.memberSearch = e.target.value; renderRoster(); });
 $("#roster").addEventListener("click", (e) => {
   const b = e.target.closest("[data-member]"); if (b) location.hash = `#/members/${encodeURIComponent(b.dataset.member)}`;
@@ -621,6 +682,14 @@ async function renderProfile(id) {
           ${priv.phone ? `${t("phone")}: <a href="https://wa.me/${waNumber(priv.phone)}" target="_blank" rel="noopener">${esc(priv.phone)}</a><br>` : ""}
           ${priv.shirtSize ? `${t("shirt")}: ${esc(priv.shirtSize)} × ${priv.shirtQty || 1} — ${priv.shirtPaid ? t("paid") : t("unpaid")}<br>` : ""}
           <span id="profile-dues"></span>
+          <form class="invite-form" id="f-invite" data-r="${esc(r.id)}">
+            <label for="invite-email">${t("gmail_label")}</label>
+            <div class="invite-row">
+              <input id="invite-email" type="email" name="email" value="${esc(priv.email || "")}" placeholder="nama@gmail.com" autocomplete="off">
+              <button class="btn btn-sm btn-mat" type="submit">${t("save")}</button>
+            </div>
+            <small class="muted">${r.claimedBy ? t("gmail_linked") : t("gmail_hint")}</small>
+          </form>
         </div>` : ""}
         <div id="profile-extra"></div>
       </div>
@@ -1006,7 +1075,8 @@ async function importRoster(file) {
   const batch = writeBatch(db);
   for (const m of data.members) {
     batch.set(doc(db, "roster", rid(m.no)), { memberNo: m.no, name: m.name, city: m.city || "", province: m.province || "", joined: m.joined || "", status: "member" }, { merge: true });
-    batch.set(doc(db, "rosterPrivate", rid(m.no)), { phone: m.phone || "", shirtSize: m.shirt?.size || "", shirtQty: m.shirt?.qty || 0, shirtPaid: !!m.shirt?.paid }, { merge: true });
+    batch.set(doc(db, "rosterPrivate", rid(m.no)), { phone: m.phone || "", shirtSize: m.shirt?.size || "", shirtQty: m.shirt?.qty || 0, shirtPaid: !!m.shirt?.paid, ...(m.email ? { email: m.email.toLowerCase() } : {}) }, { merge: true });
+    if (m.email) batch.set(doc(db, "invites", m.email.toLowerCase()), { rosterId: rid(m.no), memberNo: m.no, name: m.name, city: m.city || "" });
   }
   for (const a of data.applicants || []) {
     batch.set(doc(db, "roster", `a-${a.key}`), { memberNo: null, name: a.name, city: a.city || "", province: a.province || "", status: "applicant", applied: a.applied || "" }, { merge: true });

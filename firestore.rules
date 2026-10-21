@@ -17,18 +17,34 @@ service cloud.firestore {
     function admin() { return approved() && me().role == 'admin'; }
     function str(v, max) { return v is string && v.size() <= max; }
     function photosOk(p) { return p is list && p.size() <= 3; }
+    // Pre-registered members: admins add invites/{gmail} → { rosterId, memberNo }.
+    // A verified Google account with that email activates itself without waiting for approval.
+    function myEmail() { return request.auth.token.email.lower(); }
+    function invitePath() { return /databases/$(database)/documents/invites/$(myEmail()); }
+    function hasInvite() { return signedIn() && request.auth.token.email_verified == true && exists(invitePath()); }
+    function invite() { return get(invitePath()).data; }
 
     // ---------- Members ----------
     match /users/{uid} {
       allow read: if (signedIn() && request.auth.uid == uid) || approved();
 
       allow create: if signedIn() && request.auth.uid == uid
-        && request.resource.data.keys().hasOnly(['displayName','email','photoURL','city','instagram','whatsapp','bio','status','role','createdAt'])
-        && request.resource.data.status == 'pending'
         && request.resource.data.role == 'member'
         && request.resource.data.email == request.auth.token.email
         && str(request.resource.data.displayName, 80)
-        && str(request.resource.data.city, 60);
+        && str(request.resource.data.city, 60)
+        && (
+          // Normal sign-up: waits for an admin.
+          (request.resource.data.keys().hasOnly(['displayName','email','photoURL','city','instagram','whatsapp','bio','status','role','createdAt'])
+            && request.resource.data.status == 'pending')
+          ||
+          // Invited member: active straight away, with the number from their invite.
+          (hasInvite()
+            && request.resource.data.keys().hasOnly(['displayName','email','photoURL','city','instagram','whatsapp','bio','status','role','createdAt','memberNo','rosterId','approvedAt'])
+            && request.resource.data.status == 'approved'
+            && request.resource.data.memberNo == invite().memberNo
+            && request.resource.data.rosterId == invite().rosterId)
+        );
 
       // Members can edit their own profile details, never their status, role or number.
       allow update: if (signedIn() && request.auth.uid == uid
@@ -44,6 +60,16 @@ service cloud.firestore {
     match /roster/{id} {
       allow read: if approved();
       allow write: if admin();
+      // An invited member links their account to their own (still unclaimed) record.
+      allow update: if hasInvite() && invite().rosterId == id
+        && (!('claimedBy' in resource.data) || resource.data.claimedBy == null)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['claimedBy'])
+        && request.resource.data.claimedBy == request.auth.uid;
+    }
+    // Email invites: the signed-in person can read only the invite for their own verified email.
+    match /invites/{email} {
+      allow get: if signedIn() && request.auth.token.email_verified == true && email == myEmail();
+      allow list, write: if admin();
     }
     // Phone numbers and T-shirt orders — admins only.
     match /rosterPrivate/{id} {
