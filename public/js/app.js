@@ -7,12 +7,12 @@ import {
   getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, collection, query, where,
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig } from "./config.js?v=1792601684";
+import { firebaseConfig } from "./config.js?v=1792601838";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792601684";
-import { SEED_EVENTS } from "./seed-events.js?v=1792601684";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792601684";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792601684";
+import { GALLERY } from "./gallery-data.js?v=1792601838";
+import { SEED_EVENTS } from "./seed-events.js?v=1792601838";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792601838";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792601838";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -212,6 +212,8 @@ getRedirectResult(auth).catch(fail);
 
 /* ---------------- state + screens ---------------- */
 const state = { user: null, profile: null, tab: "collection", sub: "", carFilter: "all", marketFilter: "all", cars: [], listings: [], events: [], roster: null, rosterPrivate: {}, siteUsers: {}, memberSearch: "" };
+// Keep the address clean: rcmi-website.web.app/#/… instead of …/index.html#/…
+if (/\/index\.html$/i.test(location.pathname)) history.replaceState(null, "", location.pathname.replace(/index\.html$/i, "") + location.search + location.hash);
 let unsubProfile = null;
 
 /* ================= Admin notifications (bell in the top bar, live) ================= */
