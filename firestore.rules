@@ -194,13 +194,18 @@ service cloud.firestore {
       let d = request.resource.data;
       let col = d.target == 'market' ? 'listings' : 'cars';
       return approved()
-        && d.kind in ['comment', 'reply', 'claim', 'like'] && d.target in ['collection', 'market']
+        && d.kind in ['comment', 'reply', 'claim', 'like', 'rate', 'review'] && d.target in ['collection', 'market']
+        && (!(d.kind in ['rate', 'review']) || d.target == 'market')
         && d.from == request.auth.uid && d.uid != request.auth.uid
         && d.keys().hasOnly(['uid', 'kind', 'target', 'postId', 'parentId', 'title', 'note', 'from', 'fromName', 'at', 'read'])
         && d.read == false && d.at == request.time
         && str(d.note, 200) && str(d.title, 100) && str(d.fromName, 80) && d.postId is string
-        && (d.kind in ['comment', 'claim', 'like']
+        && (d.kind in ['comment', 'claim', 'like', 'review']
               ? get(/databases/$(database)/documents/$(col)/$(d.postId)).data.ownerUid == d.uid
+              : d.kind == 'rate'
+              ? (get(/databases/$(database)/documents/listings/$(d.postId)).data.ownerUid == request.auth.uid
+                 && (get(/databases/$(database)/documents/listings/$(d.postId)).data.get('buyerUid', '') == d.uid
+                     || exists(/databases/$(database)/documents/listings/$(d.postId)/claims/$(d.uid))))
               : (d.parentId is string && get(/databases/$(database)/documents/$(col)/$(d.postId)/comments/$(d.parentId)).data.uid == d.uid));
     }
 
@@ -213,6 +218,26 @@ service cloud.firestore {
         && request.resource.data.target == 'collection' && request.resource.data.postId is string
         && str(request.resource.data.reason, 300) && request.resource.data.reason.size() >= 5
         && str(request.resource.data.title, 100) && str(request.resource.data.name, 80);
+    }
+
+    // Seller reviews: only the buyer of a sold listing (or a war slot holder), once per sale; the seller can reply once.
+    match /reviews/{id} {
+      allow read: if true;
+      allow create: if approved()
+        && request.resource.data.keys().hasOnly(['listingId', 'sellerUid', 'sellerName', 'title', 'reviewerUid', 'reviewerName', 'stars', 'asDescribed', 'text', 'at'])
+        && id == request.resource.data.listingId + '_' + request.auth.uid
+        && request.resource.data.reviewerUid == request.auth.uid && request.resource.data.sellerUid != request.auth.uid
+        && request.resource.data.stars is int && request.resource.data.stars >= 1 && request.resource.data.stars <= 5
+        && request.resource.data.asDescribed is bool && request.resource.data.at == request.time
+        && str(request.resource.data.text, 300) && str(request.resource.data.title, 100)
+        && str(request.resource.data.reviewerName, 80) && str(request.resource.data.sellerName, 80)
+        && get(/databases/$(database)/documents/listings/$(request.resource.data.listingId)).data.status == 'sold'
+        && get(/databases/$(database)/documents/listings/$(request.resource.data.listingId)).data.ownerUid == request.resource.data.sellerUid
+        && (get(/databases/$(database)/documents/listings/$(request.resource.data.listingId)).data.get('buyerUid', '') == request.auth.uid
+            || exists(/databases/$(database)/documents/listings/$(request.resource.data.listingId)/claims/$(request.auth.uid)));
+      allow update: if signedIn() && resource.data.sellerUid == request.auth.uid && !('reply' in resource.data)
+        && onlyKeys(['reply', 'replyAt']) && str(request.resource.data.reply, 300) && request.resource.data.replyAt == request.time;
+      allow delete: if staff();
     }
 
     // Shipping address: private — only the person and admins can read it.

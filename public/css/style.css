@@ -919,3 +919,29 @@ input.autofilled { box-shadow: 0 0 0 3px rgba(31, 138, 76, .35); transition: box
 .act-body small { display: block; color: var(--muted); margin-top: 3px; font-size: .8rem; }
 .post-del { font-size: 1.05rem; }
 #view-admin.mod-view .admin-only { display: none !important; }
+
+/* Seller reputation */
+.rep-badge { display: inline-flex; align-items: baseline; gap: 3px; font: inherit; font-size: .82rem; font-weight: 700; color: #8A5A00; background: #FFF4D6; border: 0; border-radius: 999px; padding: 1px 8px; cursor: pointer; white-space: nowrap; }
+span.rep-badge { cursor: default; }
+.rep-badge small { font-weight: 600; color: var(--muted); }
+.ig-rep { margin: 6px 0 0 !important; font-size: .9rem; }
+.rep-sum { display: grid; gap: 4px; margin: 6px 0 14px; }
+.rep-sum strong { font-size: 2rem; margin-right: 8px; }
+.rep-stars { color: #E0A100; letter-spacing: 1px; }
+.rep-list { display: grid; gap: 10px; max-height: 55vh; overflow: auto; }
+.rep-item { padding: 10px 12px; border-radius: var(--radius-s); box-shadow: 0 0 0 1px var(--line); }
+.rep-item header { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
+.rep-item p { margin: 4px 0 0; }
+.rep-item-t { font-size: .85rem; }
+.rep-reply { background: rgba(0,0,0,.04); padding: 6px 10px; border-radius: var(--radius-s); font-size: .9rem; }
+.rep-reply-form { display: flex; gap: 6px; margin-top: 6px; }
+.rep-reply-form input { flex: 1; min-width: 0; }
+.rate-btn { margin: 6px 0; }
+.rate-stars { border: 0; padding: 0; margin: 0; display: inline-flex; flex-direction: row-reverse; justify-content: flex-end; gap: 4px; }
+.rate-stars input { position: absolute; opacity: 0; pointer-events: none; }
+.rate-stars label { font-size: 2.2rem; line-height: 1; color: #D6D6D6; cursor: pointer; }
+.rate-stars input:checked ~ label, .rate-stars label:hover, .rate-stars label:hover ~ label { color: #E0A100; }
+.rate-stars input:focus-visible + label { outline: 2px solid var(--red); border-radius: 4px; }
+.buyer-list { display: grid; gap: 4px; }
+.buyer-opt { display: flex !important; flex-direction: row !important; align-items: center; gap: 8px; font-weight: 500 !important; }
+.buyer-opt input { width: auto; }

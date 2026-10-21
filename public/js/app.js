@@ -364,6 +364,8 @@ const NT_TEXT = { hidden: "nt_hidden", deleted: "nt_deleted", unhidden: "nt_unhi
 function openNotice(id) {
   const n = notif.notices.find(x => x.id === id); if (!n) return;
   if (!n.read) updateDoc(doc(db, "notices", id), { read: true }).catch(() => {});
+  if (n.kind === "rate") { openRate(n.postId); return; }
+  if (n.kind === "review") { openReviews(state.user.uid); return; }
   if (ACT_KINDS.includes(n.kind)) {   // open the post (for comments: then its comments)
     const h = n.target === "market" ? `#/market/${encodeURIComponent(n.postId)}` : `#/feed/p/${encodeURIComponent(n.postId)}`;
     state.deepOpened = null; state.openCommentsAfter = n.target === "market" || n.kind === "like" || n.kind === "claim" ? null : `cars:${n.postId}`;
@@ -394,19 +396,21 @@ $("#bell-seen").addEventListener("click", async (e) => {
 });
 
 /* ================= Activity tab: likes, comments and buys on your posts ================= */
-const ACT_KINDS = ["like", "comment", "reply", "claim"];
+const ACT_KINDS = ["like", "comment", "reply", "claim", "rate", "review"];
 function activityText(n) {
   const name = esc(n.fromName || ""), title = esc(n.title);
   if (n.kind === "claim") return t("nt_claim", { name, n: esc(n.note), title });
+  if (n.kind === "rate") return t("nt_rate", { name, title });
+  if (n.kind === "review") return t("nt_review", { name, title, n: esc(n.note) });
   if (n.kind === "like") return t(n.target === "market" ? "nt_like_listing" : "nt_like", { name, title });
   return t(n.kind === "reply" ? "nt_reply" : "nt_comment", { name, title }) + `<em class="bell-note">“${esc(n.note)}”</em>`;
 }
-const ACT_ICON = { like: "♥", comment: "💬", reply: "💬", claim: "⚡" };
+const ACT_ICON = { like: "♥", comment: "💬", reply: "💬", claim: "⚡", rate: "⭐", review: "⭐" };
 let actFilter = "all";
 function renderActivity() {
   const box = $("#activity-list"); if (!box) return;
   const list = notif.notices.filter(n => ACT_KINDS.includes(n.kind))
-    .filter(n => actFilter === "all" || n.kind === actFilter || (actFilter === "comment" && n.kind === "reply"))
+    .filter(n => actFilter === "all" || n.kind === actFilter || (actFilter === "comment" && n.kind === "reply") || (actFilter === "claim" && n.kind === "rate") || (actFilter === "review" && n.kind === "review"))
     .sort((a, b) => ms(b.at) - ms(a.at));
   box.innerHTML = list.length ? list.map(n => `
     <a class="act-item ${n.read ? "" : "unread"}" href="#" data-notice="${esc(n.id)}">
@@ -1538,6 +1542,7 @@ async function renderFeedRoute() {
     } catch (e) { state.feedProfile.posts = []; }
   }
   renderPeople(); paintProfile();
+  if (!state.reviews) loadReviews().then(paintProfile);
   window.scrollTo(0, 0);
 }
 function paintProfile() {
@@ -1552,6 +1557,7 @@ function paintProfile() {
         <h2>${esc(any.ownerName || "")}</h2>
         ${any.ownerCity ? `<p class="muted">${esc(any.ownerCity)}</p>` : ""}
         <p class="ig-stats"><span><strong>${p.posts ? posts.length : "…"}</strong> ${t("feed_posts")}</span><span><strong>${likes}</strong> ${t("feed_likes")}</span></p>
+        <p class="ig-rep">${t("rep_seller")}: ${repBadge(p.uid) || "…"}</p>
       </div>
     </div>
     ${p.posts && !posts.length ? `<p class="empty">${t("feed_empty")}</p>` : ""}
@@ -1734,6 +1740,174 @@ $("#btn-add-event").addEventListener("click", () => {
   });
 });
 
+/* ================= Seller reputation =================
+   1. Marking a listing sold, the seller picks the buyer (war listings: everyone with a slot).
+   2. The buyer gets a "rate this seller" notice: 1–5 stars, "as described", short comment. Once per sale.
+   3. Sellers show ⭐ average (from 3 reviews) · number of reviews; tap for the full list. Seller can reply once. */
+const REP_MIN = 3;
+state.reviews = null;
+async function loadReviews(force = false) {
+  if (state.reviews && !force) return state.reviews;
+  try {
+    const s = await getDocs(query(collection(db, "reviews"), orderBy("at", "desc"), limit(2000)));
+    state.reviews = s.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch (e) { state.reviews = state.reviews || []; }
+  return state.reviews;
+}
+function repOf(uid) {
+  const list = (state.reviews || []).filter(r => r.sellerUid === uid);
+  const sum = list.reduce((a, r) => a + (r.stars || 0), 0);
+  return { n: list.length, avg: list.length ? sum / list.length : 0, asDesc: list.filter(r => r.asDescribed).length, list };
+}
+const starsTxt = (n) => "★".repeat(Math.round(n)) + "☆".repeat(5 - Math.round(n));
+// Small badge: "⭐ 4.8 (12)" once there are enough reviews, "2 reviews" before that, "New seller" with none.
+function repBadge(uid, clickable = true) {
+  if (!uid || !state.reviews) return "";
+  const r = repOf(uid);
+  const txt = r.n >= REP_MIN ? `⭐ ${r.avg.toFixed(1)} <small>(${r.n})</small>` : r.n ? t(r.n === 1 ? "rep_one" : "rep_few", { n: r.n }) : t("rep_new");
+  return clickable ? `<button type="button" class="rep-badge" data-rep="${esc(uid)}">${txt}</button>` : `<span class="rep-badge">${txt}</span>`;
+}
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-rep]"); if (!b) return;
+  e.preventDefault(); e.stopPropagation(); openReviews(b.dataset.rep);
+}, true);
+
+async function openReviews(uid) {
+  await loadReviews(true);
+  const r = repOf(uid);
+  const name = r.list[0]?.sellerName || state.listings.find(l => l.ownerUid === uid)?.ownerName || "";
+  let sales = 0;
+  try { const s = await getDocs(query(collection(db, "listings"), where("ownerUid", "==", uid))); sales = s.docs.filter(d => d.data().status === "sold").length; } catch (e) {}
+  const mine = uid === state.user?.uid;
+  openModal(`
+    <h2>${t("rep_title")}${name ? ` · ${esc(name)}` : ""}</h2>
+    <div class="rep-sum">
+      <div><strong>${r.n >= REP_MIN ? r.avg.toFixed(1) : "–"}</strong><span class="rep-stars">${r.n >= REP_MIN ? starsTxt(r.avg) : ""}</span></div>
+      <p class="muted">${t("rep_counts", { n: r.n, sales })}${r.n ? ` · ${t("rep_asdesc", { p: Math.round(r.asDesc / r.n * 100) })}` : ""}</p>
+      ${r.n && r.n < REP_MIN ? `<p class="muted"><small>${t("rep_min_note", { n: REP_MIN })}</small></p>` : ""}
+    </div>
+    <div class="rep-list">${r.list.length ? r.list.map(v => `
+      <article class="rep-item" data-review="${esc(v.id)}">
+        <header><span class="rep-stars">${starsTxt(v.stars)}</span> <strong>${esc(v.reviewerName || "")}</strong>
+          <small class="muted">${fmtDate(v.at, { day: "numeric", month: "short", year: "numeric" })}</small></header>
+        <p class="muted rep-item-t">${esc(v.title || "")}${v.asDescribed ? ` · ✅ ${t("rep_asdesc_yes")}` : ` · ⚠️ ${t("rep_asdesc_no")}`}</p>
+        ${v.text ? `<p>${esc(v.text)}</p>` : ""}
+        ${v.reply ? `<p class="rep-reply"><strong>${t("rep_seller_reply")}:</strong> ${esc(v.reply)}</p>`
+          : mine ? `<form class="rep-reply-form" data-reply-review="${esc(v.id)}"><input name="reply" maxlength="300" required placeholder="${esc(t("rep_reply_ph"))}"><button class="btn btn-sm btn-ghost" type="submit">${t("rep_reply")}</button></form>` : ""}
+        ${isStaff() ? `<button type="button" class="cmt-act" data-review-del="${esc(v.id)}">${t("delete")}</button>` : ""}
+      </article>`).join("") : `<p class="empty">${t("rep_none")}</p>`}</div>
+    <div class="form-actions"><button type="button" class="btn btn-ghost" data-act="close">${t("close")}</button></div>`);
+  $("#modal-body").onclick = async (ev) => {
+    if (ev.target.dataset.act === "close") { closeModal(); return; }
+    const d = ev.target.closest("[data-review-del]");
+    if (d && isStaff()) {
+      if (!confirm(t("rep_del_confirm"))) return;
+      try { await deleteDoc(doc(db, "reviews", d.dataset.reviewDel)); toast(t("deleted")); openReviews(uid); renderListings(); } catch (err) { fail(err); }
+    }
+  };
+  $("#modal-body").onsubmit = async (ev) => {
+    const f = ev.target.closest("[data-reply-review]"); if (!f) return;
+    ev.preventDefault();
+    const reply = f.reply.value.trim(); if (!reply) return;
+    try { await updateDoc(doc(db, "reviews", f.dataset.replyReview), { reply: reply.slice(0, 300), replyAt: serverTimestamp() }); toast(t("saved")); openReviews(uid); }
+    catch (err) { fail(err); }
+  };
+}
+
+// Can I rate this sold listing? (I'm its buyer, or I had a war slot, and I haven't rated it yet.)
+async function canRate(l) {
+  if (!state.user || l.status !== "sold" || l.ownerUid === state.user.uid) return false;
+  const me = state.user.uid;
+  let buyer = l.buyerUid === me;
+  if (!buyer && l.war) { try { buyer = (await getDoc(doc(db, "listings", l.id, "claims", me))).exists(); } catch (e) {} }
+  if (!buyer) return false;
+  try { return !(await getDoc(doc(db, "reviews", `${l.id}_${me}`))).exists(); } catch (e) { return false; }
+}
+async function openRate(listingId) {
+  let l = state.listings.find(x => x.id === listingId);
+  try { const s = await getDoc(doc(db, "listings", listingId)); if (s.exists()) l = { id: s.id, ...s.data() }; } catch (e) {}
+  if (!l) { toast(t("not_found")); return; }
+  if (!(await canRate(l))) { toast(t("rep_cant")); return; }
+  openModal(`
+    <h2>${t("rep_rate_title")}</h2>
+    <p class="muted">${esc(l.title)} · ${esc(l.ownerName || "")}</p>
+    <form class="form" id="f-rate">
+      <fieldset class="rate-stars" aria-label="${esc(t("rep_stars"))}">
+        ${[5, 4, 3, 2, 1].map(n => `<input type="radio" name="stars" id="rs${n}" value="${n}" required><label for="rs${n}" title="${n}">★</label>`).join("")}
+      </fieldset>
+      <label class="lay-check"><input type="checkbox" name="asDescribed" checked> <span>${t("rep_asdesc_q")}</span></label>
+      <label><span>${t("rep_comment")}</span><textarea name="text" rows="3" maxlength="300" placeholder="${esc(t("rep_comment_ph"))}"></textarea></label>
+      <div class="form-actions">
+        <button type="button" class="btn btn-ghost" data-act="close">${t("cancel")}</button>
+        <button class="btn btn-mat" type="submit">${t("rep_send")}</button>
+      </div>
+    </form>`);
+  $("#modal-body").onclick = (ev) => { if (ev.target.dataset.act === "close") closeModal(); };
+  const f = $("#f-rate");
+  f.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const stars = parseInt(f.stars.value, 10);
+    if (!(stars >= 1 && stars <= 5)) { toast(t("rep_pick_stars")); return; }
+    const btn = f.querySelector("[type=submit]"); btn.disabled = true;
+    const me = String(state.profile?.displayName || "").slice(0, 80);
+    try {
+      await setDoc(doc(db, "reviews", `${l.id}_${state.user.uid}`), {
+        listingId: l.id, sellerUid: l.ownerUid, sellerName: String(l.ownerName || "").slice(0, 80), title: String(l.title || "").slice(0, 100),
+        reviewerUid: state.user.uid, reviewerName: me, stars, asDescribed: f.asDescribed.checked, text: f.text.value.trim().slice(0, 300), at: serverTimestamp() });
+      addDoc(collection(db, "notices"), { uid: l.ownerUid, kind: "review", target: "market", postId: l.id, title: String(l.title || "").slice(0, 100),
+        note: `${stars}★`, from: state.user.uid, fromName: me, at: serverTimestamp(), read: false }).catch(() => {});
+      notif.notices.filter(n => n.kind === "rate" && n.postId === l.id && !n.read).forEach(n => updateDoc(doc(db, "notices", n.id), { read: true }).catch(() => {}));
+      closeModal(); toast(t("rep_thanks")); await loadReviews(true); renderListings();
+    } catch (err) { fail(err); btn.disabled = false; }
+  });
+}
+
+// Mark sold: the seller picks who bought it (commenters, or search any account). War listings: every slot holder can rate.
+async function openMarkSold(l) {
+  const cmts = $("#modal-body [data-cmt-inline]")?._comments || [];
+  const people = new Map();
+  cmts.forEach(c => { if (c.uid && c.uid !== state.user.uid) people.set(c.uid, c.name || ""); });
+  let contacts = [];
+  try { contacts = (await getDocs(collection(db, "contacts"))).docs.map(d => ({ uid: d.id, name: d.data().name || "" })).filter(c => c.uid !== state.user.uid && c.name); } catch (e) {}
+  const opt = (uid, name) => `<label class="buyer-opt"><input type="radio" name="buyer" value="${esc(uid)}" data-name="${esc(name)}"> <span>${esc(name)}</span></label>`;
+  openModal(`
+    <h2>${t("mark_sold")}</h2>
+    <p class="muted">${esc(l.title)}</p>
+    <form class="form" id="f-sold">
+      ${l.war ? `<p>${t("sold_war_note")}</p>` : `
+      <p><strong>${t("sold_who")}</strong><br><small class="muted">${t("sold_who_hint")}</small></p>
+      ${people.size ? `<div class="buyer-list">${[...people].map(([u, n]) => opt(u, n)).join("")}</div>` : ""}
+      <input type="search" id="buyer-q" placeholder="${esc(t("sold_search_ph"))}" autocomplete="off">
+      <div class="buyer-list" id="buyer-results"></div>
+      <label class="buyer-opt"><input type="radio" name="buyer" value="" checked> <span>${t("sold_outside")}</span></label>`}
+      <p class="muted"><small>${t("sold_confirm")}</small></p>
+      <div class="form-actions">
+        <button type="button" class="btn btn-ghost" data-act="close">${t("cancel")}</button>
+        <button class="btn btn-mat" type="submit">${t("mark_sold")}</button>
+      </div>
+    </form>`);
+  $("#modal-body").onclick = (ev) => { if (ev.target.dataset.act === "close") closeModal(); };
+  const f = $("#f-sold");
+  $("#buyer-q")?.addEventListener("input", (e) => {
+    const w = norm(e.target.value);
+    $("#buyer-results").innerHTML = w.length < 2 ? "" : contacts.filter(c => !people.has(c.uid) && norm(c.name).includes(w)).slice(0, 8).map(c => opt(c.uid, c.name)).join("");
+  });
+  f.addEventListener("submit", async (e) => {
+    e.preventDefault(); const btn = f.querySelector("[type=submit]"); btn.disabled = true;
+    try {
+      const pick = f.querySelector("input[name=buyer]:checked");
+      const buyerUid = l.war ? "" : (pick?.value || ""), buyerName = buyerUid ? String(pick.dataset.name || "").slice(0, 80) : "";
+      await updateDoc(doc(db, "listings", l.id), { status: "sold", soldAt: serverTimestamp(), ...(buyerUid ? { buyerUid, buyerName } : {}) });
+      const base = { kind: "rate", target: "market", postId: l.id, title: String(l.title || "").slice(0, 100), note: "",
+        from: state.user.uid, fromName: String(state.profile?.displayName || "").slice(0, 80), read: false };
+      let buyers = buyerUid ? [buyerUid] : [];
+      if (l.war) { try { buyers = (await getDocs(collection(db, "listings", l.id, "claims"))).docs.map(d => d.id).filter(u => u !== state.user.uid); } catch (e2) {} }
+      buyers.forEach(u => addDoc(collection(db, "notices"), { ...base, uid: u, at: serverTimestamp() }).catch(() => {}));
+      closeModal(); toast(t(buyers.length ? "sold_done_rate" : "sold_done")); loadListings();
+    } catch (err) { fail(err); btn.disabled = false; }
+  });
+}
+
 /* ================= Marketplace ================= */
 async function loadListings() {
   try {
@@ -1744,6 +1918,7 @@ async function loadListings() {
       .filter(l => !isArchived(l));
     if (state.listings.some(l => l.war)) watchWars();
     renderListings();
+    loadReviews(true).then(renderListings);
   } catch (e) { fail(e); }
 }
 // Sold listings stay visible (marked Sold) for 30 days, then they're archived: no longer shown in the market.
@@ -1762,7 +1937,7 @@ function renderListings() {
       <div class="meta">
         ${l.status === "sold" ? `<span class="tag tag-sold">${t("sold")}</span>` : l.war ? `<span class="tag tag-war">⚡ ${t("war_tag")}</span>` : `<span class="tag tag-${esc(l.type)}">${typeLabel(l.type)}</span>`}${l.modHidden ? ` <span class="tag tag-hidden">${t("mod_hidden_tag")}</span>` : ""}
         <h3>${esc(l.title)}</h3>
-        <p>${l.price ? `<span class="price">${fmtIDR(l.price)}</span> · ` : ""}${esc(l.ownerName)}</p>
+        <p>${l.price ? `<span class="price">${fmtIDR(l.price)}</span> · ` : ""}${esc(l.ownerName)} ${repBadge(l.ownerUid, false)}</p>
         ${l.war && l.status !== "sold" ? warStockHTML(l) : ""}
         ${(l.likedBy || []).length ? `<p class="l-likes">♥ ${(l.likedBy || []).length}</p>` : ""}
       </div>
@@ -1789,7 +1964,8 @@ function openListing(l) {
     ${l.price ? `<p class="price">${fmtIDR(l.price)}</p>` : ""}
     ${l.condition ? `<p><strong>${t("l_condition")}:</strong> ${esc(l.condition)}</p>` : ""}
     ${l.description ? `<p>${tagify(l.description, "market")}</p>` : ""}
-    <p class="muted">${esc(l.ownerName)} · ${fmtDate(l.createdAt, { day: "numeric", month: "short" })}</p>
+    <p class="muted">${esc(l.ownerName)} ${repBadge(l.ownerUid)} · ${fmtDate(l.createdAt, { day: "numeric", month: "short" })}${l.status === "sold" && l.buyerName && (l.ownerUid === state.user?.uid || l.buyerUid === state.user?.uid || isStaff()) ? ` · ${t("sold_to", { name: esc(l.buyerName) })}` : ""}</p>
+    <div id="rate-slot"></div>
     ${l.modHidden ? `<p class="mod-note">🚫 ${t(isAdmin() && l.ownerUid !== state.user?.uid ? "mod_hidden_admin" : "mod_hidden_owner")}${l.modNote ? `<br><strong>${t("mod_reason")}:</strong> ${esc(l.modNote)}` : ""}</p>` : ""}
     ${l.delReq && (l.ownerUid === state.user?.uid || isStaff()) ? `<p class="mod-note">🗑 ${t("del_req_pending")}${l.delReason ? `<br><strong>${t("del_reason")}:</strong> ${esc(l.delReason)}` : ""}</p>` : ""}
     <p class="listing-risk">⚠️ ${t("mn_short")}</p>
@@ -1818,6 +1994,7 @@ function openListing(l) {
     </div>`);
   state.cmtItems[`listings:${l.id}`] = l;
   if (l.war) startWar(l);
+  canRate(l).then(ok => { const s = $("#rate-slot"); if (ok && s) s.innerHTML = `<button type="button" class="btn btn-mat rate-btn" data-act="rate">⭐ ${t("rep_rate_btn")}</button>`; });
   renderCommentsInto($("#modal-body [data-cmt-inline]"), "listings", l);
   // Members see the seller's WhatsApp (read from the member list, which only approved members can open).
   if (member && l.ownerUid) {
@@ -1838,13 +2015,11 @@ function openListing(l) {
     }
     if (ev.target.closest("[data-act=cmt]")) { const i = $("#modal-body .cmt-form [name=text]"); if (i) { i.scrollIntoView({ behavior: "smooth", block: "center" }); i.focus(); } return; }
     if (act === "report") { closeModal(); openReport(l); return; }
+    if (act === "rate") { openRate(l.id); return; }
     if (act === "modhide" || act === "moddel") { openModerate("listings", l, act === "moddel" ? "delete" : "hide"); return; }
     if (act === "unhide") { await unhidePost("listings", l); closeModal(); return; }
     try {
-      if (act === "sold") {
-        if (!confirm(t("sold_confirm"))) return;
-        await updateDoc(doc(db, "listings", l.id), { status: "sold", soldAt: serverTimestamp() }); closeModal(); toast(t("sold_done")); loadListings();
-      }
+      if (act === "sold") { openMarkSold(l); return; }
       if (act === "del" && confirm(t("confirm_delete"))) { await deleteDoc(doc(db, "listings", l.id)); closeModal(); toast(t("deleted")); loadListings(); }
     } catch (e2) { fail(e2); }
   };
