@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792605746";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792605813";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792605746";
-import { SEED_EVENTS } from "./seed-events.js?v=1792605746";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792605746";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792605746";
+import { GALLERY } from "./gallery-data.js?v=1792605813";
+import { SEED_EVENTS } from "./seed-events.js?v=1792605813";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792605813";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792605813";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -86,7 +86,8 @@ function toJpegBase64(src, maxSide = 2048, q = 0.88) {
   });
 }
 async function uploadToDrive(kind, src, name, onStep) {
-  const data = await toJpegBase64(src);
+  // An older in-post photo (data:image/jpeg;base64,…) is sent as it is.
+  const data = typeof src === "string" ? src.split(",")[1] : await toJpegBase64(src);
   const idToken = await state.user.getIdToken();
   const r = await fetch(uploadUrl, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" },
     body: JSON.stringify({ idToken, kind, name: String(name || "photo").slice(0, 60), mime: "image/jpeg", data }) });
@@ -2230,6 +2231,7 @@ $("#admin-inbox").addEventListener("click", async (e) => {
 /* ================= Admin ================= */
 async function loadAdmin() {
   if (!isAdmin()) return;
+  refreshMigrate();
   loadInbox();
   try {
     const [pend] = await Promise.all([
@@ -2345,6 +2347,46 @@ document.addEventListener("click", async (e) => {
     state.listingsLoaded = false; state.feedLoaded = false;
     if (state.tab === "admin") loadAdmin(); else if (state.tab === "members") showMembers();
   } catch (err) { fail(err); (d || r).disabled = false; }
+});
+
+/* Move older photos (stored inside posts) to Google Drive: admins, from the Admin page. */
+async function scanOldPhotos() {
+  const [cs, ls] = await Promise.all([getDocs(collection(db, "cars")), getDocs(collection(db, "listings"))]);
+  const pick = (snap, kind) => snap.docs.map(d => ({ ref: d.ref, kind, ...d.data() }))
+    .filter(x => (x.photos || []).some(p => String(p).startsWith("data:image/")));
+  return [...pick(cs, "collection"), ...pick(ls, "market")];
+}
+async function refreshMigrate() {
+  const box = $("#admin-migrate");
+  if (!isAdmin() || !uploadUrl) { box.hidden = true; return; }
+  box.hidden = false;
+  try {
+    const list = state.migList = await scanOldPhotos();
+    const n = list.reduce((a, x) => a + x.photos.filter(p => String(p).startsWith("data:")).length, 0);
+    $("#mig-status").textContent = n ? t("mig_count", { n, posts: list.length }) : t("mig_done_all");
+    $("#mig-run").hidden = !n;
+  } catch (e) { $("#mig-status").textContent = String(e.message || e); }
+}
+$("#mig-run").addEventListener("click", async () => {
+  const btn = $("#mig-run"); btn.disabled = true;
+  const list = state.migList || [];
+  const total = list.reduce((a, x) => a + x.photos.filter(p => String(p).startsWith("data:")).length, 0);
+  let done = 0;
+  try {
+    for (const x of list) {
+      const out = [];
+      for (const [i, p] of x.photos.entries()) {
+        if (!String(p).startsWith("data:image/")) { out.push(p); continue; }
+        $("#mig-status").textContent = t("mig_progress", { n: done + 1, total });
+        out.push(await uploadToDrive(x.kind, p, `${x.ownerName || ""}_${x.name || x.title || "photo"}_${i + 1}`));
+        done++;
+      }
+      await updateDoc(x.ref, { photos: out });   // each post is switched only once all its photos are in Drive
+    }
+    toast(t("mig_finished", { n: done }));
+  } catch (e) { fail(e); }
+  btn.disabled = false; state.feedLoaded = false; state.listingsLoaded = false;
+  refreshMigrate();
 });
 
 /* Reject: remove the request entirely, so the person goes back to the start and can sign up again. */
