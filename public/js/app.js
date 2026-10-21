@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig } from "./config.js?v=1792605150";
+import { firebaseConfig } from "./config.js?v=1792605262";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792605150";
-import { SEED_EVENTS } from "./seed-events.js?v=1792605150";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792605150";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792605150";
+import { GALLERY } from "./gallery-data.js?v=1792605262";
+import { SEED_EVENTS } from "./seed-events.js?v=1792605262";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792605262";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792605262";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -63,9 +63,9 @@ function compressPhoto(file, maxSide = 1000, maxChars = 280000) {
   });
 }
 // Photos live inside the Firestore document (max 1 MB), so more photos = smaller each.
-async function readPhotos(input, max = 3) {
+async function readPhotos(input, max = 3, extraSlots = 0) {
   const files = [...(input.files || [])].slice(0, max);
-  const n = files.length;
+  const n = files.length + extraSlots;
   const budget = Math.min(280000, Math.floor(800000 / Math.max(1, n)));
   const side = n <= 3 ? 1000 : n <= 6 ? 900 : 800;
   const out = [];
@@ -662,6 +662,8 @@ function openAddCar(after) {
           <button type="button" class="btn btn-sm btn-ghost" data-act="lshuffle">⟳ ${t("lay_shuffle")}</button>
         </div>
         <small class="muted">${t("lay_hint")}</small>
+        <label class="lay-more"><span>${t("lay_more")}</span><input type="file" name="lextra" accept="image/*" multiple data-max="9"></label>
+        <div class="thumbs lay-thumbs"></div>
       </div>
       <div class="form-actions">
         <button type="button" class="btn btn-ghost" data-act="close">${t("cancel")}</button>
@@ -670,6 +672,11 @@ function openAddCar(after) {
     </form>`);
   const f = $("#f-car"); bindPhotoPreview(f);
   const lay = bindLayout(f);
+  f.lextra.addEventListener("change", () => {
+    const box = f.querySelector(".lay-thumbs"); box.innerHTML = "";
+    [...f.lextra.files].slice(0, 9).forEach(x => { const i = document.createElement("img"); i.alt = ""; i.src = URL.createObjectURL(x); box.appendChild(i); });
+    if (f.lextra.files.length > 9) toast(t("lay_more_max"));
+  });
   $("#modal-body").onclick = (ev) => {
     if (ev.target.dataset.act === "close") closeModal();
     const pm = ev.target.closest("[data-pmode]");
@@ -686,7 +693,11 @@ function openAddCar(after) {
       const useLayout = !f.querySelector(".pm-layout").hidden;
       if (useLayout && lay.count() < 2) { toast(t("lay_need2")); btn.disabled = false; return; }
       if (!useLayout && f.photos.files.length > 10) toast(t("feed_max10_note"));
-      const photos = useLayout ? [await lay.export()] : await readPhotos(f.photos, 10);
+      let photos;
+      if (useLayout) {
+        const extra = Math.min(9, f.lextra.files.length);
+        photos = [await lay.export(Math.min(300000, Math.floor(800000 / (1 + extra)))), ...(extra ? await readPhotos(f.lextra, 9, 1) : [])];
+      } else photos = await readPhotos(f.photos, 10);
       await addDoc(collection(db, "cars"), {
         name: f.name.value.trim(), maker: f.maker.value.trim(), notes: f.notes.value.trim(), photos,
         ownerUid: state.user.uid, ownerName: state.profile.displayName, ownerPhoto: state.profile.photoURL || state.user.photoURL || "",
@@ -753,9 +764,11 @@ function bindLayout(form) {
   });
   return {
     count: () => st.imgs.length,
-    export: async () => {
+    export: async (maxChars = 300000) => {
       st.sel = -1; draw();
-      for (let q = 0.85; q >= 0.4; q -= 0.08) { const d = cv.toDataURL("image/jpeg", q); if (d.length <= 300000) return d; }
+      let c = cv;
+      if (maxChars < 150000) { c = document.createElement("canvas"); c.width = c.height = 800; c.getContext("2d").drawImage(cv, 0, 0, 800, 800); }
+      for (let q = 0.85; q >= 0.35; q -= 0.08) { const d = c.toDataURL("image/jpeg", q); if (d.length <= maxChars) return d; }
       throw new Error(t("err_photo"));
     }
   };

@@ -742,3 +742,4 @@ img[src*="drive.google.com"] { -webkit-user-drag: none; user-select: none; -webk
 .post-nav[hidden] { display: none; }
 .post-nav.prev { left: 10px; } .post-nav.next { right: 10px; }
 @media (hover: none) { .post-nav { display: none; } }
+.lay-more { margin-top: 14px; }
