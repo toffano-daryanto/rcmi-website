@@ -452,7 +452,10 @@ service cloud.firestore {
           && request.resource.data.uid == uid && request.resource.data.at == request.time
           && str(request.resource.data.name, 80) && str(request.resource.data.photo, 600)
           && getAfter(/databases/$(database)/documents/listings/$(listingId)).data.claimed == get(/databases/$(database)/documents/listings/$(listingId)).data.get('claimed', 0) + 1
-          && request.resource.data.n == getAfter(/databases/$(database)/documents/listings/$(listingId)).data.claimed;
+          && request.resource.data.n == getAfter(/databases/$(database)/documents/listings/$(listingId)).data.claimed
+          // Never more slots than the stock, and never the seller (whatever role they have).
+          && getAfter(/databases/$(database)/documents/listings/$(listingId)).data.claimed <= get(/databases/$(database)/documents/listings/$(listingId)).data.qty
+          && get(/databases/$(database)/documents/listings/$(listingId)).data.ownerUid != request.auth.uid;
         allow delete: if admin()
           || (signedIn() && get(/databases/$(database)/documents/listings/$(listingId)).data.ownerUid == request.auth.uid)
           || (signedIn() && uid == request.auth.uid
