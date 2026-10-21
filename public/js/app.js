@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792615215";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792616326";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792615215";
-import { SEED_EVENTS } from "./seed-events.js?v=1792615215";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792615215";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792615215";
+import { GALLERY } from "./gallery-data.js?v=1792616326";
+import { SEED_EVENTS } from "./seed-events.js?v=1792616326";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792616326";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792616326";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -901,6 +901,7 @@ $("#cars").addEventListener("click", (e) => {
     ${c.modHidden ? `<p class="mod-note">🚫 ${t("mod_hidden_owner")}${c.modNote ? `<br><strong>${t("mod_reason")}:</strong> ${esc(c.modNote)}` : ""}</p>` : ""}
     <p class="muted">${t("by")} ${esc(c.ownerName)} · ${fmtDate(c.createdAt, { day: "numeric", month: "short", year: "numeric" })}</p>
     <div class="form-actions">
+      ${c.ownerUid === state.user?.uid && !c.editedAt ? `<button class="btn btn-mat" data-act="edit">✏️ ${t("edit_post")}</button>` : ""}
       ${canEdit(c.ownerUid) ? `<button class="btn btn-danger" data-act="del">${t("delete")}</button>` : ""}
       <button class="btn btn-ghost" data-act="close">${t("cancel")}</button>
     </div>`);
@@ -908,6 +909,7 @@ $("#cars").addEventListener("click", (e) => {
     const act = ev.target.dataset.act;
     if (act === "close") closeModal();
     if (act === "del") openDeleteReason("cars", c);
+    if (act === "edit") openEditPost("cars", c);
   };
 });
 $("#btn-add-car").addEventListener("click", () => openAddCar(loadCars));
@@ -1090,8 +1092,8 @@ function postHTML(c) {
       <span class="post-av">${c.ownerPhoto ? `<img src="${esc(c.ownerPhoto)}" alt="" referrerpolicy="no-referrer">` : esc(initials(c.ownerName))}</span>
       <div><strong>${esc(c.ownerName || "RCMI")}</strong>${c.ownerCity ? `<small>${esc(c.ownerCity)}</small>` : ""}</div>
       ${c.ownerUid && c.ownerUid !== state.user?.uid ? `<button type="button" class="post-dm" data-dm="${esc(c.ownerUid)}" data-dm-name="${esc(c.ownerName || "")}" data-dm-photo="${esc(c.ownerPhoto || "")}" aria-label="${t("dm_message")}" title="${t("dm_message")}"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M21 3 10 14M21 3l-7 18-4-7-7-4 18-7Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></button>` : ""}
-      ${isStaff() ? `<button type="button" class="post-mod" data-mod-post="${esc(c.id)}" aria-label="${t("mod_title")}" title="${t("mod_title")}">⋯</button>`
-        : state.user && c.ownerUid === state.user.uid ? `<button type="button" class="post-mod post-del" data-del-post="${esc(c.id)}" aria-label="${t("delete")}" title="${t("delete")}">🗑</button>` : ""}
+      ${state.user && c.ownerUid === state.user.uid ? `<button type="button" class="post-mod" data-own-post="${esc(c.id)}" aria-label="${t("post_options")}" title="${t("post_options")}">⋯</button>`
+        : isStaff() ? `<button type="button" class="post-mod" data-mod-post="${esc(c.id)}" aria-label="${t("mod_title")}" title="${t("mod_title")}">⋯</button>` : ""}
     </header>
     <div class="post-media">
       ${photos.length ? `<div class="post-track">${photos.map(p => `<img src="${photoSrc(p)}" alt="${esc(c.name)}" loading="lazy" draggable="false">`).join("")}</div>
@@ -1110,7 +1112,7 @@ function postHTML(c) {
     </div>
     <p class="post-cap"><strong>${esc(c.name)}</strong>${c.maker ? ` <span class="post-maker">· ${esc(c.maker)}</span>` : ""}${c.notes ? `<br>${tagify(c.notes, "feed")}` : ""}</p>
     <div class="post-cmts" data-cmts="cars:${esc(c.id)}"></div>
-    <time class="post-time">${ago(c.createdAt)}</time>
+    <time class="post-time">${ago(c.createdAt)}${c.editedAt ? ` · ${t("edited")}` : ""}</time>
   </article>`;
 }
 function renderFeed() {
@@ -2211,6 +2213,7 @@ function openListing(l) {
       <button type="button" class="btn btn-ghost" data-act="report">${t("mn_report_listing")}</button>
       ${ig ? `<a class="btn btn-ghost" target="_blank" rel="noopener" href="https://instagram.com/${encodeURIComponent(ig)}">Instagram</a>` : ""}
       <span id="listing-wa">${member ? "" : `<button type="button" class="btn btn-ghost" data-act="signin">${t("wa_signin")}</button>`}</span>
+      ${l.ownerUid === state.user?.uid && l.status !== "sold" && !l.editedAt ? `<button class="btn btn-mat" data-act="edit">✏️ ${t("edit_post")}</button>` : ""}
       ${canEdit(l.ownerUid) && l.status !== "sold" ? `<button class="btn btn-ghost" data-act="sold">${t("mark_sold")}</button>` : ""}
       ${isAdmin() ? `<button class="btn btn-danger" data-act="del">${t("delete")}</button>`
         : l.ownerUid === state.user?.uid ? (l.delReq ? `<button class="btn btn-ghost" data-act="delcancel">${t("del_req_cancel")}</button>`
@@ -2233,6 +2236,7 @@ function openListing(l) {
     if (act === "signin") { closeModal(); openSignInChooser(); return; }
     if (ev.target.closest("[data-act=share]")) { shareListing(l); return; }
     if (act === "delreq") { openDeleteReason("listings", l); return; }
+    if (act === "edit") { openEditPost("listings", l); return; }
     if (act === "delcancel") {
       try { await updateDoc(doc(db, "listings", l.id), { delReq: false, delReason: "" }); l.delReq = false; closeModal(); toast(t("del_req_cancelled")); loadListings(); } catch (e2) { fail(e2); }
       return;
@@ -3498,6 +3502,93 @@ $("#mig-run").addEventListener("click", async () => {
 /* ================= Owner delete: a reason is mandatory.
    Collection posts are deleted straight away (the reason is logged for the admins);
    market listings only get a delete REQUEST that an admin approves or rejects. ================= */
+/* ================= Edit your own post (Collection or Market): text, price, and photos (remove / add) ================= */
+function openEditPost(col, item) {
+  if (item.editedAt) { toast(t("ep_used")); return; }
+  const market = col === "listings", max = market ? 3 : 10;
+  let keep = [...(item.photos || [])];
+  const typeSel = market && !item.war ? `
+      <label><span>${t("l_type")}</span>
+        <select name="type">
+          ${["sell", "wanted", "trade"].map(v => `<option value="${v}" ${item.type === v ? "selected" : ""}>${t("t_" + v)}</option>`).join("")}
+        </select></label>` : "";
+  openModal(`
+    <h2>${t("edit_post")}</h2>
+    <form class="form" id="f-edit">
+      ${market ? `
+        <div class="row2">${typeSel}
+          <label><span id="ep-price-l">${t("l_price")} *</span><input name="price" type="number" min="1000" step="1000" inputmode="numeric" required value="${Number(item.price) || ""}"></label>
+        </div>
+        ${item.war ? `<label><span>${t("war_qty")} *</span><input name="qty" type="number" min="${Math.max(1, item.claimed || 0)}" max="500" step="1" required value="${item.qty || 1}" inputmode="numeric"></label>` : ""}
+        <label><span>${t("l_title")}</span><input name="title" required maxlength="100" value="${esc(item.title || "")}"></label>
+        <label><span>${t("l_condition")}</span><input name="condition" maxlength="80" value="${esc(item.condition || "")}"></label>
+        <label><span>${t("l_desc")}</span><textarea name="description" rows="4" maxlength="800">${esc(item.description || "")}</textarea></label>`
+      : `
+        <label><span>${t("car_name")}</span><input name="name" required maxlength="100" value="${esc(item.name || "")}"></label>
+        <label><span>${t("car_maker")}</span><input name="maker" maxlength="80" value="${esc(item.maker || "")}"></label>
+        <label><span>${t("car_notes")}</span><textarea name="notes" rows="4" maxlength="600">${esc(item.notes || "")}</textarea></label>`}
+      <div><span class="ep-label">${t("ep_photos")} <small class="muted">(${t("ep_max", { n: max })})</small></span>
+        <div class="ep-photos" id="ep-photos"></div></div>
+      <label class="ep-add"><span>＋ ${t("ep_add")}</span><input type="file" name="photos" accept="image/*" multiple></label>
+      <div class="thumbs" id="ep-new"></div>
+      <p class="mod-note">✏️ ${t("ep_once")}</p>
+      <div class="form-actions">
+        <button type="button" class="btn btn-ghost" data-act="close">${t("cancel")}</button>
+        <button class="btn btn-mat" type="submit">${t("save")}</button>
+      </div>
+    </form>`);
+  const f = $("#f-edit");
+  const paintKeep = () => {
+    $("#ep-photos").innerHTML = keep.map((p, i) => `<span class="ep-ph"><img src="${photoSrc(p)}" alt=""><button type="button" data-rm="${i}" aria-label="${esc(t("ep_remove"))}">×</button></span>`).join("");
+  };
+  const paintNew = () => {
+    const box = $("#ep-new"); box.innerHTML = "";
+    [...f.photos.files].slice(0, Math.max(0, max - keep.length)).forEach(x => { const i = document.createElement("img"); i.alt = ""; i.src = URL.createObjectURL(x); box.appendChild(i); });
+    if (keep.length + f.photos.files.length > max) toast(t("ep_max", { n: max }));
+  };
+  paintKeep();
+  f.photos.addEventListener("change", paintNew);
+  if (market && f.type) {
+    const sync = () => { $("#ep-price-l").textContent = t(f.type.value === "wanted" ? "l_budget" : f.type.value === "trade" ? "l_value" : "l_price") + " *"; f.description.required = f.type.value === "wanted"; };
+    f.type.addEventListener("change", sync); sync();
+  }
+  $("#modal-body").onclick = (ev) => {
+    if (ev.target.dataset.act === "close") { closeModal(); return; }
+    const rm = ev.target.closest("[data-rm]");
+    if (rm) { keep.splice(Number(rm.dataset.rm), 1); paintKeep(); paintNew(); }
+  };
+  f.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const room = Math.max(0, max - keep.length), adding = Math.min(room, f.photos.files.length);
+    if (!market && keep.length + adding < 1) { toast(t("ep_need_photo")); return; }
+    if (market && !(Number(f.price.value) > 0)) { toast(t("l_price_required")); f.price.focus(); return; }
+    if (market && item.war && (parseInt(f.qty.value, 10) || 0) < (item.claimed || 0)) { toast(t("ep_war_qty_min", { n: item.claimed || 0 })); return; }
+    if (!confirm(t("ep_once_confirm"))) return;
+    const btn = f.querySelector("[type=submit]"); btn.disabled = true;
+    try {
+      const added = adding ? await storePhotos(f.photos, market ? "market" : "collection", room, keep.length, btn) : [];
+      const photos = [...keep, ...added].slice(0, max);
+      const changes = market
+        ? { title: f.title.value.trim(), price: Number(f.price.value), condition: f.condition.value.trim(), description: f.description.value.trim(), photos,
+            ...(f.type ? { type: f.type.value } : {}), ...(item.war ? { qty: Math.max(item.claimed || 1, Math.min(500, parseInt(f.qty.value, 10) || 1)) } : {}) }
+        : { name: f.name.value.trim(), maker: f.maker.value.trim(), notes: f.notes.value.trim(), photos };
+      await updateDoc(doc(db, col, item.id), { ...changes, editedAt: serverTimestamp() });
+      Object.assign(item, changes, { editedAt: new Date() });
+      closeModal(); toast(t("saved"));
+      if (market) { afterModeration("listings"); if (location.hash.startsWith("#/market")) renderListings(); }
+      else {
+        document.querySelectorAll(`.post[data-post="${CSS.escape(item.id)}"]`).forEach(p => {
+          const tmp = document.createElement("div"); tmp.innerHTML = postHTML(item).trim();
+          const fresh = tmp.firstElementChild, oldC = p.querySelector(".post-cmts"), newC = fresh.querySelector(".post-cmts");
+          if (oldC && newC) newC.replaceWith(oldC);   // keep the comments already shown
+          p.replaceWith(fresh); wireCarousels(fresh);
+        });
+        state.allCars = null; state.feedProfile = null;
+        if (state.tab === "collection" && !$("#app").hidden) loadCars();
+      }
+    } catch (err) { fail(err); btn.disabled = false; }
+  });
+}
 function openDeleteReason(col, item) {
   const market = col === "listings";
   openModal(`
@@ -3537,11 +3628,25 @@ function openDeleteReason(col, item) {
   });
 }
 document.addEventListener("click", (e) => {
-  const b = e.target.closest("[data-del-post]"); if (!b) return;
+  const b = e.target.closest("[data-own-post]"); if (!b) return;
   e.stopPropagation();
-  const id = b.dataset.delPost;
+  const id = b.dataset.ownPost;
   const c = state.feed.find(x => x.id === id) || (state.feedProfile?.posts || []).find(x => x.id === id) || state.searchPosts.find(x => x.id === id) || state.deepPost;
-  if (c && c.ownerUid === state.user?.uid) openDeleteReason("cars", c);
+  if (!c || c.ownerUid !== state.user?.uid) return;
+  openModal(`
+    <h2>${t("post_options")}</h2>
+    <p class="muted">${esc(c.name || "")}</p>
+    <div class="form-actions dm-menu">
+      ${c.editedAt ? `<p class="muted">${t("ep_used")}</p>` : `<button type="button" class="btn btn-mat" data-act="edit">✏️ ${t("edit_post")}</button>`}
+      <button type="button" class="btn btn-danger" data-act="del">🗑 ${t("delete")}</button>
+      <button type="button" class="btn btn-ghost" data-act="close">${t("cancel")}</button>
+    </div>`);
+  $("#modal-body").onclick = (ev) => {
+    const act = ev.target.closest("[data-act]")?.dataset.act;
+    if (act === "close") closeModal();
+    if (act === "edit") openEditPost("cars", c);
+    if (act === "del") openDeleteReason("cars", c);
+  };
 });
 
 /* Admin: collection posts their owners deleted, with the reason they gave (newest first). */

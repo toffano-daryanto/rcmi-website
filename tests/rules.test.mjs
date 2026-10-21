@@ -90,6 +90,23 @@ test("market: create listing (price required), war listing", async () => {
   await assertFails(addDoc(collection(as(U.m2), "listings"), { ...base, type: "sell", price: null }));
   await assertSucceeds(addDoc(collection(as(U.m2), "listings"), { ...base, type: "sell", price: 100000, war: true, qty: 5, claimed: 0, warStart: null }));
 });
+test("edit post: owner edits collection post and listing; others can't; market rules kept", async () => {
+  await assertSucceeds(updateDoc(doc(as(U.m1), "cars", "car1"), { name: "R34 V-Spec", maker: "Tarmac", notes: "new", photos: ["a"], editedAt: serverTimestamp() }));
+  await assertFails(updateDoc(doc(as(U.m2), "cars", "car1"), { name: "hacked" }));
+  await assertFails(updateDoc(doc(as(U.m1), "cars", "car1"), { name: "second edit", editedAt: serverTimestamp() }));   // only one edit
+  await assertSucceeds(updateDoc(doc(as(U.m1), "cars", "car1"), { likedBy: arrayUnion(U.m1) }));                    // likes still fine
+  await assertSucceeds(updateDoc(doc(as(U.m1), "listings", "lst1"), { title: "R34 GT-R", price: 400000, type: "trade", condition: "Mint", description: "", photos: [], editedAt: serverTimestamp() }));
+  await assertFails(updateDoc(doc(as(U.m1), "listings", "lst1"), { price: 500000, editedAt: serverTimestamp() }));   // only one edit
+  await assertSucceeds(updateDoc(doc(as(U.m1), "listings", "lst1"), { status: "sold", soldAt: serverTimestamp() }));  // marking sold still works
+  await assertFails(updateDoc(doc(as(U.m2), "listings", "lst1"), { title: "hacked" }));
+  await assertFails(updateDoc(doc(as(U.m1), "listings", "war1"), { price: 0, editedAt: serverTimestamp() }));
+  await assertFails(updateDoc(doc(as(U.m1), "listings", "war1"), { qty: 501, editedAt: serverTimestamp() }));
+  await assertFails(updateDoc(doc(as(U.m1), "listings", "war1"), { type: "wanted", editedAt: serverTimestamp() }));
+  await assertFails(updateDoc(doc(as(U.m1), "listings", "war1"), { title: "no stamp" }));   // an edit must be stamped
+  await assertSucceeds(updateDoc(doc(as(U.m1), "listings", "war1"), { qty: 5, title: "GR86 Pandem", editedAt: serverTimestamp() }));
+  await assertFails(updateDoc(doc(as(U.m1), "listings", "war1"), { war: false }));
+  await assertFails(updateDoc(doc(as(U.m1), "listings", "war1"), { claimed: 3 }));
+});
 test("market: like + comment on listing", async () => {
   await assertSucceeds(updateDoc(doc(as(U.gen), "listings", "lst1"), { likedBy: arrayUnion(U.gen) }));
   await assertSucceeds(addDoc(collection(as(U.gen), "listings", "lst1", "comments"), { uid: U.gen, name: "G", photo: "", text: "Nego?", at: serverTimestamp() }));

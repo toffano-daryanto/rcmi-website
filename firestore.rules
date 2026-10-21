@@ -27,6 +27,11 @@ service cloud.firestore {
     function photosOk(p) { return p is list && p.size() <= 3; }
     // Collection posts: up to 10 photos you can swipe through (all inside the 1 MB document).
     function carPhotosOk(p) { return p is list && p.size() <= 10; }
+    // A post's content can be edited only once: the edit must stamp editedAt, and a post that has it can't be edited again.
+    function editOnce(keys) {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(keys)
+        || (!('editedAt' in resource.data) && request.resource.data.editedAt == request.time);
+    }
     // Pre-registered members: admins add invites/{gmail} → { rosterId, memberNo }.
     // A verified Google account with that email activates itself without waiting for approval.
     function myEmail() { return request.auth.token.email.lower(); }
@@ -349,7 +354,8 @@ service cloud.firestore {
       allow update: if (approved() && resource.data.ownerUid == request.auth.uid
           && request.resource.data.ownerUid == request.auth.uid
           && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['hidden', 'modHidden', 'modNote', 'modBy', 'modAt'])
-          && carPhotosOk(request.resource.data.photos)) || admin()
+          && carPhotosOk(request.resource.data.photos) && str(request.resource.data.name, 100)
+          && editOnce(['name', 'maker', 'notes', 'photos', 'editedAt'])) || admin()
         || likeOnly() || (mod() && onlyKeys(['hidden']));
       allow delete: if (approved() && resource.data.ownerUid == request.auth.uid) || staff();
     }
@@ -439,7 +445,16 @@ service cloud.firestore {
       allow update: if (approved() && resource.data.ownerUid == request.auth.uid
           && request.resource.data.ownerUid == request.auth.uid
           && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['hidden', 'modHidden', 'modNote', 'modBy', 'modAt'])
-          && photosOk(request.resource.data.photos)) || admin() || likeOnly() || warClaim(listingId)
+          && photosOk(request.resource.data.photos)
+          && str(request.resource.data.title, 100)
+          // Editing keeps the market rules: a valid type, a real price, and war stock never below the slots taken.
+          && (request.resource.data.type == resource.data.type || (!resource.data.get('war', false) && request.resource.data.type in ['sell','trade','wanted']))
+          && (request.resource.data.get('price', 0) == resource.data.get('price', 0) || (request.resource.data.price is number && request.resource.data.price > 0))
+          && request.resource.data.get('war', false) == resource.data.get('war', false)
+          && request.resource.data.get('claimed', 0) <= resource.data.get('claimed', 0)
+          && (!resource.data.get('war', false) || (request.resource.data.qty is int && request.resource.data.qty <= 500 && request.resource.data.qty >= request.resource.data.get('claimed', 0)))
+          && !('ownerWhatsapp' in request.resource.data)
+          && editOnce(['title', 'price', 'type', 'condition', 'description', 'photos', 'qty', 'editedAt'])) || admin() || likeOnly() || warClaim(listingId)
         || (mod() && onlyKeys(['hidden', 'delReq', 'delReason']));
       // Sellers can't delete a listing themselves: they send a delete request (delReq + a reason) and an admin or moderator approves it.
       allow delete: if staff();
