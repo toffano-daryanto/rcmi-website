@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792606413";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792606448";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792606413";
-import { SEED_EVENTS } from "./seed-events.js?v=1792606413";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792606413";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792606413";
+import { GALLERY } from "./gallery-data.js?v=1792606448";
+import { SEED_EVENTS } from "./seed-events.js?v=1792606448";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792606448";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792606448";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -944,6 +944,14 @@ function paintLike(c) {
     post.querySelector(".like-count").textContent = n ? t(n === 1 ? "likes_one" : "likes_n", { n }) : "";
   });
 }
+// Show the whole photo, like Instagram: the post takes the shape of its first photo
+// (between 4:5 portrait and 1.91:1 landscape); other photos fit inside without cropping.
+document.addEventListener("load", (e) => {
+  const img = e.target;
+  if (!(img instanceof HTMLImageElement) || !img.matches(".post-track img:first-child")) return;
+  const r = Math.min(1.91, Math.max(0.8, img.naturalWidth / img.naturalHeight || 1));
+  img.closest(".post-media").style.aspectRatio = String(r);
+}, true);
 // Arrows to slide through a post's photos (for computers; phones just swipe).
 document.addEventListener("click", (e) => {
   const b = e.target.closest(".post-nav[data-slide]"); if (!b) return;

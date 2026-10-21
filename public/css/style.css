@@ -761,3 +761,7 @@ section[id], [id="contact"], [id="join"] { scroll-margin-top: 96px; }
 .mod-note { background: #FDECEE; color: #7A0A18; padding: 10px 12px; border-radius: var(--radius-s); border-left: 4px solid var(--red); }
 .tag-hidden { background: var(--ink) !important; color: #fff !important; }
 .bell-note { display: block; font-style: normal; color: var(--muted); font-size: .82rem; margin-top: 2px; }
+
+/* Posts keep the photo's shape: no cropping */
+.post-media { aspect-ratio: 1 / 1; transition: aspect-ratio .2s; }
+.post-track img { object-fit: contain; background: #0d0f15; }
