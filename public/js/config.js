@@ -11,4 +11,4 @@ export const firebaseConfig = {
 };
 
 // Google Drive photo uploads (scripts/drive-upload.gs deployed as a web app). Empty = photos stay inside the posts.
-export const uploadUrl = "";
+export const uploadUrl = "https://script.google.com/macros/s/AKfycbykQFyeWs9J_xHx1jdNGJyBUmW-PgKeJ-7u-iBiHQICTlBHvLneHjViHOJa8NvWer66Og/exec";
