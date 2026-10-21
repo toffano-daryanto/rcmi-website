@@ -244,6 +244,8 @@ service cloud.firestore {
     function inChat(c) { return signedIn() && request.auth.uid in c.members; }
     match /chats/{chatId} {
       allow read: if (signedIn() && request.auth.uid in resource.data.members) || (staff() && resource.data.get('reported', false) == true);
+      // Checking whether a chat exists yet (before starting one) only reveals that it doesn't.
+      allow get: if signedIn() && resource == null;
       allow create: if approved()
         && request.resource.data.keys().hasOnly(['members', 'names', 'photos', 'createdAt', 'lastAt', 'lastText', 'lastFrom', 'readAt', 'blockedBy'])
         && request.resource.data.members is list && request.resource.data.members.size() == 2
