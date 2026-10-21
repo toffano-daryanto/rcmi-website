@@ -40,12 +40,12 @@ When an existing member signs in, the **Admin** tab suggests their record by nam
 
 **What's imported and who sees it:** member number, name, city, province and registration date are visible to approved members. Phone numbers and T-shirt orders are admin-only (`rosterPrivate`). Home addresses, birthdates and payment proofs are **not** imported. `data/roster.json` contains phone numbers, so it is git-ignored.
 
-### Finance — Laba Rugi (admins only)
-**Keuangan** tab (visible to admins only): Profit & Loss built from the treasurer's *KEUANGAN RCMI* Google Sheet.
+### Finance — Laba Rugi (members view, admins update)
+**Keuangan** tab — members can view it read-only; general users can't see it; only admins sync/import: Profit & Loss built from the treasurer's *KEUANGAN RCMI* Google Sheet.
 1. In the sheet: **File → Download → Comma Separated Values (.csv)**.
 2. On the site: **Keuangan → Impor CSV** → pick the file. Re-import whenever the sheet changes.
 
-It shows totals, the P&L by category, the IDS 2025 event result, the RCMI x Hellios rims result, month-by-month cash, a check of the sheet's running balance, and every transaction with its category. **Cetak / PDF** prints the report. The ledger is stored in Firestore (`finance/ledger`), readable and writable by admins only — never in this repo. Categories come from keywords in *Deskripsi/Keterangan* (see `public/js/finance.js`); combined payments like "IURAN/VELG/KAS" are split (velg Rp175.000, kas Rp50.000, rest IDS).
+It shows totals, the P&L by category, the IDS 2025 event result, the RCMI x Hellios rims result, month-by-month cash, a check of the sheet's running balance, and every transaction with its category. **Cetak / PDF** prints the report. The ledger is stored in Firestore (`finance/ledger`) — readable by members, writable by admins; the sheet link (`finance/source`) is admins only. Nothing financial is in this repo. Categories come from keywords in *Deskripsi/Keterangan* (see `public/js/finance.js`); combined payments like "IURAN/VELG/KAS" are split (velg Rp175.000, kas Rp50.000, rest IDS).
 
 ### Two account types
 - **Anggota (member):** RCMI members. Sign up with the registered phone → active immediately (or admin approval). Full access: member list & profiles, member card, monthly dues, collection, events, market.

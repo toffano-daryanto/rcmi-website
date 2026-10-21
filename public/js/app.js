@@ -7,11 +7,11 @@ import {
   getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, collection, query, where,
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig } from "./config.js?v=1792596862";
+import { firebaseConfig } from "./config.js?v=1792597362";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792596862";
-import { SEED_EVENTS } from "./seed-events.js?v=1792596862";
-import { parseLedgerCSV, buildPL, balanceIssues } from "./finance.js?v=1792596862";
+import { GALLERY } from "./gallery-data.js?v=1792597362";
+import { SEED_EVENTS } from "./seed-events.js?v=1792597362";
+import { parseLedgerCSV, buildPL, balanceIssues } from "./finance.js?v=1792597362";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -264,7 +264,7 @@ onAuthStateChanged(auth, (user) => {
       state.profile = { id: snap.id, ...snap.data() };
       state.gate = ["pending", "rejected"].includes(state.profile.status) ? state.profile.status : null;
       $("#tab-admin").hidden = state.profile.role !== "admin";
-      $("#tab-finance").hidden = state.profile.role !== "admin";
+      $("#tab-finance").hidden = state.profile.accountType === "general";
       $("#btn-add-event").hidden = state.profile.role !== "admin";
       const general = isGeneral();
       $$('.tabs a[data-tab="members"], .tabs a[data-tab="dues"]').forEach(a => { a.hidden = general; });
@@ -369,7 +369,8 @@ function route() {
   const [h, sub = ""] = location.hash.replace(/^#\/?/, "").split("/");
   let tab = TABS.includes(h) ? h : "collection";
   state.sub = decodeURIComponent(sub);
-  if ((tab === "admin" || tab === "finance") && state.profile.role !== "admin") tab = "collection";
+  if (tab === "admin" && state.profile.role !== "admin") tab = "collection";
+  if (tab === "finance" && isGeneral()) tab = "events";
   if (isGeneral() && (tab === "members" || tab === "dues")) tab = "events";
   state.tab = tab;
   $$(".tabs a").forEach(a => { if (a.dataset.tab === tab) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
@@ -1103,11 +1104,11 @@ $("#form-profile").addEventListener("submit", async (e) => {
 /* ================= Finance: Laba Rugi (admins only) ================= */
 state.finPeriod = "all";
 async function loadFinance() {
-  if (!isAdmin()) return;
+  if (isGeneral()) return;
   try {
-    const [snap, src] = await Promise.all([getDoc(doc(db, "finance", "ledger")), getDoc(doc(db, "finance", "source"))]);
+    const [snap, src] = await Promise.all([getDoc(doc(db, "finance", "ledger")), isAdmin() ? getDoc(doc(db, "finance", "source")) : Promise.resolve(null)]);
     state.ledger = snap.exists() ? snap.data() : null;
-    state.finSource = src.exists() ? src.data() : null;
+    state.finSource = src?.exists() ? src.data() : null;
     renderFinance();
   } catch (e) { fail(e); }
 }
@@ -1121,13 +1122,18 @@ function periodRange(p) {
 function renderFinance() {
   const body = $("#fin-body"); if (!body) return;
   const L = state.ledger;
+  // Members view; only admins sync or import.
+  const admin = isAdmin();
+  $("#fin-sync").hidden = !admin;
+  $(".fin-import").hidden = !admin;
+  const note = $(".fin-note [data-i18n]"); note.dataset.i18n = admin ? "fin_only_admin" : "fin_members_view"; note.textContent = t(note.dataset.i18n);
   $("#fin-source").innerHTML = "";
   if (state.finSource?.sheetId) $("#fin-source").insertAdjacentHTML("afterend", "");
   $("#fin-source").textContent = L ? t("fin_imported", { n: L.rows.length, date: fmtDate(L.importedAt, { day: "numeric", month: "short", year: "numeric" }), file: L.fileName || "CSV" }) : "";
   const sel = $("#fin-period");
   if (!L || !L.rows?.length) {
     sel.hidden = true; $("#fin-print").hidden = true;
-    body.innerHTML = `<div class="empty fin-empty"><p><strong>${t("fin_empty")}</strong></p><p>${t("fin_import_help")}</p></div>`;
+    body.innerHTML = `<div class="empty fin-empty"><p><strong>${t("fin_empty")}</strong></p>${admin ? `<p>${t("fin_import_help")}</p>` : ""}</div>`;
     return;
   }
   sel.hidden = false; $("#fin-print").hidden = false;
