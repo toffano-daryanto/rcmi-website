@@ -886,3 +886,12 @@ fieldset.addr legend small { font-weight: 500; color: var(--muted); }
 @media (min-width: 901px) { #view-card { grid-template-rows: auto 1fr; } #view-card .my-addr { align-self: start; margin-top: 4px; } }
 .addr-same { font-weight: 600 !important; }
 input[readonly] { background: rgba(0,0,0,.04); color: var(--muted); }
+
+/* Profile: read-only until Edit */
+.prof-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.prof-head h2 { margin: 0; }
+#form-profile.locked input, #form-profile.locked select, #form-profile.locked textarea { background: transparent; border-color: transparent; color: var(--ink); padding-left: 0; opacity: 1; -webkit-text-fill-color: var(--ink); }
+#form-profile.locked select { appearance: none; background-image: none; }
+#form-profile.locked .addr-same, #form-profile.locked input::placeholder, #form-profile.locked textarea::placeholder { visibility: hidden; }
+#form-profile.locked fieldset.addr { border-style: dashed; }
+input.autofilled { box-shadow: 0 0 0 3px rgba(31, 138, 76, .35); transition: box-shadow .3s; }

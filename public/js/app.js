@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792610618";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792611078";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792610618";
-import { SEED_EVENTS } from "./seed-events.js?v=1792610618";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792610618";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792610618";
+import { GALLERY } from "./gallery-data.js?v=1792611078";
+import { SEED_EVENTS } from "./seed-events.js?v=1792611078";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792611078";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792611078";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -691,7 +691,7 @@ const wilLoadIndex = () => wilIndex || (wilIndex = fetch("/wilayah/index.json").
 const wilLoadReg = (id) => wilReg[id] || (wilReg[id] = fetch(`/wilayah/${id}.json`).then(r => r.json()));
 function setOpts(el, items, keep = "") {   // items: [[value, label]]
   el.innerHTML = `<option value="">—</option>` + items.map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join("");
-  el.disabled = !items.length;
+  el.disabled = !items.length || !!el.closest("form.locked");
   if (keep) { if (!items.some(([v]) => v === keep)) el.insertAdjacentHTML("beforeend", `<option value="${esc(keep)}">${esc(keep)}</option>`); el.value = keep; }
 }
 async function bindWilayah(f, preset = {}) {
@@ -715,11 +715,20 @@ async function bindWilayah(f, preset = {}) {
   }
   function onDist(keepV) {
     const d = reg?.d.find(x => x[1] === D.value);
-    setOpts(V, d ? (reg.v[d[0]] || []).map(v => [v, v]) : [], keepV);
+    setOpts(V, d ? (reg.v[d[0]] || []).map(v => Array.isArray(v) ? [v[0], v[0]] : [v, v]) : [], keepV);
   }
+  // Postal code follows the chosen kelurahan/desa (you can still change it).
+  function onVillage() {
+    const d = reg?.d.find(x => x[1] === D.value); if (!d) return;
+    const v = (reg.v[d[0]] || []).find(x => Array.isArray(x) && x[0] === V.value);
+    if (v?.[1] && f.addr_postal) { f.addr_postal.value = v[1]; f.addr_postal.classList.add("autofilled"); setTimeout(() => f.addr_postal.classList.remove("autofilled"), 1200); }
+  }
+  // Listeners are attached once and always use the latest set of handlers (this function can run again to pre-fill).
+  f._wh = { onProv, onCity, onDist, onVillage };
   if (!f.dataset.wil) {
     f.dataset.wil = "1";
-    P.addEventListener("change", () => onProv()); C.addEventListener("change", () => onCity()); D.addEventListener("change", () => onDist());
+    P.addEventListener("change", () => f._wh.onProv()); C.addEventListener("change", () => f._wh.onCity());
+    D.addEventListener("change", () => f._wh.onDist()); V.addEventListener("change", () => f._wh.onVillage());
   }
   setOpts(P, provs, preset.province || "");
   if (preset.province) await onProv(preset.city, preset.district, preset.village);
@@ -758,6 +767,7 @@ async function loadMyAddr() {
   $("#addr-banner").hidden = !!state.myAddr;
   if ($("#form-profile")) writeAddr($("#form-profile"), state.myAddr);
   renderMyAddr();
+  if (!state.myAddr && $("#form-profile")) lockProfile(false);
 }
 // "My address" on the profile page (private: only you and admins see it).
 function renderMyAddr() {
@@ -772,7 +782,8 @@ function renderMyAddr() {
 document.addEventListener("click", (e) => {
   if (!e.target.closest("[data-addr-edit]")) return;
   e.preventDefault();
-  const fs = $("#profile-addr fieldset"); fs?.scrollIntoView({ behavior: "smooth", block: "start" }); fs?.querySelector("input")?.focus();
+  lockProfile(false);
+  const fs = $("#profile-addr fieldset"); fs?.scrollIntoView({ behavior: "smooth", block: "start" }); fs?.querySelector("input:not([readonly]), select")?.focus();
 });
 
 /* ---------------- routing ---------------- */
@@ -2467,7 +2478,24 @@ function renderCard() {
   const f = $("#form-profile");
   ["displayName", "city", "instagram", "whatsapp", "bio"].forEach(k => { if (document.activeElement !== f[k]) f[k].value = p[k] || ""; });
   f._syncSame?.();
+  // Read-only until "Edit" — except when the address is still missing, then open for editing.
+  if (!state.profEditing) lockProfile(state.myAddr !== null);   // still loading (undefined) or saved → read-only
 }
+/* My details: shown read-only; "Edit" unlocks the form, Save/Cancel lock it again. */
+function lockProfile(locked) {
+  const f = $("#form-profile"); state.profEditing = !locked;
+  f.classList.toggle("locked", locked);
+  f.querySelectorAll("input, select, textarea").forEach(el => {
+    if (el.type === "hidden") return;
+    if (locked) el.disabled = true;
+    else el.disabled = el.tagName === "SELECT" ? el.options.length <= 1 : false;
+  });
+  if (!locked) f._syncSame?.();
+  $("#prof-edit").hidden = !locked;
+  f.querySelector(".prof-actions").hidden = locked;
+}
+$("#prof-edit").addEventListener("click", () => { lockProfile(false); $("#form-profile").displayName.focus(); });
+$("#prof-cancel").addEventListener("click", () => { state.profEditing = false; renderCard(); writeAddr($("#form-profile"), state.myAddr); lockProfile(true); });
 $("#form-profile").addEventListener("submit", async (e) => {
   e.preventDefault(); const f = e.target;
   try {
@@ -2477,7 +2505,7 @@ $("#form-profile").addEventListener("submit", async (e) => {
     });
     saveContact({ displayName: f.displayName.value.trim(), whatsapp: f.whatsapp.value.trim(), instagram: f.instagram.value });
     await saveAddr(readAddr(f)); state.myAddr = readAddr(f); $("#addr-banner").hidden = true; renderMyAddr();
-    toast(t("profile_saved"));
+    toast(t("profile_saved")); lockProfile(true);
   } catch (err) { fail(err); }
 });
 

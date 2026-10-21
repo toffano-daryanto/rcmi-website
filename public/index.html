@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;1,600;1,700;1,800&family=Barlow:wght@400;500;600;700&family=Noto+Serif:wght@700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/style.css?v=1792610618">
+  <link rel="stylesheet" href="/css/style.css?v=1792611078">
   <link rel="icon" type="image/png" href="/img/icon-64.png">
   <link rel="apple-touch-icon" href="/img/icon-192.png">
   <meta property="og:image" content="/img/icon-512.png">
@@ -345,14 +345,20 @@
         <div class="card-wrap" id="member-card"></div>
         <section class="my-addr panel-flat" id="my-addr" hidden></section>
         <form id="form-profile" class="form panel-flat">
-          <h2 data-i18n="edit_profile"></h2>
+          <div class="prof-head">
+            <h2 data-i18n="my_details"></h2>
+            <button type="button" class="btn btn-sm btn-ghost" id="prof-edit">✎ <span data-i18n="edit"></span></button>
+          </div>
           <label><span data-i18n="f_name"></span><input name="displayName" required maxlength="80"></label>
           <label><span data-i18n="f_city"></span><input name="city" required maxlength="60"></label>
           <label><span data-i18n="f_instagram"></span><input name="instagram" maxlength="40"></label>
           <label><span data-i18n="f_whatsapp"></span><input name="whatsapp" maxlength="20" inputmode="tel"></label>
           <label><span data-i18n="f_bio"></span><textarea name="bio" rows="3" maxlength="400"></textarea></label>
           <div class="addr-slot" id="profile-addr"></div>
-          <button class="btn btn-mat" type="submit" data-i18n="save"></button>
+          <div class="form-actions prof-actions">
+            <button type="button" class="btn btn-ghost" id="prof-cancel" data-i18n="cancel"></button>
+            <button class="btn btn-mat" type="submit" data-i18n="save"></button>
+          </div>
         </form>
       </div>
 
@@ -416,6 +422,6 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="/js/app.js?v=1792610618"></script>
+  <script type="module" src="/js/app.js?v=1792611078"></script>
 </body>
 </html>
