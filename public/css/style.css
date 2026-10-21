@@ -987,3 +987,15 @@ span.rep-badge { cursor: default; }
   .dm-chat { max-height: calc(100vh - 170px); min-height: calc(100vh - 170px); }
   .dm-back { display: inline; }
 }
+
+/* DM icon on post headers */
+.post-dm { margin-left: auto; background: none; border: 0; padding: 6px; border-radius: 8px; color: var(--ink); cursor: pointer; display: grid; }
+.post-dm:hover { color: var(--red); background: rgba(0,0,0,.05); }
+.post-dm + .post-mod { margin-left: 0; }
+/* Small phones: keep the top bar on one line */
+@media (max-width: 480px) {
+  .bell, .dm-btn { width: 32px; height: 32px; }
+  #btn-signout { font-size: 0; width: 30px; height: 32px; display: grid; place-items: center; }
+  #btn-signout::before { content: "⏻"; font-size: 1.05rem; color: #fff; }
+  .top-actions { gap: 5px; }
+}

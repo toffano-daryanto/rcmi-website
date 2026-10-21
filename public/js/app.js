@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792611268";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792613998";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792611268";
-import { SEED_EVENTS } from "./seed-events.js?v=1792611268";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792611268";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792611268";
+import { GALLERY } from "./gallery-data.js?v=1792613998";
+import { SEED_EVENTS } from "./seed-events.js?v=1792613998";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792613998";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792613998";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -1089,6 +1089,7 @@ function postHTML(c) {
     <header class="post-head" data-owner="${esc(c.ownerUid || "")}" role="link" tabindex="0">
       <span class="post-av">${c.ownerPhoto ? `<img src="${esc(c.ownerPhoto)}" alt="" referrerpolicy="no-referrer">` : esc(initials(c.ownerName))}</span>
       <div><strong>${esc(c.ownerName || "RCMI")}</strong>${c.ownerCity ? `<small>${esc(c.ownerCity)}</small>` : ""}</div>
+      ${c.ownerUid && c.ownerUid !== state.user?.uid ? `<button type="button" class="post-dm" data-dm="${esc(c.ownerUid)}" data-dm-name="${esc(c.ownerName || "")}" data-dm-photo="${esc(c.ownerPhoto || "")}" aria-label="${t("dm_message")}" title="${t("dm_message")}"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M21 3 10 14M21 3l-7 18-4-7-7-4 18-7Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></button>` : ""}
       ${isStaff() ? `<button type="button" class="post-mod" data-mod-post="${esc(c.id)}" aria-label="${t("mod_title")}" title="${t("mod_title")}">⋯</button>`
         : state.user && c.ownerUid === state.user.uid ? `<button type="button" class="post-mod post-del" data-del-post="${esc(c.id)}" aria-label="${t("delete")}" title="${t("delete")}">🗑</button>` : ""}
     </header>
@@ -1644,6 +1645,7 @@ $("#feed-profile").addEventListener("click", (e) => {
 // Tap a name or avatar in a post to open that collector's profile.
 document.addEventListener("click", (e) => {
   if (e.target.closest(".post-mod")) return;
+  if (e.target.closest(".post-dm")) return;
   const h = e.target.closest(".post-head[data-owner]"); if (!h) return;
   if (modal.open) closeModal();
   location.hash = `#/feed/u/${encodeURIComponent(h.dataset.owner)}`;
@@ -2539,6 +2541,7 @@ async function renderProfile(id) {
       <div>${cardHTML({ no: r.memberNo, name, city, instagram: u?.instagram, photoURL: u?.photoURL, since })}</div>
       <div>
         <h1>${esc(name)}</h1>
+        ${u && u.id !== state.user?.uid ? `<button type="button" class="btn btn-sm btn-mat" data-dm="${esc(u.id)}" data-dm-name="${esc(name)}" data-dm-photo="${esc(u.photoURL || "")}">✉️ ${t("dm_message")}</button>` : ""}
         ${u?.bio ? `<p class="bio">${esc(u.bio)}</p>` : ""}
         <dl>
           ${r.memberNo ? `<dt>${t("card_member")}</dt><dd>${memberNo(r.memberNo)}</dd>` : ""}
