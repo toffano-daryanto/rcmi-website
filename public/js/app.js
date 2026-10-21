@@ -1756,13 +1756,13 @@ function openListing(l) {
     ${isAdmin() ? `<div class="mod-bar"><small>${t("admin_only")}</small>
       ${l.modHidden ? `<button type="button" class="btn btn-sm btn-mat" data-act="unhide">${t("mod_unhide")}</button>` : `<button type="button" class="btn btn-sm btn-ghost" data-act="modhide">${t("mod_hide")}</button>`}
       <button type="button" class="btn btn-sm btn-danger" data-act="moddel">${t("mod_delete")}</button></div>` : ""}
-    <div class="l-like-row">
-      <button type="button" class="like ${(l.likedBy || []).includes(state.user?.uid) ? "on" : ""}" data-like-listing="${esc(l.id)}" aria-label="${t("like")}">
-        <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M12 21s-7.5-4.6-9.6-9.2C.9 8.4 3 4.5 6.8 4.5c2.2 0 3.6 1.2 4.2 2.3h2c.6-1.1 2-2.3 4.2-2.3 3.8 0 5.9 3.9 4.4 7.3C19.5 16.4 12 21 12 21Z"/></svg>
-      </button>
-      <span class="like-count">${(l.likedBy || []).length ? t((l.likedBy || []).length === 1 ? "likes_one" : "likes_n", { n: (l.likedBy || []).length }) : ""}</span>
-    </div>
     <div class="form-actions">
+      <div class="l-like-row">
+        <button type="button" class="like ${(l.likedBy || []).includes(state.user?.uid) ? "on" : ""}" data-like-listing="${esc(l.id)}" aria-label="${t("like")}">
+          <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M12 21s-7.5-4.6-9.6-9.2C.9 8.4 3 4.5 6.8 4.5c2.2 0 3.6 1.2 4.2 2.3h2c.6-1.1 2-2.3 4.2-2.3 3.8 0 5.9 3.9 4.4 7.3C19.5 16.4 12 21 12 21Z"/></svg>
+        </button>
+        <span class="like-count">${(l.likedBy || []).length ? t((l.likedBy || []).length === 1 ? "likes_one" : "likes_n", { n: (l.likedBy || []).length }) : ""}</span>
+      </div>
       <button type="button" class="btn btn-ghost share-btn" data-act="share">${SHARE_ICON} ${t("share")}</button>
       <button type="button" class="btn btn-ghost" data-act="report">${t("mn_report_listing")}</button>
       ${ig ? `<a class="btn btn-ghost" target="_blank" rel="noopener" href="https://instagram.com/${encodeURIComponent(ig)}">Instagram</a>` : ""}
