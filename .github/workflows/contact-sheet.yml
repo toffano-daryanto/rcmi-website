@@ -1,0 +1,53 @@
+name: Gallery contact sheet (tool)
+# Builds a numbered preview sheet of one gallery group's photos and scores how red each background is.
+# Pushed to the "tool-contact-sheet" branch (not deployed).
+on:
+  workflow_dispatch:
+    inputs:
+      group:
+        description: "Gallery group key"
+        default: "ids"
+permissions:
+  contents: write
+jobs:
+  sheet:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with: { node-version: 22 }
+      - run: pip install pillow requests
+      - name: Build
+        env: { GROUP: "${{ inputs.group }}" }
+        run: |
+          node -e 'import("./public/js/gallery-data.js").then(m=>{const g=m.GALLERY.find(x=>x.key===process.env.GROUP);require("fs").writeFileSync("ids.json",JSON.stringify(g.items.filter(i=>i.kind==="photo").map(i=>i.id)))})'
+          python3 - <<'PY'
+          import json, io, requests
+          from PIL import Image, ImageDraw
+          ids = json.load(open("ids.json")); W = 240; cols = 6
+          tiles = []; scores = []
+          for n, i in enumerate(ids):
+              try:
+                  r = requests.get(f"https://drive.google.com/thumbnail?id={i}&sz=w{W}", timeout=30)
+                  im = Image.open(io.BytesIO(r.content)).convert("RGB")
+              except Exception:
+                  im = Image.new("RGB", (W, W), (80, 80, 80))
+              im.thumbnail((W, W)); t = Image.new("RGB", (W, W), (255, 255, 255)); t.paste(im, ((W - im.width)//2, (W - im.height)//2))
+              px = list(im.resize((60, 60)).getdata())
+              red = sum(1 for (r_, g_, b_) in px if r_ > 140 and r_ > g_ * 1.6 and r_ > b_ * 1.6) / len(px)
+              scores.append((n, i, round(red, 3)))
+              d = ImageDraw.Draw(t); d.rectangle([0, 0, 64, 22], fill=(0, 0, 0)); d.text((4, 4), f"{n} r{int(red*100)}", fill=(255, 255, 0))
+              tiles.append(t)
+          rows = (len(tiles) + cols - 1) // cols
+          sheet = Image.new("RGB", (cols * W, rows * W), (255, 255, 255))
+          for k, t in enumerate(tiles): sheet.paste(t, ((k % cols) * W, (k // cols) * W))
+          sheet.save("sheet.jpg", quality=80)
+          json.dump(scores, open("scores.json", "w"))
+          PY
+      - name: Push to branch
+        run: |
+          git config user.name "github-actions"; git config user.email "github-actions@users.noreply.github.com"
+          git checkout --orphan tool-contact-sheet
+          git rm -rfq . ; git add sheet.jpg scores.json -f
+          git commit -qm "Contact sheet: ${{ inputs.group }}"
+          git push -f origin tool-contact-sheet
