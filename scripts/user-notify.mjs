@@ -28,7 +28,7 @@ const since = st.data().lastCheck;
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 const ms = (ts) => ts?.toMillis ? ts.toMillis() : 0;
 const where = (n) => n.target === "market" ? "Market" : "Collection";
-const link = (n) => n.target === "market" ? `${SITE}/#/market/${encodeURIComponent(n.postId || "")}` : `${SITE}/#/feed/p/${encodeURIComponent(n.postId || "")}`;
+const link = (n) => n.target === "contest" ? `${SITE}/#/contest/${encodeURIComponent(n.postId || "")}` : n.target === "market" ? `${SITE}/#/market/${encodeURIComponent(n.postId || "")}` : `${SITE}/#/feed/p/${encodeURIComponent(n.postId || "")}`;
 const TEXT = {
   comment: (n) => `<b>${esc(n.fromName)}</b> commented on your post <b>${esc(n.title)}</b>: “${esc(n.note)}”`,
   reply: (n) => `<b>${esc(n.fromName)}</b> replied to your comment on <b>${esc(n.title)}</b>: “${esc(n.note)}”`,
@@ -40,7 +40,11 @@ const TEXT = {
   deleted: (n) => `Your post <b>${esc(n.title)}</b> in ${where(n)} was removed by an admin.`,
   unhidden: (n) => `Your post <b>${esc(n.title)}</b> in ${where(n)} is visible again.`,
   delapproved: (n) => `Your request to delete <b>${esc(n.title)}</b> was approved.`,
-  delrejected: (n) => `Your request to delete <b>${esc(n.title)}</b> was rejected by an admin.`
+  delrejected: (n) => `Your request to delete <b>${esc(n.title)}</b> was rejected by an admin.`,
+  contest_win: (n) => `🏆 Congratulations! You won <b>#${esc(n.note)}</b> in the photo contest <b>${esc(n.title)}</b>!`,
+  contest_result: (n) => `The results of the photo contest <b>${esc(n.title)}</b> are out.`,
+  contest_voting: (n) => `Voting is open for <b>${esc(n.title)}</b> — share your entry and get votes!`,
+  contest_disq: (n) => `Your entry in <b>${esc(n.title)}</b> was disqualified.`
 };
 
 // What happened since the last run.
@@ -53,7 +57,7 @@ const add = (uid, item) => { if (!uid) return; if (!per.has(uid)) per.set(uid, [
 for (const d of noticeSnap.docs) {
   const n = d.data();
   if (n.read || !TEXT[n.kind]) continue;
-  const note = n.note && !["comment", "reply", "claim", "review"].includes(n.kind) ? `<br><span style="color:#555">Reason: ${esc(n.note)}</span>` : "";
+  const note = n.note && !["comment", "reply", "claim", "review", "contest_win"].includes(n.kind) ? `<br><span style="color:#555">Reason: ${esc(n.note)}</span>` : "";
   add(n.uid, { at: ms(n.at), html: TEXT[n.kind](n) + note, href: ["delapproved", "deleted"].includes(n.kind) ? `${SITE}/#/activity` : link(n) });
 }
 for (const d of chatSnap.docs) {

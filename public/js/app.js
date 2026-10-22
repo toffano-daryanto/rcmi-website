@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792709190";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792710175";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792709190";
-import { SEED_EVENTS } from "./seed-events.js?v=1792709190";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792709190";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792709190";
+import { GALLERY } from "./gallery-data.js?v=1792710175";
+import { SEED_EVENTS } from "./seed-events.js?v=1792710175";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792710175";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792710175";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -344,7 +344,9 @@ const ms = (ts) => toDate(ts)?.getTime() || 0;
 function bellItems() {
   const seen = ms(state.profile?.notifSeenAt);
   const items = [];
-  for (const n of notif.notices) items.push(ACT_KINDS.includes(n.kind)
+  for (const n of notif.notices) items.push(String(n.kind).startsWith("contest_")
+    ? { at: ms(n.at), unread: !n.read, notice: n.id, href: `#/contest/${encodeURIComponent(n.postId)}`, text: contestNoticeText(n) }
+    : ACT_KINDS.includes(n.kind)
     ? { at: ms(n.at), unread: !n.read, notice: n.id, href: n.target === "market" ? `#/market/${encodeURIComponent(n.postId)}` : `#/feed/p/${encodeURIComponent(n.postId)}`,
         text: activityText(n) }
     : { at: ms(n.at), unread: !n.read, href: "#", notice: n.id,
@@ -387,6 +389,7 @@ const NT_TEXT = { hidden: "nt_hidden", deleted: "nt_deleted", unhidden: "nt_unhi
 function openNotice(id) {
   const n = notif.notices.find(x => x.id === id); if (!n) return;
   if (!n.read) updateDoc(doc(db, "notices", id), { read: true }).catch(() => {});
+  if (String(n.kind).startsWith("contest_")) { location.hash = `#/contest/${encodeURIComponent(n.postId)}`; return; }
   if (n.kind === "rate") { openRate(n.postId); return; }
   if (n.kind === "review") { openReviews(state.user.uid); return; }
   if (ACT_KINDS.includes(n.kind)) {   // open the post (for comments: then its comments)
@@ -461,6 +464,7 @@ function show(screen) {
   $("#feedpage").hidden = screen !== "feed";
   $("#marketpage").hidden = screen !== "market";
   $("#dmpage").hidden = screen !== "dm";
+  $("#contestpage").hidden = screen !== "contest";
   // The main-site menu stays in the top bar everywhere; "How to join" only on the public pages.
   $("#landing-nav").hidden = false;
   const joinLink = $('#landing-nav a[href="#join"]'); if (joinLink) joinLink.hidden = screen === "app" || screen === "gate";
@@ -532,6 +536,12 @@ function render() {
     $("#market-hint").hidden = canPost;
     const done = () => openDeepLink();
     if (!state.listingsLoaded) { state.listingsLoaded = true; loadListings().then(done); } else { renderListings(); done(); }
+    return;
+  }
+  // Photo contests: public pages; entering, voting and judging need an account.
+  if (location.hash.startsWith("#/contest")) {
+    show("contest");
+    renderContestRoute();
     return;
   }
   // Direct messages: signed-in accounts only.
@@ -886,6 +896,7 @@ const isAdmin = () => state.profile?.role === "admin";
 const isMod = () => state.profile?.role === "moderator";
 const isStaff = () => isAdmin() || isMod();
 const isStaffRole = (u) => u?.role === "admin" || u?.role === "moderator";
+const isJury = () => state.profile?.role === "jury" && state.profile?.status === "approved";
 // Two account types: RCMI members, and general users (non-members). Older accounts without the field are members.
 const isGeneral = () => state.profile?.accountType === "general";
 // Seller contact for the market, readable by any approved account (members and general users).
@@ -3388,12 +3399,13 @@ async function loadAdmin() {
     $("#admin-general").innerHTML = generals.length ? generals.map(u => `
       <div class="row">
         <img src="${esc(u.photoURL)}" alt="" referrerpolicy="no-referrer">
-        <div class="grow"><strong>${esc(u.displayName)}</strong><span class="type-tag general">${t("type_general")}</span>${u.role === "moderator" ? `<span class="type-tag">${t("role_mod")}</span>` : ""}
+        <div class="grow"><strong>${esc(u.displayName)}</strong><span class="type-tag general">${t("type_general")}</span>${u.role === "moderator" ? `<span class="type-tag">${t("role_mod")}</span>` : ""}${u.role === "jury" ? `<span class="type-tag jury">${t("role_jury")}</span>` : ""}
           <small>${esc(u.city)}${u.instagram ? " · @" + esc(u.instagram) : ""}${u.email ? " · " + esc(u.email) : ""}${u.whatsapp ? " · " + esc(u.whatsapp) : ""}</small>
           ${since(u) ? `<small>${t("registered_on", { date: since(u) })}</small>` : ""}</div>
         <div class="actions">
           ${waNumber(u.whatsapp) ? `<a class="btn btn-sm btn-ghost" target="_blank" rel="noopener" href="https://wa.me/${waNumber(u.whatsapp)}">WhatsApp</a>` : ""}
           ${u.role !== "admin" ? `<button class="btn btn-sm btn-ghost" data-mkmod="${esc(u.id)}" data-on="${u.role === "moderator" ? 0 : 1}">${t(u.role === "moderator" ? "remove_mod" : "make_mod")}</button>` : ""}
+          ${u.role !== "admin" ? `<button class="btn btn-sm btn-ghost" data-mkjury="${esc(u.id)}" data-on="${u.role === "jury" ? 0 : 1}">${t(u.role === "jury" ? "remove_jury" : "make_jury")}</button>` : ""}
           ${u.role !== "admin" ? `<button class="btn btn-sm btn-ghost" data-mkadmin="${esc(u.id)}">${t("make_admin")}</button>` : ""}
           ${u.role !== "admin" ? `<button class="btn btn-sm btn-danger" data-deactivate="${esc(u.id)}">${t("deactivate")}</button>` : ""}
         </div>
@@ -3415,8 +3427,8 @@ async function loadAdmin() {
       <div class="row">
         <img src="${esc(u.photoURL)}" alt="" referrerpolicy="no-referrer">
         <div class="grow"><strong>${u.accountType === "general" ? "" : memberNo(u.memberNo) + " · "}${esc(u.displayName)}</strong>${u.accountType === "general" ? `<span class="type-tag general">${t("type_general")}</span>` : ""}
-          <small>${esc(u.city)} · ${u.instagram ? "@" + esc(u.instagram) : ""}${u.role === "admin" ? " · admin" : u.role === "moderator" ? " · " + t("role_mod") : ""}</small></div>
-        ${u.role !== "admin" ? `<div class="actions"><button class="btn btn-sm btn-ghost" data-mkmod="${esc(u.id)}" data-on="${u.role === "moderator" ? 0 : 1}">${t(u.role === "moderator" ? "remove_mod" : "make_mod")}</button><button class="btn btn-sm btn-ghost" data-mkadmin="${esc(u.id)}">${t("make_admin")}</button></div>` : ""}
+          <small>${esc(u.city)} · ${u.instagram ? "@" + esc(u.instagram) : ""}${u.role === "admin" ? " · admin" : u.role === "moderator" ? " · " + t("role_mod") : u.role === "jury" ? " · " + t("role_jury") : ""}</small></div>
+        ${u.role !== "admin" ? `<div class="actions"><button class="btn btn-sm btn-ghost" data-mkmod="${esc(u.id)}" data-on="${u.role === "moderator" ? 0 : 1}">${t(u.role === "moderator" ? "remove_mod" : "make_mod")}</button><button class="btn btn-sm btn-ghost" data-mkjury="${esc(u.id)}" data-on="${u.role === "jury" ? 0 : 1}">${t(u.role === "jury" ? "remove_jury" : "make_jury")}</button><button class="btn btn-sm btn-ghost" data-mkadmin="${esc(u.id)}">${t("make_admin")}</button></div>` : ""}
       </div>`).join("");
     $("#admin-import").innerHTML = `
       <details class="panel-flat dues-settings" ${state.roster?.some(r => r.id === "m001") ? "" : "open"}>
@@ -4023,6 +4035,13 @@ $("#view-admin").addEventListener("click", async (e) => {
       await updateDoc(doc(db, "users", mm.dataset.mkmod), { role: on ? "moderator" : "member" });
       toast(t("saved")); state.roster = null; loadAdmin();
     }
+    const mj = e.target.closest("[data-mkjury]");
+    if (mj && isAdmin()) {
+      const on = mj.dataset.on === "1", u = state.siteUsers[mj.dataset.mkjury];
+      if (!confirm(t(on ? "make_jury_confirm" : "remove_jury_confirm", { name: u?.displayName || "" }))) return;
+      await updateDoc(doc(db, "users", mj.dataset.mkjury), { role: on ? "jury" : "member" });
+      toast(t("saved")); state.roster = null; loadAdmin();
+    }
   } catch (err) { fail(err); }
 });
 
@@ -4165,3 +4184,460 @@ document.addEventListener("click", (e) => {
   if (location.hash === "#/market") renderListings();
 });
 $("#btn-install-3")?.addEventListener("click", () => installApp());
+
+
+/* ================= Photo contests =================
+   contests/{id}: title, theme, desc, prizes, rules, submitEnd, voteEnd, announceAt, judges[], juryWeight, status, public, winners[]
+   Flow: admin creates (draft) → publishes: registration open (account needed; register, then submit 1 photo)
+   → voting (everyone signed in: 1 vote; jury scores blind on 4 criteria) → judging (jury only) → admin announces winners. */
+const CT_STEPS = ["open", "voting", "judging", "closed"];
+const CT_CRIT = ["comp", "creat", "theme", "quality"];
+const ct = { list: null, cur: null, entries: [], myEntry: null, myVote: null, myScores: {}, allScores: null, allVotes: null, jurors: null, tok: 0 };
+const br = (x) => esc(x).replace(/\n/g, "<br>");
+const ctWhen = (ts) => toDate(ts) ? `${fmtDate(ts, { day: "numeric", month: "short", year: "numeric" })}, ${toDate(ts).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" })}` : "";
+const ctOk = (e) => !!e.photo && (e.status || "ok") === "ok";
+function contestNoticeText(n) {
+  const title = `<strong>${esc(n.title)}</strong>`;
+  if (n.kind === "contest_win") return t("nt_contest_win", { n: esc(n.note), title });
+  if (n.kind === "contest_disq") return t("nt_contest_disq", { title }) + (n.note ? `<em class="bell-note">${t("mod_reason")}: ${esc(n.note)}</em>` : "");
+  return t(n.kind === "contest_voting" ? "nt_contest_voting" : "nt_contest_result", { title });
+}
+async function loadContests() {
+  const q = isAdmin() ? collection(db, "contests") : query(collection(db, "contests"), where("public", "==", true));
+  const s = await getDocs(q);
+  ct.list = s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => ms(b.createdAt) - ms(a.createdAt));
+  return ct.list;
+}
+async function renderContestRoute() {
+  const root = $("#contest-root"); if (!root) return;
+  const id = decodeURIComponent(location.hash.replace(/^#\/contest\/?/, "").split("/")[0] || "");
+  const tok = ++ct.tok;
+  root.innerHTML = `<p class="muted ct-loading">…</p>`;
+  if (id) return openContest(id, tok);
+  try { await loadContests(); } catch (e) { ct.list = []; }
+  if (tok !== ct.tok) return;
+  root.innerHTML = `
+    <div class="ct-top">
+      <div><h1>${t("ct_title")}</h1><p class="muted">${t("ct_lead")}</p></div>
+      ${isAdmin() ? `<button type="button" class="btn btn-mat" data-ct="new">＋ ${t("ct_new")}</button>` : ""}
+    </div>
+    ${ct.list.some(c => c.status !== "draft") ? "" : `<div class="ct-soon">
+      <span class="ct-badge ph-open">${t("ct_soon_badge")}</span>
+      <h2>📸 ${t("ct_soon_t")}</h2><p>${t("ct_soon_d")}</p>
+      <dl><dt>${t("ct_step_open")}</dt><dd>${t("ct_soon_badge")}</dd><dt>${t("ct_step_voting")}</dt><dd>${t("ct_soon_badge")}</dd><dt>${t("ct_step_closed")}</dt><dd>${t("ct_soon_badge")}</dd><dt>${t("ct_participants")}</dt><dd>${t("ct_max_n", { n: 100 })}</dd><dt>${t("ct_winners")}</dt><dd>🥇 🥈 🥉</dd></dl>
+      ${state.user ? "" : `<button type="button" class="btn btn-mat" data-ct="signin">${t("ct_soon_cta")}</button>`}
+    </div>`}
+    <div class="ct-list">${ct.list.length ? ct.list.map(c => `
+      <a class="ct-item" href="#/contest/${encodeURIComponent(c.id)}">
+        <span class="ct-item-cover">${c.winners?.[0]?.photo ? `<img src="${photoSrc(c.winners[0].photo)}" alt="" loading="lazy">` : `<span>📸</span>`}</span>
+        <span class="ct-item-body">
+          <span class="ct-badge ph-${esc(c.status)}">${t("ct_ph_" + c.status)}</span>
+          <b>${esc(c.title)}</b>
+          ${c.theme ? `<small>${t("ct_theme")}: ${esc(c.theme)}</small>` : ""}
+          <small class="muted">${c.status === "open" ? `${c.registered || 0} / ${c.maxEntries || 100} ${t("ct_spots")}${c.submitEnd ? " · " + t("ct_until", { d: ctWhen(c.submitEnd) }) : ""}` : c.status === "voting" && c.voteEnd ? t("ct_vote_until", { d: ctWhen(c.voteEnd) }) : c.status === "closed" && c.winners?.[0] ? `🏆 ${esc(c.winners[0].name)}` : ""}</small>
+        </span>
+      </a>`).join("") : (ct.list.some(c => c.status !== "draft") ? `<p class="empty">${t("ct_none")}</p>` : "")}</div>`;
+}
+async function openContest(id, tok) {
+  let snap = null;
+  try { snap = await getDoc(doc(db, "contests", id)); } catch (e) {}
+  if (tok !== ct.tok) return;
+  if (!snap?.exists()) { $("#contest-root").innerHTML = `<a class="btn btn-ghost" href="#/contest">← ${t("ct_all")}</a><p class="empty">${t("not_found")}</p>`; return; }
+  const c = ct.cur = { id, ...snap.data() };
+  const uid = state.user?.uid;
+  Object.assign(ct, { entries: [], myEntry: null, myVote: null, myScores: {}, allScores: null, allVotes: null });
+  const jobs = [];
+  if (uid) jobs.push(getDoc(doc(db, "contests", id, "entries", uid)).then(s => { ct.myEntry = s.exists() ? { id: s.id, ...s.data() } : null; }).catch(() => {}));
+  if (c.status !== "open" || isAdmin()) jobs.push(getDocs(collection(db, "contests", id, "entries")).then(s => { ct.entries = s.docs.map(d => ({ id: d.id, ...d.data() })); }).catch(() => {}));
+  if (uid && c.status === "voting") jobs.push(getDoc(doc(db, "contests", id, "votes", uid)).then(s => { ct.myVote = s.exists() ? s.data().entry : null; }).catch(() => {}));
+  if (uid && (c.judges || []).includes(uid)) jobs.push(getDocs(query(collection(db, "contests", id, "scores"), where("judge", "==", uid))).then(s => { s.docs.forEach(d => { ct.myScores[d.data().entry] = d.data(); }); }).catch(() => {}));
+  if (isAdmin() && c.status !== "draft") jobs.push(Promise.all([getDocs(collection(db, "contests", id, "scores")), getDocs(collection(db, "contests", id, "votes"))])
+    .then(([a, b]) => { ct.allScores = a.docs.map(d => d.data()); ct.allVotes = b.docs.map(d => ({ id: d.id, ...d.data() })); }).catch(() => {}));
+  if (isAdmin()) jobs.push(loadJurors());
+  await Promise.all(jobs);
+  if (tok !== ct.tok) return;
+  paintContest();
+}
+async function loadJurors() {
+  if (ct.jurors) return ct.jurors;
+  try { const s = await getDocs(query(collection(db, "users"), where("role", "==", "jury"))); ct.jurors = s.docs.map(d => ({ id: d.id, ...d.data() })); }
+  catch (e) { ct.jurors = []; }
+  return ct.jurors;
+}
+function entryCard(e, extra = "") {
+  return `<figure class="ct-card ${ct.myVote === e.id ? "voted" : ""}">
+    <button type="button" class="ct-ph" data-ct-view="${esc(e.id)}"><img src="${photoSrc(e.photo)}" alt="${esc(e.title)}" loading="lazy">${e.rank ? `<span class="ct-rank r${e.rank}">#${e.rank}</span>` : ""}</button>
+    <figcaption><b>${esc(e.title || "—")}</b>${ct.cur.status === "voting" || ct.cur.status === "judging" ? "" : `<span>${esc(e.name || "")}</span>`}${extra}</figcaption>
+  </figure>`;
+}
+// Stable but mixed order for voting, so the first entries aren't always the earliest.
+const ctShuffle = (list) => [...list].sort((a, b) => ((parseInt(a.id.slice(-6), 36) * 7919) % 1000) - ((parseInt(b.id.slice(-6), 36) * 7919) % 1000));
+function paintContest() {
+  const c = ct.cur, uid = state.user?.uid, root = $("#contest-root");
+  const isJudge = !!uid && (c.judges || []).includes(uid) && isJury();
+  const jw = c.juryWeight ?? 70;
+  const si = CT_STEPS.indexOf(c.status);
+  const dateFor = (p) => {
+    const d = { open: c.submitEnd, voting: c.voteEnd, judging: c.announceAt, closed: c.announcedAt || c.announceAt }[p];
+    return d ? `<small>${ctWhen(d)}</small>` : "";
+  };
+  root.innerHTML = `
+    <a class="btn btn-ghost ct-back" href="#/contest">← ${t("ct_all")}</a>
+    <header class="ct-head">
+      <span class="ct-badge ph-${esc(c.status)}">${t("ct_ph_" + c.status)}</span>
+      <h1>${esc(c.title)}</h1>
+      ${c.theme ? `<p class="ct-theme">${t("ct_theme")}: <b>${esc(c.theme)}</b></p>` : ""}
+      ${c.desc ? `<p class="ct-desc">${br(c.desc)}</p>` : ""}
+    </header>
+    <ol class="ct-steps">${CT_STEPS.map((p, i) => `<li class="${i < si ? "done" : i === si ? "on" : ""}"><b>${i < si ? "✓" : i + 1}</b><span>${t("ct_step_" + p)}</span>${dateFor(p)}</li>`).join("")}</ol>
+    <div class="ct-info">
+      ${c.prizes ? `<details open><summary>🏆 ${t("ct_prizes")}</summary><p>${br(c.prizes)}</p></details>` : ""}
+      ${c.rules ? `<details><summary>📋 ${t("ct_rules")}</summary><p>${br(c.rules)}</p></details>` : ""}
+      <details><summary>⚖️ ${t("ct_how")}</summary><p>${t("ct_how_d", { j: jw, v: 100 - jw })}</p></details>
+    </div>
+    <div id="ct-main">${ctMainHTML(c)}</div>
+    ${isJudge ? `<section class="ct-jury panel-flat" id="ct-jury">${juryHTML(c)}</section>` : ""}
+    ${isAdmin() ? `<section class="ct-admin panel-flat" id="ct-admin">${adminContestHTML(c)}</section>` : ""}`;
+}
+function ctMainHTML(c) {
+  const uid = state.user?.uid, me = ct.myEntry, ok = ct.entries.filter(ctOk);
+  if (c.status === "draft") return `<p class="mod-note">📝 ${t("ct_draft_note")}</p>`;
+  if (c.status === "open") {
+    let box;
+    if (!uid) box = `<p>${t("ct_need_account")}</p><button type="button" class="btn btn-mat" data-ct="signin">${t("sign_in")}</button>`;
+    else if (state.profile?.status !== "approved") box = `<p>${t("ct_need_active")}</p>`;
+    else if (isJury() || (c.judges || []).includes(uid)) box = `<p>⚖️ ${t("ct_jury_cant")}</p>`;
+    else if (!me && (c.registered || 0) >= (c.maxEntries || 100)) box = `<h3>🚫 ${t("ct_full")}</h3><p class="muted">${t("ct_full_d")}</p>`;
+    else if (!me) box = `
+      <h3>${t("ct_reg_t")}</h3>
+      <p class="muted">${t("ct_reg_d", { type: t(isGeneral() ? "type_general" : "type_member") })}</p>
+      <label class="lay-check"><input type="checkbox" id="ct-agree"> <span>${t("ct_agree")}</span></label>
+      <button type="button" class="btn btn-mat" data-ct="register">${t("ct_register")}</button>`;
+    else if (!me.photo || state.ctEditing) box = `
+      <h3>${me.photo ? t("ct_change_photo") : `✅ ${t("ct_registered")}`}</h3>
+      <p class="muted">${t("ct_submit_d", { d: c.submitEnd ? ctWhen(c.submitEnd) : t("ct_before_close") })}</p>
+      <form class="form" id="f-ct-entry">
+        <label><span>${t("ct_photo")} *</span><input type="file" name="photo" accept="image/*" ${me.photo ? "" : "required"}></label>
+        <div class="thumbs"></div>
+        <label><span>${t("ct_entry_title")} *</span><input name="title" required maxlength="80" value="${esc(me.title || "")}"></label>
+        <label><span>${t("ct_caption")}</span><textarea name="caption" rows="2" maxlength="500">${esc(me.caption || "")}</textarea></label>
+        <div class="form-actions">
+          ${me.photo ? `<button type="button" class="btn btn-ghost" data-ct="cancel-edit">${t("cancel")}</button>` : `<button type="button" class="btn btn-ghost" data-ct="withdraw">${t("ct_unregister")}</button>`}
+          <button class="btn btn-mat" type="submit">${t("ct_submit")}</button>
+        </div>
+      </form>`;
+    else box = `
+      <h3>✅ ${t("ct_submitted")}</h3>
+      <div class="ct-grid one">${entryCard(me)}</div>
+      <p class="muted">${t("ct_submitted_d")}</p>
+      <div class="form-actions"><button type="button" class="btn btn-ghost" data-ct="edit">${t("ct_change_photo")}</button><button type="button" class="btn btn-ghost" data-ct="withdraw">${t("ct_withdraw")}</button></div>`;
+    const max = c.maxEntries || 100, taken = Math.min(max, c.registered || 0);
+    return `<div class="ct-spots"><div><b>${taken}</b> / ${max} ${t("ct_spots")}</div><span><i style="width:${Math.round(taken / max * 100)}%"></i></span><small>${t("ct_spots_left", { n: max - taken })}</small></div>
+      <section class="ct-box panel-flat">${box}</section>`;
+  }
+  if (c.status === "voting" || c.status === "judging") {
+    const voting = c.status === "voting";
+    const list = ctShuffle(ok);
+    return `
+      <div class="ct-gallery-head"><h2>${t("ct_entries")} <small>(${ok.length})</small></h2>
+        <p class="muted">${voting ? (uid ? t(ct.myVote ? "ct_voted_d" : "ct_vote_d") : t("ct_vote_signin")) : t("ct_judging_d")}</p></div>
+      ${me && me.status === "disq" ? `<p class="mod-note">🚫 ${t("ct_disq_mine")}${me.disqReason ? `<br><strong>${t("mod_reason")}:</strong> ${esc(me.disqReason)}` : ""}</p>` : ""}
+      <div class="ct-grid">${list.map(e => entryCard(e, voting ? (e.id === uid ? `<em class="ct-mine">${t("ct_yours")}</em>`
+        : `<button type="button" class="ct-vote ${ct.myVote === e.id ? "on" : ""}" data-ct-vote="${esc(e.id)}">${ct.myVote === e.id ? `★ ${t("ct_your_vote")}` : `☆ ${t("ct_vote")}`}</button>`) : "")).join("") || `<p class="empty">${t("ct_no_entries")}</p>`}</div>`;
+  }
+  // closed: winners podium + full ranking
+  const ranked = ok.filter(e => e.rank).sort((a, b) => a.rank - b.rank);
+  const winners = c.winners || [];
+  return `
+    <section class="ct-winners">
+      <h2>🏆 ${t("ct_winners")}</h2>
+      ${c.announcedAt ? `<p class="muted">${t("ct_announced", { d: ctWhen(c.announcedAt) })}</p>` : ""}
+      <div class="podium">${winners.map(w => `
+        <figure class="pod r${w.rank}">
+          <button type="button" class="ct-ph" data-ct-view="${esc(w.uid)}"><img src="${photoSrc(w.photo)}" alt="" loading="lazy"><span class="ct-rank r${w.rank}">${w.rank === 1 ? "🥇" : w.rank === 2 ? "🥈" : w.rank === 3 ? "🥉" : "#" + w.rank}</span></button>
+          <figcaption><b>${esc(w.title)}</b><span>${esc(w.name)}</span><small>${t("ct_final", { s: Number(w.final || 0).toFixed(1) })}</small></figcaption>
+        </figure>`).join("")}</div>
+    </section>
+    ${ranked.length ? `<h2 class="ct-sub">${t("ct_ranking")}</h2>
+    <div class="ct-grid">${ranked.map(e => entryCard(e, `<small>${t("ct_score_line", { s: Number(e.final || 0).toFixed(1), j: Number(e.jury || 0).toFixed(2), v: e.votes || 0 })}</small>`)).join("")}</div>` : ""}`;
+}
+function juryHTML(c) {
+  if (!["voting", "judging"].includes(c.status)) return `<h2>⚖️ ${t("ct_jury_t")}</h2><p class="muted">${t(c.status === "closed" ? "ct_jury_done" : "ct_jury_wait")}</p>`;
+  const list = ct.entries.filter(ctOk).sort((a, b) => a.id.localeCompare(b.id));
+  const done = list.filter(e => ct.myScores[e.id]).length;
+  return `<h2>⚖️ ${t("ct_jury_t")}</h2>
+    <p class="muted">${t("ct_jury_d")}</p>
+    <p class="ct-progress"><b>${done}/${list.length}</b> ${t("ct_scored")}</p>
+    <div class="jury-list">${list.map((e, i) => {
+      const sc = ct.myScores[e.id];
+      return `<form class="jury-row ${sc ? "done" : ""}" data-score="${esc(e.id)}">
+        <button type="button" class="ct-ph" data-ct-view="${esc(e.id)}"><img src="${photoSrc(e.photo)}" alt="" loading="lazy"></button>
+        <div class="jury-f">
+          <b>${t("ct_entry_n", { n: i + 1 })} · ${esc(e.title)}</b>
+          ${CT_CRIT.map(k => `<label class="jury-c"><span>${t("ct_c_" + k)}</span><input type="range" name="${k}" min="1" max="10" step="1" value="${sc?.crit?.[k] || 5}"><output>${sc?.crit?.[k] || 5}</output></label>`).join("")}
+          <input name="note" maxlength="500" placeholder="${esc(t("ct_note_ph"))}" value="${esc(sc?.note || "")}">
+          <div class="jury-save"><span class="ct-total">${sc ? `✓ ${Number(sc.total).toFixed(2)}` : ""}</span><button class="btn btn-sm btn-mat" type="submit">${t(sc ? "ct_update" : "save")}</button></div>
+        </div>
+      </form>`; }).join("") || `<p class="muted">${t("ct_no_entries")}</p>`}</div>`;
+}
+function ctResults() {
+  const c = ct.cur, w = (c.juryWeight ?? 70) / 100;
+  const votes = {}; (ct.allVotes || []).forEach(v => { votes[v.entry] = (votes[v.entry] || 0) + 1; });
+  const maxV = Math.max(0, ...Object.values(votes));
+  return ct.entries.filter(ctOk).map(e => {
+    const sc = (ct.allScores || []).filter(s => s.entry === e.id);
+    const jury = sc.length ? sc.reduce((a, s) => a + Number(s.total || 0), 0) / sc.length : 0;
+    const v = votes[e.id] || 0;
+    return { e, jury, nScores: sc.length, votes: v, final: w * jury * 10 + (1 - w) * (maxV ? v / maxV * 100 : 0) };
+  }).sort((a, b) => b.final - a.final || b.jury - a.jury || b.votes - a.votes);
+}
+function adminContestHTML(c) {
+  const next = { draft: ["open", "ct_go_open"], open: ["voting", "ct_go_voting"], voting: ["judging", "ct_go_judging"], judging: ["announce", "ct_go_announce"] }[c.status];
+  const judges = (c.judges || []).map(id => (ct.jurors || []).find(j => j.id === id) || { id, displayName: id });
+  const ok = ct.entries.filter(ctOk), res = c.status === "draft" || c.status === "open" ? [] : ctResults();
+  return `<h2>🛠 ${t("ct_admin")}</h2>
+    <div class="form-actions ct-admin-actions">
+      ${next ? `<button type="button" class="btn btn-mat" data-ct-phase="${next[0]}">${t(next[1])}</button>` : ""}
+      <button type="button" class="btn btn-ghost" data-ct="edit-contest">${t("ct_edit")}</button>
+      <button type="button" class="btn btn-danger" data-ct="delete-contest">${t("delete")}</button>
+    </div>
+    <h3>${t("ct_jury_panel")} <small>(${judges.length})</small></h3>
+    ${judges.length ? `<ul class="ct-judges">${judges.map(j => `<li>${esc(j.displayName)} <small class="muted">${(ct.allScores || []).filter(s => s.judge === j.id).length}/${ok.length} ${t("ct_scored")}</small></li>`).join("")}</ul>` : `<p class="mod-note">${t("ct_no_judges")}</p>`}
+    <h3>${t("ct_participants")} <small>(${ct.entries.length} ${t("ct_registered_n")}, ${ct.entries.filter(e => e.photo).length} ${t("ct_with_photo")})</small></h3>
+    <div class="ct-admin-list">${ct.entries.map(e => `
+      <div class="row">
+        ${e.photo ? `<img src="${photoSrc(e.photo)}" alt="" data-ct-view="${esc(e.id)}">` : `<span class="ct-nophoto">—</span>`}
+        <div class="grow"><strong>${esc(e.name)}</strong>${e.status === "disq" ? `<span class="type-tag">${t("ct_disq")}</span>` : ""}<small>${esc(e.title || t("ct_no_photo_yet"))}</small></div>
+        <div class="actions">${e.status === "disq" ? `<button class="btn btn-sm btn-ghost" data-ct-reinstate="${esc(e.id)}">${t("ct_reinstate")}</button>` : `<button class="btn btn-sm btn-ghost" data-ct-disq="${esc(e.id)}">${t("ct_disqualify")}</button>`}</div>
+      </div>`).join("") || `<p class="muted">${t("ct_no_regs")}</p>`}</div>
+    ${res.length ? `<h3>${t("ct_results_live")}</h3>
+    <div class="table-wrap"><table class="ct-table"><thead><tr><th>#</th><th>${t("ct_entry_title")}</th><th>${t("ct_jury_avg")}</th><th>${t("ct_votes")}</th><th>${t("ct_final_h")}</th></tr></thead>
+      <tbody>${res.map((r, i) => `<tr><td>${i + 1}</td><td>${esc(r.e.title)}<small> · ${esc(r.e.name)}</small></td><td>${r.jury.toFixed(2)} <small>(${r.nScores})</small></td><td>${r.votes}</td><td><b>${r.final.toFixed(1)}</b></td></tr>`).join("")}</tbody></table></div>` : ""}`;
+}
+function toTs(v) { return v ? Timestamp.fromDate(new Date(v)) : null; }
+function tsInput(ts) { const d = toDate(ts); if (!d) return ""; const z = new Date(d.getTime() - d.getTimezoneOffset() * 6e4); return z.toISOString().slice(0, 16); }
+async function openContestForm(c = null) {
+  const jurors = await loadJurors();
+  const chosen = new Set(c ? c.judges || [] : jurors.map(j => j.id));
+  openModal(`
+    <h2>${t(c ? "ct_edit" : "ct_new")}</h2>
+    <form class="form" id="f-contest">
+      <label><span>${t("ct_f_title")} *</span><input name="title" required maxlength="100" value="${esc(c?.title || "")}" placeholder="RCMI Photo Contest #1"></label>
+      <label><span>${t("ct_theme")}</span><input name="theme" maxlength="100" value="${esc(c?.theme || "")}" placeholder="JDM legends on the street"></label>
+      <label><span>${t("ct_f_desc")}</span><textarea name="desc" rows="3" maxlength="1500">${esc(c?.desc || "")}</textarea></label>
+      <label><span>${t("ct_prizes")}</span><textarea name="prizes" rows="3" maxlength="1000" placeholder="1st: …&#10;2nd: …&#10;3rd: …">${esc(c?.prizes || "")}</textarea></label>
+      <label><span>${t("ct_rules")}</span><textarea name="rules" rows="4" maxlength="3000">${esc(c?.rules || t("ct_rules_default"))}</textarea></label>
+      <div class="row2">
+        <label><span>${t("ct_f_submit_end")}</span><input type="datetime-local" name="submitEnd" value="${tsInput(c?.submitEnd)}"></label>
+        <label><span>${t("ct_f_vote_end")}</span><input type="datetime-local" name="voteEnd" value="${tsInput(c?.voteEnd)}"></label>
+      </div>
+      <div class="row2">
+        <label><span>${t("ct_f_announce")}</span><input type="datetime-local" name="announceAt" value="${tsInput(c?.announceAt)}"></label>
+        <label><span>${t("ct_f_weight")}</span><input type="number" name="juryWeight" min="0" max="100" step="5" value="${c?.juryWeight ?? 70}"></label>
+      </div>
+      <label><span>${t("ct_f_max")}</span><input type="number" name="maxEntries" min="1" max="1000" step="1" value="${c?.maxEntries ?? 100}"></label>
+      <fieldset class="ct-pick"><legend>${t("ct_jury_panel")}</legend>
+        ${jurors.length ? jurors.map(j => `<label class="lay-check"><input type="checkbox" name="judge" value="${esc(j.id)}" ${chosen.has(j.id) ? "checked" : ""}> ${esc(j.displayName)}</label>`).join("") : `<p class="muted">${t("ct_no_jurors")}</p>`}
+      </fieldset>
+      <div class="form-actions"><button type="button" class="btn btn-ghost" data-act="close">${t("cancel")}</button><button class="btn btn-mat" type="submit">${t("save")}</button></div>
+    </form>`);
+  $("#modal-body").onclick = (ev) => { if (ev.target.dataset.act === "close") closeModal(); };
+  const f = $("#f-contest");
+  f.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const btn = f.querySelector("[type=submit]"); btn.disabled = true;
+    const data = {
+      title: f.title.value.trim(), theme: f.theme.value.trim(), desc: f.desc.value.trim(), prizes: f.prizes.value.trim(), rules: f.rules.value.trim(),
+      submitEnd: toTs(f.submitEnd.value), voteEnd: toTs(f.voteEnd.value), announceAt: toTs(f.announceAt.value),
+      juryWeight: Math.max(0, Math.min(100, Number(f.juryWeight.value) || 0)), maxEntries: Math.max(1, Math.min(1000, parseInt(f.maxEntries.value, 10) || 100)), judges: [...f.querySelectorAll("[name=judge]:checked")].map(x => x.value)
+    };
+    try {
+      if (c) { await updateDoc(doc(db, "contests", c.id), data); closeModal(); toast(t("saved")); renderContestRoute(); }
+      else { const r = await addDoc(collection(db, "contests"), { ...data, status: "draft", public: false, registered: 0, winners: [], createdAt: serverTimestamp(), createdBy: state.user.uid }); closeModal(); toast(t("saved")); location.hash = `#/contest/${r.id}`; }
+    } catch (err) { fail(err); btn.disabled = false; }
+  });
+}
+async function noticeAll(c, uids, kind, note = "") {
+  for (let i = 0; i < uids.length; i += 400) {
+    const b = writeBatch(db);
+    uids.slice(i, i + 400).forEach(u => b.set(doc(collection(db, "notices")), { uid: u, kind, target: "contest", postId: c.id, title: String(c.title).slice(0, 100), note: String(note).slice(0, 300), at: serverTimestamp(), read: false }));
+    await b.commit();
+  }
+}
+async function setContestPhase(to) {
+  const c = ct.cur;
+  if (to === "announce") return openAnnounce();
+  if (to === "voting" && !(c.judges || []).length && !confirm(t("ct_no_judges_confirm"))) return;
+  if (!confirm(t("ct_phase_confirm", { p: t("ct_ph_" + to) }))) return;
+  try {
+    await updateDoc(doc(db, "contests", c.id), { status: to, public: true, [`${to}At`]: serverTimestamp() });
+    if (to === "voting") await noticeAll(c, ct.entries.filter(ctOk).map(e => e.id), "contest_voting");
+    toast(t("saved")); renderContestRoute();
+  } catch (err) { fail(err); }
+}
+function openAnnounce() {
+  const res = ctResults();
+  if (!res.length) { toast(t("ct_no_entries")); return; }
+  openModal(`
+    <h2>🏆 ${t("ct_go_announce")}</h2>
+    <p class="muted">${t("ct_announce_d", { j: ct.cur.juryWeight ?? 70 })}</p>
+    <p><b>${t("ct_three_winners")}</b></p>
+    <ol class="ct-preview">${res.slice(0, 5).map(r => `<li><b>${esc(r.e.title)}</b> · ${esc(r.e.name)} — ${r.final.toFixed(1)}</li>`).join("")}</ol>
+    <div class="form-actions"><button type="button" class="btn btn-ghost" data-act="close">${t("cancel")}</button><button type="button" class="btn btn-mat" data-act="go">${t("ct_announce_btn")}</button></div>`);
+  $("#modal-body").onclick = async (ev) => {
+    const act = ev.target.dataset.act;
+    if (act === "close") { closeModal(); return; }
+    if (act !== "go") return;
+    ev.target.disabled = true;
+    const c = ct.cur, n = 3;   // always 3 winners: 1st, 2nd, 3rd
+    try {
+      const b = writeBatch(db);
+      res.forEach((r, i) => b.update(doc(db, "contests", c.id, "entries", r.e.id), { votes: r.votes, jury: Math.round(r.jury * 100) / 100, final: Math.round(r.final * 10) / 10, rank: i + 1 }));
+      const winners = res.slice(0, n).map((r, i) => ({ uid: r.e.id, rank: i + 1, name: r.e.name, title: r.e.title, photo: r.e.photo, final: Math.round(r.final * 10) / 10 }));
+      b.update(doc(db, "contests", c.id), { status: "closed", public: true, winners, announcedAt: serverTimestamp() });
+      await b.commit();
+      const winIds = new Set(winners.map(w => w.uid));
+      for (const w of winners) await noticeAll(c, [w.uid], "contest_win", String(w.rank));
+      await noticeAll(c, res.map(r => r.e.id).filter(u => !winIds.has(u)), "contest_result");
+      closeModal(); toast(t("ct_announced_done")); renderContestRoute();
+    } catch (err) { fail(err); ev.target.disabled = false; }
+  };
+}
+function viewEntry(id) {
+  const e = ct.entries.find(x => x.id === id) || (ct.myEntry?.id === id ? ct.myEntry : null) || (ct.cur?.winners || []).map(w => ({ id: w.uid, ...w })).find(x => x.id === id);
+  if (!e) return;
+  const anon = ["voting", "judging"].includes(ct.cur?.status) && !isAdmin();
+  openModal(`<img class="ct-big" src="${photoSrc(e.photo)}" alt="">
+    <h2>${esc(e.title || "")}</h2>${!anon && e.name ? `<p class="muted">${esc(e.name)}</p>` : ""}${e.caption ? `<p>${br(e.caption)}</p>` : ""}
+    <div class="form-actions"><button type="button" class="btn btn-ghost" data-act="close">${t("close")}</button></div>`);
+  $("#modal-body").onclick = (ev) => { if (ev.target.dataset.act === "close") closeModal(); };
+}
+$("#contest-root").addEventListener("change", (e) => {
+  if (e.target.matches("#f-ct-entry [name=photo]")) {
+    const box = $("#f-ct-entry .thumbs"); box.innerHTML = "";
+    const fl = e.target.files[0]; if (fl) { const i = document.createElement("img"); i.alt = ""; i.src = URL.createObjectURL(fl); box.appendChild(i); }
+  }
+});
+$("#contest-root").addEventListener("input", (e) => {
+  if (e.target.matches(".jury-c input")) e.target.nextElementSibling.textContent = e.target.value;
+});
+$("#contest-root").addEventListener("submit", async (e) => {
+  const f = e.target; e.preventDefault();
+  const c = ct.cur, uid = state.user?.uid; if (!c || !uid) return;
+  const btn = f.querySelector("[type=submit]");
+  if (f.id === "f-ct-entry") {
+    const hasFile = f.photo.files.length > 0;
+    if (!hasFile && !ct.myEntry?.photo) { toast(t("ct_photo_needed")); return; }
+    btn.disabled = true;
+    try {
+      const photo = hasFile ? (await storePhotos(f.photo, "market", 1, 0, btn))[0] : ct.myEntry.photo;
+      await setDoc(doc(db, "contests", c.id, "entries", uid), { uid, name: String(state.profile.displayName || "").slice(0, 80), avatar: String(state.profile.photoURL || state.user.photoURL || "").slice(0, 500),
+        title: f.title.value.trim().slice(0, 80), caption: f.caption.value.trim().slice(0, 500), photo, at: serverTimestamp() });
+      state.ctEditing = false; toast(t("ct_submitted")); renderContestRoute();
+    } catch (err) { fail(err); btn.disabled = false; }
+    return;
+  }
+  if (f.matches("[data-score]")) {
+    const entry = f.dataset.score, crit = Object.fromEntries(CT_CRIT.map(k => [k, Number(f[k].value)]));
+    const total = Math.round(CT_CRIT.reduce((a, k) => a + crit[k], 0) / CT_CRIT.length * 100) / 100;
+    btn.disabled = true;
+    try {
+      const data = { judge: uid, entry, crit, total, note: f.note.value.trim().slice(0, 500), at: serverTimestamp() };
+      await setDoc(doc(db, "contests", c.id, "scores", `${uid}_${entry}`), data);
+      ct.myScores[entry] = data;
+      $("#ct-jury").innerHTML = juryHTML(c);
+      toast(t("ct_score_saved", { s: total.toFixed(2) }));
+    } catch (err) { fail(err); btn.disabled = false; }
+  }
+});
+$("#contest-root").addEventListener("click", async (e) => {
+  const v = e.target.closest("[data-ct-view]"); if (v) { viewEntry(v.dataset.ctView); return; }
+  const a = e.target.closest("[data-ct]")?.dataset.ct;
+  const c = ct.cur, uid = state.user?.uid;
+  if (a === "new") return openContestForm();
+  if (a === "signin") return openSignInChooser();
+  if (a === "edit-contest") return openContestForm(c);
+  if (a === "delete-contest") {
+    if (!confirm(t("ct_delete_confirm", { t: c.title }))) return;
+    try { await deleteDoc(doc(db, "contests", c.id)); toast(t("deleted")); location.hash = "#/contest"; } catch (err) { fail(err); }
+    return;
+  }
+  if (a === "register") {
+    if (!$("#ct-agree")?.checked) { toast(t("ct_agree_needed")); return; }
+    try {
+      await runTransaction(db, async (tx) => {
+        const cref = doc(db, "contests", c.id), cs = (await tx.get(cref)).data() || {};
+        if ((cs.registered || 0) >= (cs.maxEntries || 100)) throw Object.assign(new Error(t("ct_full")), { code: "full" });
+        tx.update(cref, { registered: (cs.registered || 0) + 1 });
+        tx.set(doc(db, "contests", c.id, "entries", uid), { uid, name: String(state.profile.displayName || "").slice(0, 80), avatar: String(state.profile.photoURL || state.user.photoURL || "").slice(0, 500), title: "", caption: "", photo: "", at: serverTimestamp() });
+      });
+      toast(t("ct_registered")); renderContestRoute();
+    } catch (err) { if (err.code === "full") { toast(t("ct_full")); renderContestRoute(); } else fail(err); }
+    return;
+  }
+  if (a === "edit") { state.ctEditing = true; $("#ct-main").innerHTML = ctMainHTML(c); return; }
+  if (a === "cancel-edit") { state.ctEditing = false; $("#ct-main").innerHTML = ctMainHTML(c); return; }
+  if (a === "withdraw") {
+    if (!confirm(t("ct_withdraw_confirm"))) return;
+    try {
+      await runTransaction(db, async (tx) => {
+        const cref = doc(db, "contests", c.id), cs = (await tx.get(cref)).data() || {};
+        tx.update(cref, { registered: Math.max(0, (cs.registered || 1) - 1) });
+        tx.delete(doc(db, "contests", c.id, "entries", uid));
+      });
+      toast(t("ct_withdrawn")); renderContestRoute();
+    } catch (err) { fail(err); }
+    return;
+  }
+  const vb = e.target.closest("[data-ct-vote]");
+  if (vb) {
+    if (!uid) { openSignInChooser(); return; }
+    if (state.profile?.status !== "approved") { toast(t("ct_need_active")); return; }
+    const id = vb.dataset.ctVote;
+    try {
+      if (ct.myVote === id) { await deleteDoc(doc(db, "contests", c.id, "votes", uid)); ct.myVote = null; toast(t("ct_vote_removed")); }
+      else { await setDoc(doc(db, "contests", c.id, "votes", uid), { entry: id, at: serverTimestamp() }); ct.myVote = id; toast(t("ct_vote_saved")); }
+      $("#ct-main").innerHTML = ctMainHTML(c);
+    } catch (err) { fail(err); }
+    return;
+  }
+  const ph = e.target.closest("[data-ct-phase]"); if (ph && isAdmin()) return setContestPhase(ph.dataset.ctPhase);
+  const dq = e.target.closest("[data-ct-disq]");
+  if (dq && isAdmin()) {
+    const reason = prompt(t("ct_disq_reason")); if (!reason || !reason.trim()) return;
+    try { await updateDoc(doc(db, "contests", c.id, "entries", dq.dataset.ctDisq), { status: "disq", disqReason: reason.trim().slice(0, 300) }); await noticeAll(c, [dq.dataset.ctDisq], "contest_disq", reason.trim()); toast(t("saved")); renderContestRoute(); } catch (err) { fail(err); }
+    return;
+  }
+  const rs = e.target.closest("[data-ct-reinstate]");
+  if (rs && isAdmin()) {
+    try { await updateDoc(doc(db, "contests", c.id, "entries", rs.dataset.ctReinstate), { status: "ok", disqReason: "" }); toast(t("saved")); renderContestRoute(); } catch (err) { fail(err); }
+  }
+});
+// Admin list of entries uses a plain <img data-ct-view>, outside #ct-main: handled above via closest().
+
+/* Home page card for the running (or just finished) contest. */
+async function renderHomeContest() {
+  const box = $("#home-contest"); if (!box) return;
+  let list = [];
+  try { list = (await getDocs(query(collection(db, "contests"), where("public", "==", true)))).docs.map(d => ({ id: d.id, ...d.data() })); } catch (e) {}
+  const live = list.filter(c => ["open", "voting", "judging"].includes(c.status)).sort((a, b) => ms(b.createdAt) - ms(a.createdAt))[0]
+    || list.filter(c => c.status === "closed" && Date.now() - ms(c.announcedAt) < 30 * 864e5).sort((a, b) => ms(b.announcedAt) - ms(a.announcedAt))[0];
+  // Nothing published yet: "coming soon" teaser.
+  if (!live) {
+    box.hidden = false;
+    box.innerHTML = `<a class="ct-home soon" href="#/contest">
+      <span class="ct-home-ic">📸</span>
+      <span class="ct-home-t"><small>${t("ct_soon_badge")}</small><b>${t("ct_soon_t")}</b><span>${t("ct_soon_d")}</span></span>
+      <em>${t("ct_soon_badge")}</em></a>`;
+    return;
+  }
+  const w = live.winners?.[0];
+  const line = live.status === "open" ? t("ct_home_open", { d: live.submitEnd ? ` · ${ctWhen(live.submitEnd)}` : "" })
+    : live.status === "voting" ? t("ct_home_voting") : live.status === "judging" ? t("ct_home_judging") : t("ct_home_closed", { name: esc(w?.name || "") });
+  box.hidden = false;
+  box.innerHTML = `<a class="ct-home" href="#/contest/${encodeURIComponent(live.id)}">
+    <span class="ct-home-ic">${w?.photo ? `<img src="${photoSrc(w.photo)}" alt="">` : "📸"}</span>
+    <span class="ct-home-t"><small>${t("ct_title")} · ${t("ct_ph_" + live.status)}</small><b>${esc(live.title)}</b><span>${line}</span></span>
+    <em>${t(live.status === "open" ? "ct_register" : live.status === "voting" ? "ct_vote_now" : "ct_see")}</em></a>`;
+}
+renderHomeContest();

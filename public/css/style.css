@@ -1163,3 +1163,104 @@ span.rep-badge { cursor: default; }
 .foot-ig + .foot-ig { margin-top: 8px; }
 .foot-brand .logo, .foot-ig { justify-self: start; }
 .ig-txt b { font-size: clamp(1.15rem, 1.9vw, 1.55rem); overflow-wrap: normal; word-break: normal; }
+
+/* ================= Photo contest ================= */
+.ct-sec { max-width: 1100px; margin: 0 auto; padding: 28px 20px 56px; }
+.ct-top { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+.ct-top h1, .ct-head h1 { text-transform: uppercase; font-size: clamp(2rem, 5vw, 3rem); margin: 0; }
+.ct-badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; background: var(--primer); color: var(--ink); }
+.ct-badge.ph-open { background: #E6F4EA; color: #1E7B3A; } .ct-badge.ph-voting { background: var(--yellow); color: var(--navy); }
+.ct-badge.ph-judging { background: #E7EEFB; color: #2456A6; } .ct-badge.ph-closed { background: var(--navy); color: #fff; } .ct-badge.ph-draft { background: #eee; color: #777; }
+.ct-list { display: grid; gap: 12px; }
+.ct-item { display: flex; gap: 14px; align-items: center; padding: 12px; background: var(--surface); border-radius: var(--radius-m); box-shadow: 0 0 0 1px var(--line); color: var(--ink); text-decoration: none; }
+.ct-item:hover { box-shadow: 0 0 0 2px var(--red); }
+.ct-item-cover { flex: none; width: 84px; height: 84px; border-radius: 8px; overflow: hidden; background: var(--navy); display: grid; place-items: center; font-size: 2rem; }
+.ct-item-cover img { width: 100%; height: 100%; object-fit: cover; }
+.ct-item-body { display: grid; gap: 3px; min-width: 0; }
+.ct-item-body b { font-size: 1.15rem; }
+.ct-soon { position: relative; overflow: hidden; padding: 28px; border-radius: var(--radius-m); background: var(--navy); color: #fff; margin-bottom: 16px; }
+.ct-soon::after { content: ""; position: absolute; right: -60px; top: -30px; bottom: -30px; width: 45%; background: linear-gradient(115deg, transparent 0 22%, var(--red) 22% 46%, #fff 46% 50%, var(--red) 50% 58%, transparent 58%); opacity: .9; pointer-events: none; }
+.ct-soon > * { position: relative; z-index: 1; max-width: 560px; }
+.ct-soon h2 { color: #fff; text-transform: uppercase; font-size: clamp(1.8rem, 4vw, 2.6rem); margin: 10px 0 6px; }
+.ct-soon dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; margin: 16px 0; }
+.ct-soon dt { font-weight: 700; } .ct-soon dd { margin: 0; color: var(--yellow); font-weight: 700; }
+.ct-back { margin-bottom: 12px; }
+.ct-head { display: grid; gap: 8px; justify-items: start; margin-bottom: 18px; }
+.ct-theme { margin: 0; font-size: 1.05rem; } .ct-desc { margin: 0; color: var(--muted); max-width: 70ch; }
+.ct-steps { list-style: none; padding: 0; margin: 0 0 18px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.ct-steps li { display: grid; gap: 2px; padding: 10px 12px; border-radius: var(--radius-m); background: var(--surface); box-shadow: 0 0 0 1px var(--line); font-size: .85rem; }
+.ct-steps li b { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--primer); font-size: .8rem; }
+.ct-steps li.done b { background: var(--good); color: #fff; } .ct-steps li.on { box-shadow: 0 0 0 2px var(--red); } .ct-steps li.on b { background: var(--red); color: #fff; }
+.ct-steps li span { font-weight: 700; } .ct-steps small { color: var(--muted); }
+@media (max-width: 640px) { .ct-steps { grid-template-columns: 1fr 1fr; } }
+.ct-info { display: grid; gap: 8px; margin-bottom: 18px; }
+.ct-info details { background: var(--surface); border-radius: var(--radius-m); box-shadow: 0 0 0 1px var(--line); padding: 10px 14px; }
+.ct-info summary { font-weight: 700; cursor: pointer; } .ct-info p { margin: 8px 0 2px; }
+.ct-box { display: grid; gap: 10px; } .ct-box h3 { margin: 0; }
+.ct-gallery-head h2 small, .ct-admin h3 small { font-size: .7em; color: var(--muted); font-style: normal; }
+.ct-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(220px, 46%), 1fr)); gap: 14px; }
+.ct-grid.one { grid-template-columns: minmax(0, 320px); }
+.ct-card { margin: 0; background: var(--surface); border-radius: var(--radius-m); overflow: hidden; box-shadow: 0 0 0 1px var(--line); display: flex; flex-direction: column; }
+.ct-card.voted { box-shadow: 0 0 0 3px var(--yellow); }
+.ct-ph { position: relative; display: block; width: 100%; aspect-ratio: 1; padding: 0; border: 0; background: var(--primer); cursor: zoom-in; overflow: hidden; }
+.ct-ph img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ct-card figcaption { display: grid; gap: 4px; padding: 10px 12px 12px; }
+.ct-card figcaption span, .ct-card figcaption small { color: var(--muted); font-size: .82rem; }
+.ct-vote { margin-top: 4px; border: 0; border-radius: 999px; padding: 8px 12px; font-weight: 700; cursor: pointer; background: var(--paper); color: var(--ink); box-shadow: inset 0 0 0 2px var(--line); }
+.ct-vote.on { background: var(--yellow); box-shadow: none; }
+.ct-mine { font-style: normal; font-weight: 700; color: var(--red); font-size: .85rem; }
+.ct-rank { position: absolute; top: 8px; left: 8px; min-width: 34px; height: 34px; padding: 0 6px; border-radius: 17px; display: grid; place-items: center; background: rgba(0,0,0,.7); color: #fff; font-weight: 800; font-size: 1rem; }
+.ct-winners { margin-bottom: 24px; }
+.podium { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: 16px; align-items: end; }
+.pod { margin: 0; background: var(--surface); border-radius: var(--radius-m); overflow: hidden; box-shadow: 0 0 0 1px var(--line); }
+.pod.r1 { box-shadow: 0 0 0 3px #F6C343, 0 18px 36px -20px rgba(0,0,0,.5); }
+.pod.r1 .ct-ph { aspect-ratio: 4 / 3.4; }
+.pod .ct-rank { font-size: 1.6rem; background: none; }
+.pod figcaption { display: grid; gap: 2px; padding: 12px 14px; }
+.pod figcaption b { font-family: var(--display); font-style: italic; font-size: 1.3rem; text-transform: uppercase; }
+.pod figcaption span { color: var(--muted); }
+.ct-sub { margin-top: 8px; }
+.ct-jury, .ct-admin { margin-top: 24px; display: grid; gap: 10px; }
+.ct-jury h2, .ct-admin h2 { margin: 0; }
+.ct-progress b { font-size: 1.3rem; color: var(--red); }
+.jury-list { display: grid; gap: 12px; }
+.jury-row { display: grid; grid-template-columns: 160px 1fr; gap: 14px; padding: 12px; border-radius: var(--radius-m); background: var(--paper); box-shadow: 0 0 0 1px var(--line); }
+.jury-row.done { box-shadow: 0 0 0 2px var(--good); }
+.jury-row .ct-ph { border-radius: 6px; }
+.jury-f { display: grid; gap: 6px; align-content: start; }
+.jury-c { display: grid; grid-template-columns: 120px 1fr 28px; align-items: center; gap: 8px; font-size: .88rem; }
+.jury-c input { accent-color: var(--red); }
+.jury-c output { font-weight: 800; text-align: right; }
+.jury-f > input { padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; font: inherit; }
+.jury-save { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ct-total { font-weight: 800; color: var(--good); }
+@media (max-width: 600px) { .jury-row { grid-template-columns: 1fr; } .jury-c { grid-template-columns: 100px 1fr 24px; } }
+.ct-admin-actions { justify-content: flex-start; flex-wrap: wrap; }
+.ct-judges { margin: 0; padding-left: 18px; }
+.ct-admin-list .row img { width: 48px; height: 48px; border-radius: 6px; object-fit: cover; cursor: zoom-in; }
+.ct-nophoto { width: 48px; height: 48px; border-radius: 6px; display: grid; place-items: center; background: var(--primer); color: var(--muted); }
+.ct-table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+.ct-table th, .ct-table td { padding: 8px; border-bottom: 1px solid var(--line); text-align: left; }
+.ct-table small { color: var(--muted); }
+.ct-pick { border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; display: grid; gap: 6px; }
+.ct-nwin { display: flex; gap: 10px; align-items: center; margin: 10px 0; }
+.ct-preview { padding-left: 20px; }
+.ct-big { width: 100%; max-height: 70vh; object-fit: contain; border-radius: 8px; background: #000; }
+.type-tag.jury { background: #EDE7F6; color: #5E35B1; }
+/* Home card */
+.ct-home { display: flex; align-items: center; gap: 16px; padding: 18px 22px; border-radius: var(--radius-m); color: #fff; text-decoration: none; background: linear-gradient(110deg, var(--navy) 0 60%, var(--red) 60% 61.5%, var(--navy-2) 61.5%); box-shadow: 0 14px 30px -18px rgba(0,0,0,.6); }
+.ct-home-ic { flex: none; width: 64px; height: 64px; border-radius: 12px; overflow: hidden; display: grid; place-items: center; font-size: 2rem; background: rgba(255,255,255,.12); }
+.ct-home-ic img { width: 100%; height: 100%; object-fit: cover; }
+.ct-home-t { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.ct-home-t small { text-transform: uppercase; letter-spacing: .08em; font-weight: 700; font-size: .72rem; color: var(--yellow); }
+.ct-home-t b { font-family: var(--display); font-style: italic; font-weight: 800; text-transform: uppercase; font-size: clamp(1.4rem, 3.4vw, 2rem); line-height: 1; }
+.ct-home-t span { opacity: .9; font-size: .92rem; }
+.ct-home em { flex: none; font-style: normal; font-weight: 800; padding: 10px 18px; border-radius: 6px; background: var(--yellow); color: var(--navy); }
+@media (max-width: 600px) { .ct-home { flex-wrap: wrap; } .ct-home em { width: 100%; text-align: center; } .ct-home { background: var(--navy); } }
+.ct-spots { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; margin: 0 0 12px; padding: 10px 14px; border-radius: var(--radius-m); background: var(--surface); box-shadow: 0 0 0 1px var(--line); }
+.ct-spots b { font-size: 1.3rem; color: var(--red); }
+.ct-spots > span { height: 8px; border-radius: 4px; background: var(--primer); overflow: hidden; }
+.ct-spots i { display: block; height: 100%; background: var(--red); }
+.ct-spots small { color: var(--muted); }
+.pod .ct-rank { font-size: 2.2rem; top: 6px; left: 6px; }
+@media (max-width: 600px) { .jury-row .ct-ph { aspect-ratio: 16 / 10; } .pod .ct-ph, .pod.r1 .ct-ph { aspect-ratio: 4 / 3; } }

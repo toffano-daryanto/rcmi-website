@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;1,600;1,700;1,800&family=Barlow:wght@400;500;600;700&family=Noto+Serif:wght@700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/style.css?v=1792709190">
+  <link rel="stylesheet" href="/css/style.css?v=1792710175">
   <link rel="icon" type="image/png" href="/img/icon-64.png">
   <link rel="apple-touch-icon" href="/img/icon-192.png">
   <link rel="manifest" href="/manifest.webmanifest">
@@ -30,6 +30,7 @@
       <a href="#gallery" data-i18n="nav_gallery">Galeri</a>
       <a href="#/feed" data-i18n="nav_feed">Koleksi</a>
       <a href="#/market" data-i18n="nav_market">Pasar</a>
+      <a href="#/contest" data-i18n="nav_contest">Kontes</a>
       <a href="#join" data-i18n="nav_join">Cara bergabung</a>
       <a href="#about" data-i18n="nav_about">Tentang</a>
       <a href="#contact" data-i18n="nav_contact">Kontak</a>
@@ -74,8 +75,8 @@
       <!-- News strip -->
       <div class="annc" aria-label="News">
         <div class="annc-track" id="annc-track">
-          <span data-i18n="annc_1"></span><span data-i18n="annc_2"></span><span data-i18n="annc_3"></span><span data-i18n="annc_4"></span><span data-i18n="annc_5"></span>
-          <span data-i18n="annc_1" aria-hidden="true"></span><span data-i18n="annc_2" aria-hidden="true"></span><span data-i18n="annc_3" aria-hidden="true"></span><span data-i18n="annc_4" aria-hidden="true"></span><span data-i18n="annc_5" aria-hidden="true"></span>
+          <span data-i18n="annc_6"></span><span data-i18n="annc_1"></span><span data-i18n="annc_2"></span><span data-i18n="annc_3"></span><span data-i18n="annc_4"></span><span data-i18n="annc_5"></span>
+          <span data-i18n="annc_6" aria-hidden="true"></span><span data-i18n="annc_1" aria-hidden="true"></span><span data-i18n="annc_2" aria-hidden="true"></span><span data-i18n="annc_3" aria-hidden="true"></span><span data-i18n="annc_4" aria-hidden="true"></span><span data-i18n="annc_5" aria-hidden="true"></span>
         </div>
       </div>
 
@@ -131,6 +132,9 @@
         <button type="button" class="hs-nav next" data-hs="1" aria-label="Next">›</button>
         <div class="hs-dots" id="hs-dots"></div>
       </section>
+
+      <!-- Photo contest (shown while one is running or just finished) -->
+      <section class="shop-sec" id="home-contest" hidden></section>
 
       <!-- Why RCMI -->
       <ul class="usp">
@@ -317,6 +321,11 @@
     </section>
 
     <!-- ===== Collection page (#/feed) ===== -->
+    <!-- ===== Photo contest (#/contest, #/contest/<id>) ===== -->
+    <section id="contestpage" hidden>
+      <section class="ct-sec" id="contest-root"></section>
+    </section>
+
     <section id="feedpage" hidden>
       <section class="feed-sec" id="feed">
         <header class="ig-head">
@@ -553,7 +562,7 @@
         <a class="foot-ig" href="https://www.tiktok.com/@resincarmodelindonesia" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M16.6 3c.3 2.3 1.7 3.8 4 4v3c-1.5.1-2.9-.3-4-1.1v6.4A5.8 5.8 0 1 1 10.8 9.6v3.1a2.8 2.8 0 1 0 2 2.7V3h3.8Z"/></svg> TikTok @resincarmodelindonesia</a>
       </div>
       <nav><h4 data-i18n="foot_explore"></h4>
-        <a href="#/feed" data-i18n="nav_feed"></a><a href="#/market" data-i18n="nav_market"></a><a href="#gallery" data-i18n="nav_gallery"></a></nav>
+        <a href="#/feed" data-i18n="nav_feed"></a><a href="#/market" data-i18n="nav_market"></a><a href="#/contest" data-i18n="nav_contest"></a><a href="#gallery" data-i18n="nav_gallery"></a></nav>
       <nav><h4 data-i18n="foot_community"></h4>
         <a href="#join" data-i18n="nav_join"></a><a href="#about" data-i18n="nav_about"></a><a href="#contact" data-i18n="nav_contact"></a></nav>
       <nav><h4 data-i18n="foot_app"></h4>
@@ -578,6 +587,6 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="/js/app.js?v=1792709190"></script>
+  <script type="module" src="/js/app.js?v=1792710175"></script>
 </body>
 </html>
