@@ -1,0 +1,14 @@
+name: Check photo upload script (tool)
+# Sends a harmless request to the Drive upload web app and reports which version answers.
+on: workflow_dispatch
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          URL=$(curl -s https://raw.githubusercontent.com/${{ github.repository }}/main/public/js/config.js | grep -o 'https://script.google.com/macros/s/[^"]*')
+          R=$(curl -sS -L -m 60 -X POST -H "Content-Type: text/plain;charset=utf-8" --data '{"kind":"contest"}' "$URL")
+          echo "Response: $R"
+          if echo "$R" | grep -q "bad kind"; then echo "::warning::Old version is live (contest uploads not supported yet). Deploy a new version."
+          elif echo "$R" | grep -q "not signed in"; then echo "::notice::New version is live: contest uploads supported."
+          else echo "::warning::Unexpected answer: $R"; fi
