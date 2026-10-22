@@ -1,0 +1,24 @@
+name: Snapshot a web page (tool)
+# Renders a JavaScript page in a real browser and saves its text + screenshot to the "tool-snap" branch.
+on:
+  workflow_dispatch:
+    inputs:
+      url: { description: "Page URL", required: true }
+permissions:
+  contents: write
+jobs:
+  snap:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with: { node-version: 22 }
+      - run: npm i --no-save --no-audit --no-fund playwright@1.48.2 && npx playwright install --with-deps chromium
+      - run: node tools/snap.mjs
+        env: { URL: "${{ inputs.url }}" }
+      - run: |
+          git config user.name "github-actions"; git config user.email "github-actions@users.noreply.github.com"
+          git checkout --orphan tool-snap
+          git rm -rfq --cached . ; git add -f snap
+          git commit -qm "Snapshot"
+          git push -f origin tool-snap
