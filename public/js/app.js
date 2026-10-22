@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792710175";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792710458";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792710175";
-import { SEED_EVENTS } from "./seed-events.js?v=1792710175";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792710175";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792710175";
+import { GALLERY } from "./gallery-data.js?v=1792710458";
+import { SEED_EVENTS } from "./seed-events.js?v=1792710458";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792710458";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792710458";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -89,9 +89,14 @@ async function uploadToDrive(kind, src, name, onStep) {
   // An older in-post photo (data:image/jpeg;base64,…) is sent as it is.
   const data = typeof src === "string" ? src.split(",")[1] : await toJpegBase64(src);
   const idToken = await state.user.getIdToken();
-  const r = await fetch(uploadUrl, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" },
-    body: JSON.stringify({ idToken, kind, name: String(name || "photo").slice(0, 60), mime: "image/jpeg", data }) });
-  const j = await r.json().catch(() => ({ error: "upload failed" }));
+  // kind "contest:<id>" → RCMI/Contests/<contest name>/
+  const [k, contestId] = String(kind).split(":");
+  const send = (kk) => fetch(uploadUrl, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({ idToken, kind: kk, contestId, name: String(name || "photo").slice(0, 60), mime: "image/jpeg", data }) })
+    .then(r => r.json()).catch(() => ({ error: "upload failed" }));
+  let j = await send(k);
+  // Upload script not updated for contests yet: keep working by saving in the Market folder.
+  if (k === "contest" && j.error === "bad kind") j = await send("market");
   if (!j.id) throw new Error(t("upload_failed") + (j.error ? ` (${j.error})` : ""));
   onStep?.();
   return driveUrl(j.id);
@@ -4530,7 +4535,7 @@ $("#contest-root").addEventListener("submit", async (e) => {
     if (!hasFile && !ct.myEntry?.photo) { toast(t("ct_photo_needed")); return; }
     btn.disabled = true;
     try {
-      const photo = hasFile ? (await storePhotos(f.photo, "market", 1, 0, btn))[0] : ct.myEntry.photo;
+      const photo = hasFile ? (await storePhotos(f.photo, `contest:${c.id}`, 1, 0, btn))[0] : ct.myEntry.photo;
       await setDoc(doc(db, "contests", c.id, "entries", uid), { uid, name: String(state.profile.displayName || "").slice(0, 80), avatar: String(state.profile.photoURL || state.user.photoURL || "").slice(0, 500),
         title: f.title.value.trim().slice(0, 80), caption: f.caption.value.trim().slice(0, 500), photo, at: serverTimestamp() });
       state.ctEditing = false; toast(t("ct_submitted")); renderContestRoute();

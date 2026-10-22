@@ -7,10 +7,15 @@
  * Only signed-in, active RCMI website accounts can upload: each upload carries the person's Firebase ID token,
  * which Firestore verifies when the script reads their profile (status must be "approved").
  * Collection photos: RCMI members only. Market photos: members and general users.
+ * Contest photos: anyone registered for that contest; saved in RCMI/Contests/<contest name>/ (folder made automatically).
+ *
+ * After changing this code: Deploy → Manage deployments → ✏️ Edit → Version: New version → Deploy
+ * (keeps the same web app URL, so the website needs no change).
  */
 const FOLDERS = {
-  collection: "PASTE_COLLECTIONS_FOLDER_ID",
-  market: "PASTE_MARKET_FOLDER_ID"
+  collection: "1jjIFoDc_4dUEnA0h-r64e0vk74sSbjUg",   // RCMI/Collections
+  market: "1KodZLwpbq9zXj21XodMWNkT92xx7WLuL",       // RCMI/Market
+  contest: "1Tmwl83gg-TXH7p1MWha-2LamrwzYqOQi"       // RCMI/Contests (one subfolder per contest)
 };
 const PROJECT_ID = "rcmi-website";
 const MAX_BYTES = 6 * 1024 * 1024;   // per photo
@@ -41,6 +46,21 @@ function doPost(e) {
     if (status !== "approved") return out({ error: "account not active" });
     if (req.kind === "collection" && type !== "member") return out({ error: "members only" });
 
+    // Contest: the person must be registered for that contest while registration is open.
+    let targetFolder = null;
+    if (req.kind === "contest") {
+      const cid = String(req.contestId || "");
+      if (!/^[\w-]{1,60}$/.test(cid)) return out({ error: "no contest" });
+      const base = "https://firestore.googleapis.com/v1/projects/" + PROJECT_ID + "/databases/(default)/documents/contests/" + cid;
+      const opt = { headers: { Authorization: "Bearer " + req.idToken }, muteHttpExceptions: true };
+      const cr = UrlFetchApp.fetch(base, opt), er = UrlFetchApp.fetch(base + "/entries/" + uid, opt);
+      if (cr.getResponseCode() !== 200) return out({ error: "no contest" });
+      if (er.getResponseCode() !== 200) return out({ error: "register first" });
+      const cf = JSON.parse(cr.getContentText()).fields || {};
+      if ((cf.status && cf.status.stringValue) !== "open") return out({ error: "registration closed" });
+      targetFolder = contestFolder(cid, (cf.title && cf.title.stringValue) || cid);
+    }
+
     // 3. Simple rate limit per account.
     const cache = CacheService.getScriptCache(), key = "n_" + uid;
     const n = Number(cache.get(key) || 0);
@@ -54,13 +74,31 @@ function doPost(e) {
     if (bytes.length > MAX_BYTES) return out({ error: "photo too large" });
     const stamp = Utilities.formatDate(new Date(), "Asia/Jakarta", "yyyyMMdd-HHmmss");
     const name = stamp + "_" + uid.slice(0, 8) + "_" + String(req.name || "photo").replace(/[^\w.-]+/g, "_").slice(0, 60) + (mime === "image/png" ? ".png" : mime === "image/webp" ? ".webp" : ".jpg");
-    const file = DriveApp.getFolderById(folderId).createFile(Utilities.newBlob(bytes, mime, name));
+    const file = (targetFolder || DriveApp.getFolderById(folderId)).createFile(Utilities.newBlob(bytes, mime, name));
     file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
     file.setDescription("Uploaded from the RCMI website by " + uid);
     return out({ id: file.getId() });
   } catch (err) {
     return out({ error: String(err && err.message || err) });
   }
+}
+
+// RCMI/Contests/<contest name>: made on the first upload, remembered by contest id (renaming the contest keeps the same folder).
+function contestFolder(cid, title) {
+  const props = PropertiesService.getScriptProperties(), key = "contest_" + cid;
+  const known = props.getProperty(key);
+  if (known) { try { return DriveApp.getFolderById(known); } catch (e) {} }
+  const lock = LockService.getScriptLock(); lock.waitLock(20000);
+  try {
+    const again = props.getProperty(key);
+    if (again) { try { return DriveApp.getFolderById(again); } catch (e) {} }
+    const parent = DriveApp.getFolderById(FOLDERS.contest);
+    const name = String(title).replace(/[\\/:*?"<>|]+/g, " ").trim().slice(0, 100) || cid;
+    const it = parent.getFoldersByName(name);
+    const folder = it.hasNext() ? it.next() : parent.createFolder(name);
+    props.setProperty(key, folder.getId());
+    return folder;
+  } finally { lock.releaseLock(); }
 }
 
 function doGet() { return out({ ok: true, service: "RCMI photo uploads" }); }
