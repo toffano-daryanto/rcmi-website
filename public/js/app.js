@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792707268";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792707650";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792707268";
-import { SEED_EVENTS } from "./seed-events.js?v=1792707268";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792707268";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792707268";
+import { GALLERY } from "./gallery-data.js?v=1792707650";
+import { SEED_EVENTS } from "./seed-events.js?v=1792707650";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792707650";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792707650";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -592,7 +592,7 @@ onAuthStateChanged(auth, (user) => {
       $("#btn-add-event").hidden = state.profile.role !== "admin";
       const general = isGeneral();
       $$('.tabs a[data-tab="members"], .tabs a[data-tab="dues"]').forEach(a => { a.hidden = general; });
-      const ct = $("#tab-card"); ct.dataset.i18n = general ? "tab_profile" : "tab_card"; ct.textContent = t(ct.dataset.i18n);
+      const ct = $("#tab-card"); ct.dataset.i18n = "tab_card"; ct.textContent = t(ct.dataset.i18n);
       $("#btn-add-car").hidden = false;
       if (state.profile.status === "approved" && state.contactSyncedFor !== user.uid) { state.contactSyncedFor = user.uid; saveContact(state.profile); }
     }
@@ -2936,26 +2936,26 @@ $("#dues-all").addEventListener("click", async (e) => {
 // Google profile photos come small (…=s96-c); ask for a sharper square version for the card.
 const bigPhoto = (u) => String(u || "").replace(/=s\d+(-c)?$/, "=s400-c");
 // Digital version of the printed RCMI member card: pearl card, EXCLUSIVE MEMBER, logo, RCMI QR, name and number.
-function cardHTML({ no, name, city, instagram, photoURL, since }) {
+function cardHTML({ no, name, city, instagram, photoURL, since, general = false }) {
   const sub = [city, instagram ? "@" + igHandle(instagram) : "", since ? `${t("card_since")} ${fmtDate(since, { month: "short", year: "numeric" })}` : ""].filter(Boolean).map(esc).join(" · ");
   return `
     <div class="mcard" role="img" aria-label="RCMI ${esc(name)} ${no ? "#" + no : ""}">
-      <p class="mcard-kicker">Exclusive Member</p>
+      <p class="mcard-kicker">${general ? "General Member" : "Exclusive Member"}</p>
       <img class="mcard-logo" src="/img/logo-dark.png" alt="">
       ${photoURL
         ? `<img class="mcard-photo" src="${esc(bigPhoto(photoURL))}" alt="" referrerpolicy="no-referrer" onerror="this.outerHTML='<div class=&quot;mcard-photo mcard-initials&quot;>${esc(initials(name))}</div>'">`
         : `<div class="mcard-photo mcard-initials">${esc(initials(name))}</div>`}
       <p class="mcard-name">${esc(name)}</p>
-      <p class="mcard-no">${no ? "#" + no : esc(t("applicant"))}</p>
+      ${general ? "" : `<p class="mcard-no">${no ? "#" + no : esc(t("applicant"))}</p>`}
       ${sub ? `<p class="mcard-sub">${sub}</p>` : ""}
     </div>`;
 }
 function renderCard() {
   const p = state.profile;
-  $("#member-card").hidden = isGeneral();
+  $("#member-card").hidden = false;
   const r = (state.roster || []).find(x => x.id === p.rosterId);
   $("#member-card").innerHTML = cardHTML({
-    no: p.memberNo, name: p.displayName, city: p.city, instagram: p.instagram, photoURL: p.photoURL,
+    general: isGeneral(), no: p.memberNo, name: p.displayName, city: p.city, instagram: p.instagram, photoURL: p.photoURL,
     since: r?.joined ? new Date(r.joined) : (p.approvedAt || p.createdAt)
   });
   const f = $("#form-profile");
