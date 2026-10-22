@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792707650";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792707770";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792707650";
-import { SEED_EVENTS } from "./seed-events.js?v=1792707650";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792707650";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792707650";
+import { GALLERY } from "./gallery-data.js?v=1792707770";
+import { SEED_EVENTS } from "./seed-events.js?v=1792707770";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792707770";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792707770";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -2555,7 +2555,7 @@ async function renderProfile(id) {
   box.innerHTML = `
     <a class="btn btn-ghost profile-back" href="#/members">← ${t("back_members")}</a>
     <div class="profile">
-      <div>${cardHTML({ no: r.memberNo, name, city, instagram: u?.instagram, photoURL: u?.photoURL, since })}</div>
+      <div>${cardHTML({ no: r.memberNo, name, city, instagram: u?.instagram, photoURL: u?.photoURL, since, uid: u?.id || r.claimedBy || "" })}</div>
       <div>
         <h1>${esc(name)}</h1>
         ${u && u.id !== state.user?.uid ? `<button type="button" class="btn btn-sm btn-mat" data-dm="${esc(u.id)}" data-dm-name="${esc(name)}" data-dm-photo="${esc(u.photoURL || "")}">✉️ ${t("dm_message")}</button>` : ""}
@@ -2589,6 +2589,7 @@ async function renderProfile(id) {
         <div id="profile-extra"></div>
       </div>
     </div>`;
+  fillSellerStatus(box);
   if (isAdmin() && u) {
     getDoc(doc(db, "addresses", u.id)).then(a => {
       const el = $("#profile-addr-admin"); if (!el || state.sub !== id) return;
@@ -2936,7 +2937,7 @@ $("#dues-all").addEventListener("click", async (e) => {
 // Google profile photos come small (…=s96-c); ask for a sharper square version for the card.
 const bigPhoto = (u) => String(u || "").replace(/=s\d+(-c)?$/, "=s400-c");
 // Digital version of the printed RCMI member card: pearl card, EXCLUSIVE MEMBER, logo, RCMI QR, name and number.
-function cardHTML({ no, name, city, instagram, photoURL, since, general = false }) {
+function cardHTML({ no, name, city, instagram, photoURL, since, general = false, uid = "" }) {
   const sub = [city, instagram ? "@" + igHandle(instagram) : "", since ? `${t("card_since")} ${fmtDate(since, { month: "short", year: "numeric" })}` : ""].filter(Boolean).map(esc).join(" · ");
   return `
     <div class="mcard" role="img" aria-label="RCMI ${esc(name)} ${no ? "#" + no : ""}">
@@ -2947,17 +2948,41 @@ function cardHTML({ no, name, city, instagram, photoURL, since, general = false 
         : `<div class="mcard-photo mcard-initials">${esc(initials(name))}</div>`}
       <p class="mcard-name">${esc(name)}</p>
       ${general ? "" : `<p class="mcard-no">${no ? "#" + no : esc(t("applicant"))}</p>`}
+      ${uid ? `<p class="mcard-seller" data-seller="${esc(uid)}"></p>` : ""}
       ${sub ? `<p class="mcard-sub">${sub}</p>` : ""}
     </div>`;
+}
+/* Seller status on the card, from Market sales and buyers' reviews:
+   New seller → Seller (1+ sale) → Trusted Seller (3+ reviews, ⭐4.5+) → Top Seller (10+ reviews, 20+ sales, ⭐4.7+). */
+state.salesOf = {};
+function sellerLevel(r, sales) {
+  if (r.n >= 10 && sales >= 20 && r.avg >= 4.7) return { key: "seller_top", cls: "top" };
+  if (r.n >= REP_MIN && r.avg >= 4.5) return { key: "seller_trusted", cls: "trusted" };
+  if (sales > 0 || r.n > 0) return { key: "seller_active", cls: "active" };
+  return { key: "seller_new", cls: "new" };
+}
+async function fillSellerStatus(root) {
+  const el = root?.querySelector("[data-seller]"); if (!el) return;
+  const uid = el.dataset.seller;
+  await loadReviews();
+  if (state.salesOf[uid] == null) {
+    try { const s = await getDocs(query(collection(db, "listings"), where("ownerUid", "==", uid))); state.salesOf[uid] = s.docs.filter(d => d.data().status === "sold").length; }
+    catch (e) { state.salesOf[uid] = 0; }
+  }
+  const r = repOf(uid), sales = state.salesOf[uid], lv = sellerLevel(r, sales);
+  const bits = [r.n >= REP_MIN ? `⭐ ${r.avg.toFixed(1)}` : "", sales ? t("seller_sold", { n: sales }) : ""].filter(Boolean).join(" · ");
+  el.className = `mcard-seller lv-${lv.cls}`;
+  el.innerHTML = `<b>${t(lv.key)}</b>${bits ? `<span>${bits}</span>` : ""}`;
 }
 function renderCard() {
   const p = state.profile;
   $("#member-card").hidden = false;
   const r = (state.roster || []).find(x => x.id === p.rosterId);
   $("#member-card").innerHTML = cardHTML({
-    general: isGeneral(), no: p.memberNo, name: p.displayName, city: p.city, instagram: p.instagram, photoURL: p.photoURL,
+    general: isGeneral(), uid: state.user.uid, no: p.memberNo, name: p.displayName, city: p.city, instagram: p.instagram, photoURL: p.photoURL,
     since: r?.joined ? new Date(r.joined) : (p.approvedAt || p.createdAt)
   });
+  fillSellerStatus($("#member-card"));
   const f = $("#form-profile");
   ["displayName", "city", "instagram", "whatsapp", "bio"].forEach(k => { if (document.activeElement !== f[k]) f[k].value = p[k] || ""; });
   f._syncSame?.();

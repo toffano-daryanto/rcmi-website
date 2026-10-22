@@ -1033,3 +1033,11 @@ span.rep-badge { cursor: default; }
 .app-banner-x { background: none; border: 0; color: #fff; font-size: 24px; line-height: 1; padding: 4px 6px; cursor: pointer; opacity: .8; }
 .push-pref { margin-top: 10px; }
 .app-install { justify-self: start; margin-top: 6px; }
+
+/* Seller status on the member card */
+.mcard-seller { margin-top: 10px; display: inline-flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 14px; border-radius: 999px; font-size: .78rem; line-height: 1.2; background: rgba(18,20,28,.06); color: #3A3D47; }
+.mcard-seller:empty { display: none; }
+.mcard-seller b { font-weight: 700; letter-spacing: .02em; }
+.mcard-seller span { font-size: .72rem; opacity: .85; }
+.mcard-seller.lv-trusted { background: #E6F4EA; color: #1E7B3A; }
+.mcard-seller.lv-top { background: linear-gradient(135deg, #FFE9A8, #F6C343); color: #6B4A00; }
