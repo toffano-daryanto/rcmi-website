@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;1,600;1,700;1,800&family=Barlow:wght@400;500;600;700&family=Noto+Serif:wght@700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/style.css?v=1792707770">
+  <link rel="stylesheet" href="/css/style.css?v=1792708282">
   <link rel="icon" type="image/png" href="/img/icon-64.png">
   <link rel="apple-touch-icon" href="/img/icon-192.png">
   <link rel="manifest" href="/manifest.webmanifest">
@@ -71,32 +71,105 @@
 
     <!-- ===== Public landing ===== -->
     <section id="landing">
-      <div class="hero">
-        <div class="hero-inner">
-          <h1 data-i18n="hero_title">Mobil resin 1:64, dicetak tangan, dikoleksi bersama.</h1>
-          <p class="lead"><span data-i18n="hero_lead"></span> <span id="lead-users"></span></p>
-          <div class="hero-cta">
-            <p class="stats" id="stats" hidden></p>
-          </div>
+      <!-- News strip -->
+      <div class="annc" aria-label="News">
+        <div class="annc-track" id="annc-track">
+          <span data-i18n="annc_1"></span><span data-i18n="annc_2"></span><span data-i18n="annc_3"></span><span data-i18n="annc_4"></span>
+          <span data-i18n="annc_1" aria-hidden="true"></span><span data-i18n="annc_2" aria-hidden="true"></span><span data-i18n="annc_3" aria-hidden="true"></span><span data-i18n="annc_4" aria-hidden="true"></span>
         </div>
-
-        <figure class="scale-tool" aria-labelledby="ruler-out">
-          <label for="real-length" class="scale-label" data-i18n="ruler_label">Panjang mobil asli (meter)</label>
-          <div class="scale-input">
-            <input type="range" id="real-length" min="3" max="6.4" step="0.05" value="4.5">
-            <output id="real-length-out">4.50 m</output>
-          </div>
-          <div class="ruler" aria-hidden="true">
-            <div class="ruler-bar" id="ruler-bar"></div>
-            <div class="ruler-ticks"></div>
-            <div class="ruler-nums"><span>0</span><span>20</span><span>40</span><span>60</span><span>80</span><span>100 mm</span></div>
-          </div>
-          <figcaption>
-            <strong id="ruler-out"></strong>
-            <span data-i18n="ruler_hint"></span>
-          </figcaption>
-        </figure>
       </div>
+
+      <!-- Big rotating banners -->
+      <section class="hs" id="hs" aria-roledescription="carousel" aria-label="RCMI">
+        <div class="hs-track" id="hs-track">
+          <article class="hs-slide" data-bg="0">
+            <div class="hs-text">
+              <p class="hs-kicker" data-i18n="hs_1_k"></p>
+              <h1 data-i18n="hero_title"></h1>
+              <p class="lead"><span data-i18n="hero_lead"></span> <span id="lead-users"></span></p>
+              <div class="hs-cta">
+                <a class="btn btn-amber" href="#/market" data-i18n="hs_cta_market"></a>
+                <button type="button" class="btn btn-ghost-light js-signin" data-i18n="join_cta"></button>
+              </div>
+              <p class="stats" id="stats" hidden></p>
+            </div>
+          </article>
+          <article class="hs-slide" data-bg="1">
+            <div class="hs-text">
+              <p class="hs-kicker">⚡ <span data-i18n="nav_market"></span></p>
+              <h2 data-i18n="hs_2_t"></h2>
+              <p class="lead" data-i18n="hs_2_d"></p>
+              <div class="hs-cta"><a class="btn btn-amber" href="#/market" data-i18n="hs_cta_market"></a></div>
+            </div>
+          </article>
+          <article class="hs-slide" data-bg="2">
+            <div class="hs-text">
+              <p class="hs-kicker" data-i18n="nav_feed"></p>
+              <h2 data-i18n="hs_3_t"></h2>
+              <p class="lead" data-i18n="hs_3_d"></p>
+              <div class="hs-cta"><a class="btn btn-amber" href="#/feed" data-i18n="hs_cta_feed"></a></div>
+            </div>
+          </article>
+          <article class="hs-slide" data-bg="3">
+            <div class="hs-text">
+              <p class="hs-kicker">Kopdar</p>
+              <h2 data-i18n="hs_4_t"></h2>
+              <p class="lead" data-i18n="hs_4_d"></p>
+              <div class="hs-cta"><a class="btn btn-amber" href="#gallery" data-i18n="hs_cta_gallery"></a></div>
+            </div>
+          </article>
+        </div>
+        <button type="button" class="hs-nav prev" data-hs="-1" aria-label="Previous">‹</button>
+        <button type="button" class="hs-nav next" data-hs="1" aria-label="Next">›</button>
+        <div class="hs-dots" id="hs-dots"></div>
+      </section>
+
+      <!-- Why RCMI -->
+      <ul class="usp">
+        <li><b>1:64</b><span data-i18n="usp_1"></span></li>
+        <li><b>🤝</b><span data-i18n="usp_2"></span></li>
+        <li><b>⭐</b><span data-i18n="usp_3"></span></li>
+        <li><b>🇮🇩</b><span data-i18n="usp_4"></span></li>
+      </ul>
+
+      <!-- Shop by category -->
+      <section class="shop-sec">
+        <div class="shop-head"><h2 data-i18n="cats_title"></h2></div>
+        <div class="cats">
+          <a class="cat" href="#/market" data-go-filter="sell"><span class="cat-ic">🏷️</span><b data-i18n="t_sell"></b></a>
+          <a class="cat" href="#/market" data-go-filter="war"><span class="cat-ic">⚡</span><b data-i18n="war_tag"></b></a>
+          <a class="cat" href="#/market" data-go-filter="wanted"><span class="cat-ic">🔍</span><b data-i18n="t_wanted"></b></a>
+          <a class="cat" href="#/market" data-go-filter="trade"><span class="cat-ic">🔁</span><b data-i18n="t_trade"></b></a>
+          <a class="cat" href="#/feed"><span class="cat-ic">📸</span><b data-i18n="nav_feed"></b></a>
+          <a class="cat" href="#gallery"><span class="cat-ic">🏁</span><b data-i18n="nav_gallery"></b></a>
+        </div>
+      </section>
+
+      <!-- Newest in the Market -->
+      <section class="shop-sec" id="home-war" hidden>
+        <div class="shop-head"><h2>⚡ <span data-i18n="home_war"></span></h2><a class="view-all" href="#/market" data-go-filter="war"><span data-i18n="view_all"></span> →</a></div>
+        <div class="pgrid" id="home-war-grid"></div>
+      </section>
+      <section class="shop-sec">
+        <div class="shop-head"><h2 data-i18n="home_market"></h2><a class="view-all" href="#/market" data-go-filter="all"><span data-i18n="view_all"></span> →</a></div>
+        <div class="pgrid" id="home-market-grid"><p class="muted">…</p></div>
+      </section>
+
+      <!-- Two promo banners -->
+      <section class="promos">
+        <a class="promo promo-navy" href="#join">
+          <small data-i18n="promo_join_k"></small><b data-i18n="promo_join_t"></b><span data-i18n="promo_join_d"></span><em data-i18n="join_cta"></em>
+        </a>
+        <a class="promo promo-red" href="#/feed">
+          <small data-i18n="nav_feed"></small><b data-i18n="promo_post_t"></b><span data-i18n="promo_post_d"></span><em data-i18n="hs_cta_feed"></em>
+        </a>
+      </section>
+
+      <!-- Newest in the Collection -->
+      <section class="shop-sec">
+        <div class="shop-head"><h2 data-i18n="home_cars"></h2><a class="view-all" href="#/feed"><span data-i18n="view_all"></span> →</a></div>
+        <div class="pgrid" id="home-cars-grid"><p class="muted">…</p></div>
+      </section>
 
       <div class="pitlane" id="pitlane" hidden>
         <div class="pitlane-track" id="pitlane-track"></div>
@@ -449,7 +522,19 @@
   </div>
 
   <footer class="foot">
-    <img class="logo" src="/img/logo-white.png" alt="RCMI — Resin Car Model Indonesia" width="900" height="343" loading="lazy">
+    <div class="foot-cols">
+      <div class="foot-brand">
+        <img class="logo" src="/img/logo-white.png" alt="RCMI — Resin Car Model Indonesia" width="900" height="343" loading="lazy">
+        <p data-i18n="foot_tag"></p>
+      </div>
+      <nav><h4 data-i18n="foot_explore"></h4>
+        <a href="#/feed" data-i18n="nav_feed"></a><a href="#/market" data-i18n="nav_market"></a><a href="#gallery" data-i18n="nav_gallery"></a></nav>
+      <nav><h4 data-i18n="foot_community"></h4>
+        <a href="#join" data-i18n="nav_join"></a><a href="#about" data-i18n="nav_about"></a><a href="#contact" data-i18n="nav_contact"></a></nav>
+      <nav><h4 data-i18n="foot_app"></h4>
+        <a href="#/market" data-i18n="mr_title"></a><button type="button" class="btn-link foot-install" id="btn-install-3" data-i18n="app_install"></button></nav>
+    </div>
+    <p class="foot-copy">© <span id="foot-year">2026</span> RCMI — Resin Car Model Indonesia</p>
   </footer>
 
   <dialog id="lightbox" aria-label="Gallery">
@@ -468,6 +553,6 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="/js/app.js?v=1792707770"></script>
+  <script type="module" src="/js/app.js?v=1792708282"></script>
 </body>
 </html>

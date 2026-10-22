@@ -1,5 +1,5 @@
 // RCMI app: makes the site installable, opens fast (and offline) from cache, and shows push notifications.
-const CACHE = "rcmi-v1";
+const CACHE = "rcmi-v2";
 const SHELL = ["/", "/manifest.webmanifest", "/img/icon-192.png", "/img/logo-white.png"];
 
 self.addEventListener("install", (e) => {

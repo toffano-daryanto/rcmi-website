@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792707770";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792708282";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792707770";
-import { SEED_EVENTS } from "./seed-events.js?v=1792707770";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792707770";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792707770";
+import { GALLERY } from "./gallery-data.js?v=1792708282";
+import { SEED_EVENTS } from "./seed-events.js?v=1792708282";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792708282";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792708282";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -133,17 +133,9 @@ function bindPhotoPreview(form) {
 }
 
 /* ---------------- language + scale ruler (work without Firebase) ---------------- */
-$$("[data-lang]").forEach(b => b.addEventListener("click", () => { setLang(b.dataset.lang); updateRuler(); renderGallery(); if (typeof renderStats === "function") renderStats(); rerender(); }));
+$$("[data-lang]").forEach(b => b.addEventListener("click", () => { setLang(b.dataset.lang); renderGallery(); if (typeof renderHomeShop === "function") renderHomeShop(); if (typeof renderStats === "function") renderStats(); rerender(); }));
 
-const range = $("#real-length");
-function updateRuler() {
-  const m = parseFloat(range.value);
-  const mm = (m * 1000) / 64;
-  $("#real-length-out").textContent = `${m.toFixed(2)} m`;
-  $("#ruler-bar").style.width = `${Math.min(mm, 100)}%`;
-  $("#ruler-out").textContent = t("ruler_result", { mm: mm.toFixed(1).replace(".", getLang() === "id" ? "," : ".") });
-}
-range.addEventListener("input", updateRuler);
+
 
 /* ---------------- gallery (public, served from Google Drive) ---------------- */
 const driveThumb = (id, w) => `https://drive.google.com/thumbnail?id=${encodeURIComponent(id)}&sz=w${w}`;
@@ -200,6 +192,36 @@ lb.addEventListener("close", () => { $("#lb-stage").innerHTML = ""; });
 lb.addEventListener("keydown", (e) => { if (e.key === "ArrowLeft") lbStep(-1); if (e.key === "ArrowRight") lbStep(1); });
 lb.addEventListener("click", (e) => { if (e.target === lb) lb.close(); });
 
+/* Home slider: big banners on Kopdar (meet-up) photos, auto-advancing, swipeable. */
+function startSlider() {
+  const hs = $("#hs"), track = $("#hs-track"); if (!hs || !track) return;
+  const kopdar = GALLERY.filter(g => /^meet/.test(g.key)).sort((a, b) => a.date.localeCompare(b.date))
+    .flatMap(g => g.items.filter(it => it.kind === "photo"));
+  const slides = $$(".hs-slide", track);
+  slides.forEach((sl, i) => {
+    const ph = kopdar[i % Math.max(1, kopdar.length)];
+    if (ph) sl.style.setProperty("--bg", `url("${driveThumb(ph.id, 1600)}")`);
+  });
+  $("#hs-dots").innerHTML = slides.map((_, i) => `<button type="button" data-hs-to="${i}" aria-label="${i + 1}"></button>`).join("");
+  let cur = 0, timer = null;
+  const go = (i, smooth = true) => {
+    cur = (i + slides.length) % slides.length;
+    track.scrollTo({ left: cur * track.clientWidth, behavior: smooth ? "smooth" : "auto" });
+  };
+  const mark = () => $$("#hs-dots button").forEach((b, k) => b.setAttribute("aria-current", String(k === cur)));
+  track.addEventListener("scroll", () => { const i = Math.round(track.scrollLeft / track.clientWidth); if (i !== cur) { cur = i; } mark(); }, { passive: true });
+  const play = () => { clearInterval(timer); if (!matchMedia("(prefers-reduced-motion: reduce)").matches) timer = setInterval(() => { if (!document.hidden && !$("#landing").hidden) go(cur + 1); }, 6000); };
+  hs.addEventListener("click", (e) => {
+    const n = e.target.closest("[data-hs]"), d = e.target.closest("[data-hs-to]");
+    if (n) { go(cur + Number(n.dataset.hs)); play(); }
+    if (d) { go(Number(d.dataset.hsTo)); play(); }
+  });
+  hs.addEventListener("pointerdown", () => clearInterval(timer));
+  hs.addEventListener("pointerup", play);
+  addEventListener("resize", () => go(cur, false));
+  mark(); play();
+}
+
 // Photo strip under the hero: the first photos from the most recent event. Hidden until they load.
 function renderPitlane() {
   const g = GALLERY[0]; const track = $("#pitlane-track"); if (!g || !track) return;
@@ -216,7 +238,8 @@ $("#pitlane-track").addEventListener("click", (e) => {
   lbState.group = b.dataset.g; lbState.i = Number(b.dataset.i); lbShow(); lb.showModal();
 });
 
-applyStatic(); updateRuler(); renderGallery(); renderPitlane();
+applyStatic(); renderGallery(); renderPitlane(); startSlider();
+const fy = $("#foot-year"); if (fy) fy.textContent = new Date().getFullYear();
 
 /* ---------------- Firebase ---------------- */
 const configured = firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith("PASTE");
@@ -4085,3 +4108,61 @@ $("#push-on").addEventListener("change", async (e) => {
   } catch (err) { cb.checked = false; fail(err); }
   finally { cb.disabled = false; }
 });
+
+
+/* ================= Home: shop-style rows (newest Market listings, war sells, Collection posts) ================= */
+const home = { listings: null, cars: null, at: 0 };
+async function loadHomeShop(force = false) {
+  if (!force && home.at && Date.now() - home.at < 5 * 60e3) { renderHomeShop(); return; }
+  home.at = Date.now();
+  try {
+    const [ls, cs] = await Promise.all([
+      getDocs(query(collection(db, "listings"), orderBy("createdAt", "desc"), limit(40))),
+      getDocs(query(collection(db, "cars"), orderBy("createdAt", "desc"), limit(24)))
+    ]);
+    home.listings = ls.docs.map(d => ({ id: d.id, ...d.data() })).filter(l => !l.hidden && !l.modHidden && l.status !== "sold");
+    home.cars = cs.docs.map(d => ({ id: d.id, ...d.data() })).filter(c => !c.hidden && !c.modHidden && (c.photos || []).length);
+  } catch (e) { home.listings = home.listings || []; home.cars = home.cars || []; }
+  renderHomeShop();
+}
+function productCard(l) {
+  const ph = photoSrc(l.photos?.[0]);
+  const badge = l.war ? `<span class="pc-badge war">⚡ ${t("war_tag")}</span>` : `<span class="pc-badge t-${esc(l.type)}">${typeLabel(l.type)}</span>`;
+  const left = l.war ? Math.max(0, (l.qty || 0) - (l.claimed || 0)) : null;
+  return `<a class="pcard" href="#/market/${encodeURIComponent(l.id)}">
+    <span class="pc-img">${ph ? `<img src="${ph}" alt="" loading="lazy">` : `<span class="pc-empty">1:64</span>`}${badge}</span>
+    <span class="pc-body">
+      <span class="pc-title">${esc(l.title)}</span>
+      <span class="pc-price">${l.price ? fmtIDR(l.price) : ""}</span>
+      <span class="pc-meta">${l.war ? t("home_left", { n: left, q: l.qty || 0 }) : esc(l.ownerName || "")}</span>
+    </span>
+  </a>`;
+}
+function carCard(c) {
+  return `<a class="pcard" href="#/feed/p/${encodeURIComponent(c.id)}">
+    <span class="pc-img"><img src="${photoSrc(c.photos[0])}" alt="" loading="lazy">${(c.photos || []).length > 1 ? `<span class="pc-badge n">${c.photos.length}</span>` : ""}</span>
+    <span class="pc-body">
+      <span class="pc-title">${esc(c.name)}</span>
+      <span class="pc-meta">${esc(c.maker || "")}${c.maker ? " · " : ""}${esc(c.ownerName || "")}</span>
+    </span>
+  </a>`;
+}
+function renderHomeShop() {
+  if (!home.listings) return;
+  const war = home.listings.filter(l => l.war && (l.qty || 0) > (l.claimed || 0)).slice(0, 4);
+  const reg = home.listings.filter(l => !l.war).slice(0, 8);
+  $("#home-war").hidden = !war.length;
+  $("#home-war-grid").innerHTML = war.map(productCard).join("");
+  $("#home-market-grid").innerHTML = reg.length ? reg.map(productCard).join("") : `<p class="muted">${t("empty_market")}</p>`;
+  $("#home-cars-grid").innerHTML = home.cars.length ? home.cars.slice(0, 8).map(carCard).join("") : `<p class="muted">${t("empty_collection")}</p>`;
+}
+loadHomeShop();
+addEventListener("hashchange", () => { if (!$("#landing").hidden) loadHomeShop(); });
+// Category tiles / "View all": open the Market with that filter.
+document.addEventListener("click", (e) => {
+  const a = e.target.closest("[data-go-filter]"); if (!a) return;
+  state.marketFilter = a.dataset.goFilter;
+  $$("[data-mfilter]").forEach(x => x.setAttribute("aria-pressed", String(x.dataset.mfilter === state.marketFilter)));
+  if (location.hash === "#/market") renderListings();
+});
+$("#btn-install-3")?.addEventListener("click", () => installApp());
