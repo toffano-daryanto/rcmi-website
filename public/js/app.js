@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792710574";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792710958";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792710574";
-import { SEED_EVENTS } from "./seed-events.js?v=1792710574";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792710574";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792710574";
+import { GALLERY } from "./gallery-data.js?v=1792710958";
+import { SEED_EVENTS } from "./seed-events.js?v=1792710958";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792710958";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792710958";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -1904,6 +1904,8 @@ function fitChat() {
   r.setProperty("--vvh", (vv ? vv.height : innerHeight) + "px");
 }
 window.visualViewport?.addEventListener("resize", fitChat);
+fitChat();   // also positions the sticky news strip right under the top bar
+if (window.ResizeObserver && $(".topbar")) new ResizeObserver(fitChat).observe($(".topbar"));
 addEventListener("resize", fitChat);
 function paintMsgs() {
   const box = $("#dm-msgs"); if (!box) return;

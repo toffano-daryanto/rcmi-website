@@ -1265,3 +1265,5 @@ span.rep-badge { cursor: default; }
 .pod .ct-rank { font-size: 2.2rem; top: 6px; left: 6px; }
 @media (max-width: 600px) { .jury-row .ct-ph { aspect-ratio: 16 / 10; } .pod .ct-ph, .pod.r1 .ct-ph { aspect-ratio: 4 / 3; } }
 .ct-regno { margin: 0; } .ct-regno b { font-family: var(--display); font-style: italic; font-size: 1.4rem; letter-spacing: .08em; color: var(--red); }
+/* News strip stays under the top bar while scrolling */
+.annc { position: sticky; top: var(--tb, 64px); z-index: 59; box-shadow: 0 4px 10px -6px rgba(0,0,0,.35); }

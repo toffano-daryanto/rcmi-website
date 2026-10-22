@@ -7,7 +7,7 @@ jobs:
     steps:
       - run: |
           URL=$(curl -s https://raw.githubusercontent.com/${{ github.repository }}/main/public/js/config.js | grep -o 'https://script.google.com/macros/s/[^"]*')
-          R=$(curl -sS -L -m 60 -X POST -H "Content-Type: text/plain;charset=utf-8" --data '{"kind":"contest"}' "$URL")
+          R=$(curl -sS -L -m 60 -H "Content-Type: text/plain;charset=utf-8" --data '{"kind":"contest"}' "$URL")
           echo "Response: $R"
           if echo "$R" | grep -q "bad kind"; then echo "::warning::Old version is live (contest uploads not supported yet). Deploy a new version."
           elif echo "$R" | grep -q "not signed in"; then echo "::notice::New version is live: contest uploads supported."
