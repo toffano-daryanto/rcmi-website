@@ -216,8 +216,9 @@ const entry = (uid, extra = {}) => ({ uid, name: uid, avatar: "", title: "My R34
 // Register = in one transaction: take a spot (registered + 1) and create the entry.
 const reg = (uid, extra = {}) => { const db = as(uid); return runTransaction(db, async (tx) => {
   const cref = doc(db, "contests", "c1"), c = (await tx.get(cref)).data();
-  tx.update(cref, { registered: (c.registered || 0) + 1 });
-  tx.set(doc(db, "contests", "c1", "entries", uid), entry(uid, extra));
+  const no = (c.regSeq || 0) + 1;
+  tx.update(cref, { registered: (c.registered || 0) + 1, regSeq: no });
+  tx.set(doc(db, "contests", "c1", "entries", uid), entry(uid, { regNo: no, ...extra }));
 }); };
 const setPhase = (status) => env.withSecurityRulesDisabled(ctx => updateDoc(doc(ctx.firestore(), "contests", "c1"), { status }));
 test("contest: drafts hidden; entry while open (1 per person, hidden from others); jury can't enter", async () => {
@@ -228,7 +229,8 @@ test("contest: drafts hidden; entry while open (1 per person, hidden from others
   await assertFails(setDoc(doc(as(U.m2), "contests", "c1", "entries", U.m2), entry(U.m2)));                             // can't skip the spot counter
   await assertFails(setDoc(doc(anon(), "contests", "c1", "entries", U.out), entry(U.out)));                              // needs an account
   await assertFails(reg(U.pend));                                                                                       // account not active yet
-  await assertSucceeds(setDoc(doc(as(U.m1), "contests", "c1", "entries", U.m1), entry(U.m1)));                           // then submit the photo
+  await assertSucceeds(setDoc(doc(as(U.m1), "contests", "c1", "entries", U.m1), entry(U.m1, { regNo: 1 })));            // then submit the photo
+  await assertFails(setDoc(doc(as(U.m1), "contests", "c1", "entries", U.m1), entry(U.m1, { regNo: 99 })));              // number can't change
   await assertSucceeds(reg(U.gen));
   await assertFails(setDoc(doc(as(U.m1), "contests", "c1", "entries", U.m2), entry(U.m2)));          // not for someone else
   await assertFails(reg("uJury1"));                                                                     // jury can't enter
@@ -249,6 +251,7 @@ test("contest: participant limit (maxEntries) and withdrawing frees the spot", a
   }); };
   await assertSucceeds(leave(U.m2));
   await assertSucceeds(reg(U.gen));                                                                     // spot free again
+  await assertSucceeds(getDoc(doc(as(U.gen), "contests", "c1", "entries", U.gen)).then(d => { if (d.data().regNo !== 3) throw new Error("regNo should be 3 (numbers never reused), got " + d.data().regNo); }));
 });
 test("contest: voting (one vote, not own, private) + jury scoring + admin results", async () => {
   await env.withSecurityRulesDisabled(async ctx => {

@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792710458";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792710574";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792710458";
-import { SEED_EVENTS } from "./seed-events.js?v=1792710458";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792710458";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792710458";
+import { GALLERY } from "./gallery-data.js?v=1792710574";
+import { SEED_EVENTS } from "./seed-events.js?v=1792710574";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792710574";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792710574";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -4201,6 +4201,7 @@ const ct = { list: null, cur: null, entries: [], myEntry: null, myVote: null, my
 const br = (x) => esc(x).replace(/\n/g, "<br>");
 const ctWhen = (ts) => toDate(ts) ? `${fmtDate(ts, { day: "numeric", month: "short", year: "numeric" })}, ${toDate(ts).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" })}` : "";
 const ctOk = (e) => !!e.photo && (e.status || "ok") === "ok";
+const regNo = (n) => n ? String(n).padStart(7, "0") : "";
 function contestNoticeText(n) {
   const title = `<strong>${esc(n.title)}</strong>`;
   if (n.kind === "contest_win") return t("nt_contest_win", { n: esc(n.note), title });
@@ -4320,6 +4321,7 @@ function ctMainHTML(c) {
       <button type="button" class="btn btn-mat" data-ct="register">${t("ct_register")}</button>`;
     else if (!me.photo || state.ctEditing) box = `
       <h3>${me.photo ? t("ct_change_photo") : `✅ ${t("ct_registered")}`}</h3>
+      ${me.regNo ? `<p class="ct-regno">${t("ct_regno")}: <b>${regNo(me.regNo)}</b></p>` : ""}
       <p class="muted">${t("ct_submit_d", { d: c.submitEnd ? ctWhen(c.submitEnd) : t("ct_before_close") })}</p>
       <form class="form" id="f-ct-entry">
         <label><span>${t("ct_photo")} *</span><input type="file" name="photo" accept="image/*" ${me.photo ? "" : "required"}></label>
@@ -4333,6 +4335,7 @@ function ctMainHTML(c) {
       </form>`;
     else box = `
       <h3>✅ ${t("ct_submitted")}</h3>
+      ${me.regNo ? `<p class="ct-regno">${t("ct_regno")}: <b>${regNo(me.regNo)}</b></p>` : ""}
       <div class="ct-grid one">${entryCard(me)}</div>
       <p class="muted">${t("ct_submitted_d")}</p>
       <div class="form-actions"><button type="button" class="btn btn-ghost" data-ct="edit">${t("ct_change_photo")}</button><button type="button" class="btn btn-ghost" data-ct="withdraw">${t("ct_withdraw")}</button></div>`;
@@ -4412,7 +4415,7 @@ function adminContestHTML(c) {
     <div class="ct-admin-list">${ct.entries.map(e => `
       <div class="row">
         ${e.photo ? `<img src="${photoSrc(e.photo)}" alt="" data-ct-view="${esc(e.id)}">` : `<span class="ct-nophoto">—</span>`}
-        <div class="grow"><strong>${esc(e.name)}</strong>${e.status === "disq" ? `<span class="type-tag">${t("ct_disq")}</span>` : ""}<small>${esc(e.title || t("ct_no_photo_yet"))}</small></div>
+        <div class="grow"><strong>${e.regNo ? `${regNo(e.regNo)} · ` : ""}${esc(e.name)}</strong>${e.status === "disq" ? `<span class="type-tag">${t("ct_disq")}</span>` : ""}<small>${esc(e.title || t("ct_no_photo_yet"))}</small></div>
         <div class="actions">${e.status === "disq" ? `<button class="btn btn-sm btn-ghost" data-ct-reinstate="${esc(e.id)}">${t("ct_reinstate")}</button>` : `<button class="btn btn-sm btn-ghost" data-ct-disq="${esc(e.id)}">${t("ct_disqualify")}</button>`}</div>
       </div>`).join("") || `<p class="muted">${t("ct_no_regs")}</p>`}</div>
     ${res.length ? `<h3>${t("ct_results_live")}</h3>
@@ -4536,7 +4539,7 @@ $("#contest-root").addEventListener("submit", async (e) => {
     btn.disabled = true;
     try {
       const photo = hasFile ? (await storePhotos(f.photo, `contest:${c.id}`, 1, 0, btn))[0] : ct.myEntry.photo;
-      await setDoc(doc(db, "contests", c.id, "entries", uid), { uid, name: String(state.profile.displayName || "").slice(0, 80), avatar: String(state.profile.photoURL || state.user.photoURL || "").slice(0, 500),
+      await setDoc(doc(db, "contests", c.id, "entries", uid), { uid, regNo: ct.myEntry.regNo, name: String(state.profile.displayName || "").slice(0, 80), avatar: String(state.profile.photoURL || state.user.photoURL || "").slice(0, 500),
         title: f.title.value.trim().slice(0, 80), caption: f.caption.value.trim().slice(0, 500), photo, at: serverTimestamp() });
       state.ctEditing = false; toast(t("ct_submitted")); renderContestRoute();
     } catch (err) { fail(err); btn.disabled = false; }
@@ -4573,8 +4576,9 @@ $("#contest-root").addEventListener("click", async (e) => {
       await runTransaction(db, async (tx) => {
         const cref = doc(db, "contests", c.id), cs = (await tx.get(cref)).data() || {};
         if ((cs.registered || 0) >= (cs.maxEntries || 100)) throw Object.assign(new Error(t("ct_full")), { code: "full" });
-        tx.update(cref, { registered: (cs.registered || 0) + 1 });
-        tx.set(doc(db, "contests", c.id, "entries", uid), { uid, name: String(state.profile.displayName || "").slice(0, 80), avatar: String(state.profile.photoURL || state.user.photoURL || "").slice(0, 500), title: "", caption: "", photo: "", at: serverTimestamp() });
+        const no = (cs.regSeq || 0) + 1;   // registration number, never reused
+        tx.update(cref, { registered: (cs.registered || 0) + 1, regSeq: no });
+        tx.set(doc(db, "contests", c.id, "entries", uid), { uid, regNo: no, name: String(state.profile.displayName || "").slice(0, 80), avatar: String(state.profile.photoURL || state.user.photoURL || "").slice(0, 500), title: "", caption: "", photo: "", at: serverTimestamp() });
       });
       toast(t("ct_registered")); renderContestRoute();
     } catch (err) { if (err.code === "full") { toast(t("ct_full")); renderContestRoute(); } else fail(err); }

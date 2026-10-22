@@ -47,7 +47,7 @@ function doPost(e) {
     if (req.kind === "collection" && type !== "member") return out({ error: "members only" });
 
     // Contest: the person must be registered for that contest while registration is open.
-    let targetFolder = null;
+    let targetFolder = null, contestFileBase = "";
     if (req.kind === "contest") {
       const cid = String(req.contestId || "");
       if (!/^[\w-]{1,60}$/.test(cid)) return out({ error: "no contest" });
@@ -58,7 +58,12 @@ function doPost(e) {
       if (er.getResponseCode() !== 200) return out({ error: "register first" });
       const cf = JSON.parse(cr.getContentText()).fields || {};
       if ((cf.status && cf.status.stringValue) !== "open") return out({ error: "registration closed" });
-      targetFolder = contestFolder(cid, (cf.title && cf.title.stringValue) || cid);
+      const contestName = (cf.title && cf.title.stringValue) || cid;
+      targetFolder = contestFolder(cid, contestName);
+      // File name: <contest name>_<participant name>_<7-digit registration number>
+      const ef = JSON.parse(er.getContentText()).fields || {};
+      const no = ef.regNo ? String(ef.regNo.integerValue || ef.regNo.doubleValue || "").padStart(7, "0") : "0000000";
+      contestFileBase = [contestName, (ef.name && ef.name.stringValue) || uid, no].map(cleanName).join("_");
     }
 
     // 3. Simple rate limit per account.
@@ -73,7 +78,13 @@ function doPost(e) {
     const bytes = Utilities.base64Decode(req.data);
     if (bytes.length > MAX_BYTES) return out({ error: "photo too large" });
     const stamp = Utilities.formatDate(new Date(), "Asia/Jakarta", "yyyyMMdd-HHmmss");
-    const name = stamp + "_" + uid.slice(0, 8) + "_" + String(req.name || "photo").replace(/[^\w.-]+/g, "_").slice(0, 60) + (mime === "image/png" ? ".png" : mime === "image/webp" ? ".webp" : ".jpg");
+    const ext = mime === "image/png" ? ".png" : mime === "image/webp" ? ".webp" : ".jpg";
+    if (contestFileBase) {
+      // A new photo replaces the participant's earlier one (same name) in the contest folder.
+      const old = targetFolder.getFilesByName(contestFileBase + ext);
+      while (old.hasNext()) old.next().setTrashed(true);
+    }
+    const name = contestFileBase ? contestFileBase + ext : stamp + "_" + uid.slice(0, 8) + "_" + String(req.name || "photo").replace(/[^\w.-]+/g, "_").slice(0, 60) + (mime === "image/png" ? ".png" : mime === "image/webp" ? ".webp" : ".jpg");
     const file = (targetFolder || DriveApp.getFolderById(folderId)).createFile(Utilities.newBlob(bytes, mime, name));
     file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
     file.setDescription("Uploaded from the RCMI website by " + uid);
@@ -100,6 +111,9 @@ function contestFolder(cid, title) {
     return folder;
   } finally { lock.releaseLock(); }
 }
+
+// Safe for Drive file and folder names; keeps spaces and letters, drops / \ : * ? " < > | and the "_" separator.
+function cleanName(x) { return String(x).replace(/[\\/:*?"<>|_]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 80); }
 
 function doGet() { return out({ ok: true, service: "RCMI photo uploads" }); }
 

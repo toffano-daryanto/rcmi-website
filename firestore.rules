@@ -115,13 +115,17 @@ service cloud.firestore {
       allow read: if resource.data.get('public', false) == true || admin();
       allow create, update, delete: if admin();
       // Spots: 'registered' moves by exactly one, in the same transaction as someone registering or withdrawing,
-      // and never above 'maxEntries' (default 100).
+      // and never above 'maxEntries' (default 100). 'regSeq' only goes up: it hands out the registration numbers.
       function myEntry() { return /databases/$(database)/documents/contests/$(cid)/entries/$(request.auth.uid); }
-      allow update: if approved() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['registered'])
-        && ((request.resource.data.registered == resource.data.get('registered', 0) + 1
+      allow update: if approved()
+        && ((request.resource.data.diff(resource.data).affectedKeys().hasOnly(['registered', 'regSeq'])
+              && request.resource.data.registered == resource.data.get('registered', 0) + 1
               && request.resource.data.registered <= resource.data.get('maxEntries', 100)
-              && resource.data.status == 'open' && !exists(myEntry()) && existsAfter(myEntry()))
-          || (request.resource.data.registered == resource.data.get('registered', 0) - 1
+              && request.resource.data.regSeq == resource.data.get('regSeq', 0) + 1
+              && resource.data.status == 'open' && !exists(myEntry()) && existsAfter(myEntry())
+              && getAfter(myEntry()).data.regNo == request.resource.data.regSeq)
+          || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['registered'])
+              && request.resource.data.registered == resource.data.get('registered', 0) - 1
               && exists(myEntry()) && !existsAfter(myEntry())));
 
       // Registration = an entry doc (id = their uid), one per person; the photo is added later. Others' entries stay hidden while entries are open.
@@ -130,11 +134,13 @@ service cloud.firestore {
         function spotTaken() {
           return getAfter(/databases/$(database)/documents/contests/$(cid)).data.get('registered', 0) == c().get('registered', 0) + 1;
         }
-        allow create: if approved() && own(uid) && c().status == 'open' && spotTaken() && entryOk(uid);
-        allow update: if approved() && own(uid) && c().status == 'open' && entryOk(uid);
+        allow create: if approved() && own(uid) && c().status == 'open' && spotTaken() && entryOk(uid)
+          && request.resource.data.regNo == getAfter(/databases/$(database)/documents/contests/$(cid)).data.regSeq;
+        allow update: if approved() && own(uid) && c().status == 'open' && entryOk(uid)
+          && request.resource.data.regNo == resource.data.regNo;
         function entryOk(uid) { return true
           && !(uid in c().get('judges', [])) && me().get('role', 'member') != 'jury'
-          && request.resource.data.keys().hasOnly(['uid', 'name', 'avatar', 'title', 'caption', 'photo', 'at'])
+          && request.resource.data.keys().hasOnly(['uid', 'regNo', 'name', 'avatar', 'title', 'caption', 'photo', 'at'])
           && request.resource.data.uid == uid
           // Step 1 registers (photo still empty); step 2 adds the photo before entries close.
           && str(request.resource.data.title, 80) && str(request.resource.data.caption, 500)
