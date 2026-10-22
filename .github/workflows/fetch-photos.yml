@@ -1,0 +1,30 @@
+name: Fetch Drive photos (tool)
+# Downloads link-shared Drive photos (by id) at high resolution to the "tool-photos" branch, for design work.
+on:
+  workflow_dispatch:
+    inputs:
+      ids:
+        description: "Drive file ids, comma-separated"
+        required: true
+permissions:
+  contents: write
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Download
+        env: { IDS: "${{ inputs.ids }}" }
+        run: |
+          mkdir -p out
+          for id in ${IDS//,/ }; do
+            curl -sSL -m 60 -o "out/$id.jpg" "https://drive.google.com/thumbnail?id=$id&sz=w2000"
+            file "out/$id.jpg"
+          done
+      - name: Push
+        run: |
+          git config user.name "github-actions"; git config user.email "github-actions@users.noreply.github.com"
+          git checkout --orphan tool-photos
+          git rm -rfq . ; git add -f out
+          git commit -qm "Photos"
+          git push -f origin tool-photos
