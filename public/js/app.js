@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792711266";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792711953";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792711266";
-import { SEED_EVENTS } from "./seed-events.js?v=1792711266";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792711266";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792711266";
+import { GALLERY } from "./gallery-data.js?v=1792711953";
+import { SEED_EVENTS } from "./seed-events.js?v=1792711953";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792711953";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792711953";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -4219,6 +4219,13 @@ $("#btn-install-3")?.addEventListener("click", () => installApp());
    Flow: admin creates (draft) → publishes: registration open (account needed; register, then submit 1 photo)
    → voting (everyone signed in: 1 vote; jury scores blind on 4 criteria) → judging (jury only) → admin announces winners. */
 const CT_STEPS = ["open", "voting", "judging", "closed"];
+const CT_POSTERS = ["r32", "f40"];   // public/img/contest/poster-*.jpg (rendered from tools/posters)
+function openPoster(p) {
+  openModal(`<img class="ct-big" src="/img/contest/poster-${p}.jpg" alt="${esc(t("ct_poster_alt"))}">
+    <div class="form-actions"><a class="btn btn-mat" href="/img/contest/poster-${p}.jpg" download="RCMI-Photo-Contest-${p}.jpg">${t("ct_poster_dl")}</a><button type="button" class="btn btn-ghost" data-act="close">${t("close")}</button></div>`);
+  $("#modal-body").onclick = (ev) => { if (ev.target.dataset.act === "close") closeModal(); };
+}
+document.addEventListener("click", (e) => { const b = e.target.closest("[data-ct-poster]"); if (b) { e.preventDefault(); openPoster(b.dataset.ctPoster); } });
 const CT_CRIT = ["comp", "creat", "theme", "quality"];
 const ct = { list: null, cur: null, entries: [], myEntry: null, myVote: null, myScores: {}, allScores: null, allVotes: null, jurors: null, tok: 0 };
 const br = (x) => esc(x).replace(/\n/g, "<br>");
@@ -4255,7 +4262,8 @@ async function renderContestRoute() {
       <h2>📸 ${t("ct_soon_t")}</h2><p>${t("ct_soon_d")}</p>
       <dl><dt>${t("ct_step_open")}</dt><dd>${t("ct_soon_badge")}</dd><dt>${t("ct_step_voting")}</dt><dd>${t("ct_soon_badge")}</dd><dt>${t("ct_step_closed")}</dt><dd>${t("ct_soon_badge")}</dd><dt>${t("ct_participants")}</dt><dd>${t("ct_max_n", { n: 100 })}</dd><dt>${t("ct_winners")}</dt><dd>🥇 🥈 🥉</dd></dl>
       ${state.user ? "" : `<button type="button" class="btn btn-mat" data-ct="signin">${t("ct_soon_cta")}</button>`}
-    </div>`}
+    </div>
+    <div class="ct-posters">${CT_POSTERS.map(p => `<button type="button" data-ct-poster="${p}"><img src="/img/contest/poster-${p}.jpg" alt="${esc(t("ct_poster_alt"))}" loading="lazy"></button>`).join("")}</div>`}
     <div class="ct-list">${ct.list.length ? ct.list.map(c => `
       <a class="ct-item" href="#/contest/${encodeURIComponent(c.id)}">
         <span class="ct-item-cover">${c.winners?.[0]?.photo ? `<img src="${photoSrc(c.winners[0].photo)}" alt="" loading="lazy">` : `<span>📸</span>`}</span>
@@ -4658,7 +4666,7 @@ async function renderHomeContest() {
   if (!live) {
     box.hidden = false;
     box.innerHTML = `<a class="ct-home soon" href="#/contest">
-      <span class="ct-home-ic">📸</span>
+      <span class="ct-home-ic poster"><img src="/img/contest/poster-r32.jpg" alt=""></span>
       <span class="ct-home-t"><small>${t("ct_soon_badge")}</small><b>${t("ct_soon_t")}</b><span>${t("ct_soon_d")}</span></span>
       <em>${t("ct_soon_badge")}</em></a>`;
     return;
