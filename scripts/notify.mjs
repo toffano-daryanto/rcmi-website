@@ -12,6 +12,7 @@ import { readFileSync } from "node:fs";
 import { initializeApp, cert } from "firebase-admin/app";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import nodemailer from "nodemailer";
+import { pushTo } from "./push.mjs";
 
 const { SA_JSON_PATH, GMAIL_USER, GMAIL_APP_PASSWORD } = process.env;
 const NOTIFY_TO = process.env.NOTIFY_TO || "";
@@ -94,8 +95,13 @@ const html = `<div style="font-family:Arial,sans-serif;max-width:600px;color:#12
 </div>`;
 
 // Admin alerts go to every admin account's email, plus any extra address in NOTIFY_TO.
-const admins = (await db.collection("users").where("role", "==", "admin").get()).docs.map(d => d.data())
-  .filter(u => u.status === "approved" && u.email).map(u => u.email.toLowerCase());
+const adminDocs = (await db.collection("users").where("role", "==", "admin").get()).docs.filter(d => d.data().status === "approved");
+const admins = adminDocs.map(d => d.data()).filter(u => u.email).map(u => u.email.toLowerCase());
+// Phone notification to the admins' devices too.
+try {
+  const r = await pushTo(db, adminDocs.map(d => d.id), { title: "RCMI admin", body: parts.join(", "), link: "/#/admin", tag: "rcmi-admin" });
+  console.log(`Admin phone notifications: ${r.sent} delivered.`);
+} catch (e) { console.log(`::warning::Admin push failed (${e.code || "error"}).`); }
 const to = [...new Set([...String(NOTIFY_TO || "").split(",").map(x => x.trim().toLowerCase()).filter(Boolean), ...admins])];
 const mail = nodemailer.createTransport({ service: "gmail", auth: { user: GMAIL_USER, pass: String(GMAIL_APP_PASSWORD).replace(/\s+/g, "") } });
 await mail.sendMail({ from: `"RCMI website" <${GMAIL_USER}>`, to: GMAIL_USER, bcc: to, subject: `RCMI: ${parts.join(", ")}`, html });

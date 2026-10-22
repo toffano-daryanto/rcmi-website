@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792616753";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792707268";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792616753";
-import { SEED_EVENTS } from "./seed-events.js?v=1792616753";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792616753";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792616753";
+import { GALLERY } from "./gallery-data.js?v=1792707268";
+import { SEED_EVENTS } from "./seed-events.js?v=1792707268";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792707268";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792707268";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -288,7 +288,7 @@ $$("#btn-signin, .js-signin").forEach(b => b.addEventListener("click", () => {
   if (state.user) { location.hash = "#/collection"; return; }
   openSignInChooser();
 }));
-$("#btn-signout").addEventListener("click", async () => { await signOut(auth); location.hash = "#/"; });
+$("#btn-signout").addEventListener("click", async () => { await dropPushToken(); await signOut(auth); location.hash = "#/"; });
 getRedirectResult(auth).catch(fail);
 
 /* ---------------- state + screens ---------------- */
@@ -2962,6 +2962,7 @@ function renderCard() {
   ["displayName", "city", "instagram", "whatsapp", "bio"].forEach(k => { if (document.activeElement !== f[k]) f[k].value = p[k] || ""; });
   f._syncSame?.();
   $("#email-on").checked = !p.emailOff;
+  refreshPushUI();
   // Read-only until "Edit" — except when the address is still missing, then open for editing.
   if (!state.profEditing) lockProfile(state.myAddr !== null);   // still loading (undefined) or saved → read-only
 }
@@ -3976,4 +3977,86 @@ $("#view-admin").addEventListener("click", async (e) => {
       toast(t("saved")); state.roster = null; loadAdmin();
     }
   } catch (err) { fail(err); }
+});
+
+
+/* ================= App: install to the home screen + phone push notifications ================= */
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+const isStandalone = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+const lsGet = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+const lsSet = (k, v) => { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) {} };
+let swReg = null, installEvt = null;
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").then(r => { swReg = r; }).catch(() => {});
+
+function showBanner(show) {
+  const b = $("#app-banner"); if (!b) return;
+  b.hidden = !show || isStandalone() || Number(lsGet("rcmi-app-banner") || 0) > Date.now();
+}
+addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault(); installEvt = e;
+  $("#btn-install-2").hidden = false;
+  setTimeout(() => showBanner(matchMedia("(max-width: 720px)").matches), 3000);
+});
+addEventListener("appinstalled", () => { installEvt = null; showBanner(false); $("#btn-install-2").hidden = true; toast(t("app_installed")); });
+// iPhone Safari has no install button of its own: offer the Add to Home Screen steps.
+if (isIOS && !isStandalone()) { $("#btn-install-2").hidden = false; setTimeout(() => showBanner(true), 4000); }
+async function installApp() {
+  if (installEvt) {
+    installEvt.prompt();
+    const r = await installEvt.userChoice.catch(() => null);
+    installEvt = null; if (r?.outcome === "accepted") showBanner(false);
+    return;
+  }
+  openModal(`<h2>${t("app_ios_t")}</h2><p>${t("app_ios_steps")}</p>
+    <div class="form-actions"><button type="button" class="btn btn-mat" data-act="close">OK</button></div>`);
+  $("#modal-body").onclick = (ev) => { if (ev.target.dataset.act === "close") closeModal(); };
+}
+$("#btn-install").addEventListener("click", installApp);
+$("#btn-install-2").addEventListener("click", installApp);
+$("#app-banner-x").addEventListener("click", () => { lsSet("rcmi-app-banner", String(Date.now() + 14 * 864e5)); showBanner(false); });
+
+// Push: Firebase Cloud Messaging. Each device's token is kept under users/{uid}/push/{token};
+// the 10-minute notification job sends to them (scripts/user-notify.mjs, scripts/notify.mjs).
+let msgMod = null;
+const pushReady = () => "Notification" in window && "serviceWorker" in navigator && "PushManager" in window;
+const tokenKey = () => `rcmi-push-${state.user?.uid || ""}`;
+async function messaging() {
+  if (!msgMod) msgMod = await import("https://www.gstatic.com/firebasejs/11.0.2/firebase-messaging.js");
+  return (await msgMod.isSupported()) ? msgMod.getMessaging(fbApp) : null;
+}
+async function savePushToken() {
+  const m = await messaging(); if (!m) throw new Error(t("push_unsupported"));
+  const reg = swReg || await navigator.serviceWorker.ready;
+  const token = await msgMod.getToken(m, { serviceWorkerRegistration: reg });
+  if (!token) throw new Error(t("push_unsupported"));
+  const old = lsGet(tokenKey());
+  if (old && old !== token) deleteDoc(doc(db, "users", state.user.uid, "push", old)).catch(() => {});
+  await setDoc(doc(db, "users", state.user.uid, "push", token), { at: serverTimestamp(), ua: navigator.userAgent.slice(0, 200) });
+  lsSet(tokenKey(), token);
+}
+function refreshPushUI() {
+  const cb = $("#push-on"); if (!cb || !state.user) return;
+  const ok = pushReady();
+  cb.checked = ok && Notification.permission === "granted" && !!lsGet(tokenKey());
+  $("#push-note").textContent = t(ok ? "push_pref_d" : isIOS && !isStandalone() ? "push_ios" : "push_unsupported");
+  // Tokens change now and then: refresh this device's once per visit.
+  if (cb.checked && state.pushFresh !== state.user.uid) { state.pushFresh = state.user.uid; savePushToken().catch(() => {}); }
+}
+async function dropPushToken() {
+  const tok = lsGet(tokenKey()); if (!tok || !state.user) return;
+  await deleteDoc(doc(db, "users", state.user.uid, "push", tok)).catch(() => {});
+  try { const m = await messaging(); if (m) await msgMod.deleteToken(m); } catch (e) {}
+  lsSet(tokenKey(), null);
+}
+$("#push-on").addEventListener("change", async (e) => {
+  const cb = e.target; cb.disabled = true;
+  try {
+    if (!cb.checked) { await dropPushToken(); toast(t("push_off_t")); return; }
+    if (!pushReady()) { cb.checked = false; toast(t(isIOS && !isStandalone() ? "push_ios" : "push_unsupported")); return; }
+    const perm = await Notification.requestPermission();
+    if (perm !== "granted") { cb.checked = false; toast(t("push_denied")); return; }
+    await savePushToken();
+    toast(t("push_on_t"));
+  } catch (err) { cb.checked = false; fail(err); }
+  finally { cb.disabled = false; }
 });

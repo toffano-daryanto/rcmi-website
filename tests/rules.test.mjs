@@ -53,6 +53,10 @@ test("profile update by owner", async () => {
   await assertSucceeds(updateDoc(doc(as(U.m1), "users", U.m1), { city: "Bogor", updatedAt: serverTimestamp() }));
   await assertSucceeds(updateDoc(doc(as(U.m1), "users", U.m1), { emailOff: true }));
   await assertFails(updateDoc(doc(as(U.m2), "users", U.m1), { emailOff: false }));
+  await assertSucceeds(setDoc(doc(as(U.m1), "users", U.m1, "push", "tokA"), { at: serverTimestamp(), ua: "test" }));
+  await assertFails(getDoc(doc(as(U.m2), "users", U.m1, "push", "tokA")));
+  await assertFails(setDoc(doc(as(U.m2), "users", U.m1, "push", "tokB"), { at: serverTimestamp(), ua: "x" }));
+  await assertSucceeds(deleteDoc(doc(as(U.m1), "users", U.m1, "push", "tokA")));
 });
 
 // ---------- Collection ----------

@@ -1023,3 +1023,13 @@ span.rep-badge { cursor: default; }
 
 .email-pref { margin-top: 16px; display: grid; gap: 6px; }
 .email-pref .lay-check { display: flex; gap: 8px; align-items: center; }
+
+/* "Install the RCMI app" banner (phones) */
+.app-banner { position: fixed; z-index: 70; left: 12px; right: 12px; bottom: 12px; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 14px; background: var(--navy); color: #fff; box-shadow: 0 10px 30px rgba(0,0,0,.35); }
+.app-banner[hidden] { display: none; }
+.app-banner img { border-radius: 10px; flex: none; }
+.app-banner div { flex: 1; min-width: 0; display: grid; line-height: 1.25; }
+.app-banner small { opacity: .8; font-size: .78rem; }
+.app-banner-x { background: none; border: 0; color: #fff; font-size: 24px; line-height: 1; padding: 4px 6px; cursor: pointer; opacity: .8; }
+.push-pref { margin-top: 10px; }
+.app-install { justify-self: start; margin-top: 6px; }

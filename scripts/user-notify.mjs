@@ -11,10 +11,11 @@ import { readFileSync } from "node:fs";
 import { initializeApp, cert } from "firebase-admin/app";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import nodemailer from "nodemailer";
+import { pushTo, plain } from "./push.mjs";
 
 const { SA_JSON_PATH, GMAIL_USER, GMAIL_APP_PASSWORD } = process.env;
 const SITE = "https://rcmi-website.web.app";
-if (!SA_JSON_PATH || !GMAIL_USER || !GMAIL_APP_PASSWORD) { console.log("User emails are off (no Gmail secrets)."); process.exit(0); }
+const EMAIL = !!(GMAIL_USER && GMAIL_APP_PASSWORD);   // phone push still works without the Gmail secrets
 
 initializeApp({ credential: cert(JSON.parse(readFileSync(SA_JSON_PATH, "utf8"))) });
 const db = getFirestore();
@@ -65,12 +66,23 @@ for (const d of chatSnap.docs) {
 if (!per.size) { await stateRef.set({ lastCheck: now }); console.log("User emails: nothing new."); process.exit(0); }
 
 const users = await db.getAll(...[...per.keys()].map(uid => db.doc(`users/${uid}`)));
-const mail = nodemailer.createTransport({ service: "gmail", auth: { user: GMAIL_USER, pass: String(GMAIL_APP_PASSWORD).replace(/\s+/g, "") } });
-let sent = 0, skipped = 0, failed = 0;
+const mail = EMAIL ? nodemailer.createTransport({ service: "gmail", auth: { user: GMAIL_USER, pass: String(GMAIL_APP_PASSWORD).replace(/\s+/g, "") } }) : null;
+let sent = 0, skipped = 0, failed = 0, pushed = 0;
 for (const u of users) {
   const p = u.exists ? u.data() : null;
-  if (!p || p.status !== "approved" || p.emailOff || !p.email) { skipped++; continue; }
+  if (!p || p.status !== "approved") { skipped++; continue; }
   const items = per.get(u.id).sort((a, b) => b.at - a.at).slice(0, 30);
+  // Phone notification (devices where the person turned it on).
+  try {
+    const first = plain(items[0].html);
+    const r = await pushTo(db, [u.id], {
+      title: items.length === 1 ? "RCMI" : `RCMI · ${items.length} new`,
+      body: items.length === 1 ? first : `${first} (+${items.length - 1} more)`,
+      link: items.length === 1 ? items[0].href.replace(SITE, "") : "/#/activity", tag: "rcmi-activity"
+    });
+    pushed += r.sent;
+  } catch (e) { console.log(`::warning::Push failed (${e.code || "error"}).`); }
+  if (!mail || p.emailOff || !p.email) { skipped++; continue; }
   const rows = items.map(i => `<div style="border:1px solid #ddd;border-left:4px solid #D6102B;border-radius:6px;padding:10px 14px;margin:0 0 8px">${i.html}<br><a href="${i.href}" style="color:#D6102B;font-weight:bold;text-decoration:none">Open →</a></div>`).join("");
   const html = `<div style="font-family:Arial,sans-serif;max-width:600px;color:#12141C">
     <h2 style="margin:0 0 4px">RCMI</h2>
@@ -83,5 +95,5 @@ for (const u of users) {
   catch (e) { failed++; }
 }
 await stateRef.set({ lastCheck: now });
-console.log(`User emails: ${sent} sent, ${skipped} skipped (off / inactive), ${failed} failed.`);
+console.log(`User emails: ${sent} sent, ${skipped} skipped (off / inactive), ${failed} failed. Phone notifications: ${pushed} delivered.`);
 if (failed && !sent) process.exit(1);

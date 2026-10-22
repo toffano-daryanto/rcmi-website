@@ -9,9 +9,14 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;1,600;1,700;1,800&family=Barlow:wght@400;500;600;700&family=Noto+Serif:wght@700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/style.css?v=1792616753">
+  <link rel="stylesheet" href="/css/style.css?v=1792707268">
   <link rel="icon" type="image/png" href="/img/icon-64.png">
   <link rel="apple-touch-icon" href="/img/icon-192.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="RCMI">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta property="og:image" content="/img/icon-512.png">
 </head>
 <body>
@@ -383,6 +388,9 @@
         <section class="panel-flat email-pref">
           <label class="lay-check"><input type="checkbox" id="email-on"> <strong data-i18n="email_pref"></strong></label>
           <small class="muted" data-i18n="email_pref_d"></small>
+          <label class="lay-check push-pref"><input type="checkbox" id="push-on"> <strong data-i18n="push_pref"></strong></label>
+          <small class="muted" id="push-note" data-i18n="push_pref_d"></small>
+          <button type="button" class="btn btn-sm btn-ghost app-install" id="btn-install-2" hidden>📲 <span data-i18n="app_install"></span></button>
         </section>
       </div>
 
@@ -433,6 +441,13 @@
     </section>
   </main>
 
+  <div class="app-banner" id="app-banner" hidden>
+    <img src="/img/icon-192.png" alt="" width="40" height="40">
+    <div><strong data-i18n="app_banner_t"></strong><small data-i18n="app_banner_d"></small></div>
+    <button type="button" class="btn btn-sm btn-mat" id="btn-install" data-i18n="app_install"></button>
+    <button type="button" class="app-banner-x" id="app-banner-x" aria-label="Close">×</button>
+  </div>
+
   <footer class="foot">
     <img class="logo" src="/img/logo-white.png" alt="RCMI — Resin Car Model Indonesia" width="900" height="343" loading="lazy">
   </footer>
@@ -453,6 +468,6 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-  <script type="module" src="/js/app.js?v=1792616753"></script>
+  <script type="module" src="/js/app.js?v=1792707268"></script>
 </body>
 </html>

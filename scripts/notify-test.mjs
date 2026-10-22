@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { initializeApp, cert } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import nodemailer from "nodemailer";
+import { pushTo } from "./push.mjs";
 
 const { SA_JSON_PATH, GMAIL_USER, GMAIL_APP_PASSWORD } = process.env;
 if (!GMAIL_USER || !GMAIL_APP_PASSWORD) { console.log("::error::GMAIL_USER / GMAIL_APP_PASSWORD secrets are missing."); process.exit(1); }
@@ -27,3 +28,6 @@ await mail.sendMail({ from: `"RCMI website" <${GMAIL_USER}>`, to: GMAIL_USER, bc
     <p style="color:#555">From now on you'll get an email here for new sign-ups, payment proofs, contact messages, delete requests and reported chats. Members get their own emails for comments, replies, messages and likes.</p>
     <p><a href="https://rcmi-website.web.app/#/admin" style="background:#D6102B;color:#fff;padding:10px 16px;border-radius:6px;text-decoration:none;font-weight:bold">Open the Admin page</a></p></div>` });
 console.log("::notice::Test email sent.");
+const adminIds = (await db.collection("users").where("role", "==", "admin").get()).docs.filter(d => d.data().status === "approved").map(d => d.id);
+const r = await pushTo(db, adminIds, { title: "RCMI: test notification ✅", body: "Phone notifications are working 🎉", link: "/#/admin", tag: "rcmi-test" });
+console.log(`::notice::Test phone notification: ${r.sent} of ${r.devices} admin device(s).`);

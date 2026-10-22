@@ -105,6 +105,13 @@ service cloud.firestore {
         || (mod() && resource.data.get('accountType', 'member') == 'general' && resource.data.status == 'pending');
     }
 
+    // Phone push notifications: each device's Firebase Cloud Messaging token, written by its owner.
+    match /users/{uid}/push/{token} {
+      allow read, delete: if signedIn() && request.auth.uid == uid;
+      allow create, update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['at', 'ua']) && str(request.resource.data.ua, 200);
+    }
+
     // Seller contact (name + WhatsApp) for the market — readable by any approved account, written by its owner.
     match /contacts/{uid} {
       allow read: if approved();
