@@ -1137,3 +1137,29 @@ span.rep-badge { cursor: default; }
 .foot-copy { max-width: 1200px; margin: 28px auto 0; padding-top: 16px; border-top: 1px solid rgba(255,255,255,.12); font-size: .8rem; opacity: .7; }
 @media (max-width: 720px) { .foot-cols { grid-template-columns: 1fr 1fr; } .foot-brand { grid-column: 1 / -1; } }
 .hs-cta a.btn { text-decoration: none; }
+
+/* Instagram */
+.ig-follow { max-width: 1200px; margin: 0 auto; padding: clamp(28px, 5vw, 48px) 20px 0; }
+.ig-card { display: flex; align-items: center; gap: 18px; padding: 22px 26px; border-radius: var(--radius-m); color: #fff; text-decoration: none;
+  background: linear-gradient(110deg, #833AB4 0%, #C13584 35%, #E1306C 60%, #F77737 85%, #FCAF45 100%); box-shadow: 0 14px 30px -18px rgba(0,0,0,.5); }
+.ig-ic { flex: none; width: 60px; height: 60px; border-radius: 16px; display: grid; place-items: center; background: rgba(255,255,255,.18); }
+.ig-txt { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.ig-txt small { text-transform: uppercase; letter-spacing: .08em; font-weight: 700; font-size: .72rem; opacity: .85; }
+.ig-txt b { font-family: var(--display); font-style: italic; font-weight: 800; font-size: clamp(1.3rem, 3.4vw, 2rem); line-height: 1.05; overflow-wrap: anywhere; }
+.ig-txt span { opacity: .92; font-size: .92rem; }
+.ig-card em { flex: none; font-style: normal; font-weight: 800; padding: 10px 20px; border-radius: 999px; background: #fff; color: #C13584; }
+@media (max-width: 600px) { .ig-card { flex-wrap: wrap; padding: 18px; gap: 12px; } .ig-ic { width: 48px; height: 48px; } .ig-card em { width: 100%; text-align: center; } }
+.contact-ig a, .foot-ig { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; }
+.contact-ig a { color: var(--ink); font-weight: 600; }
+.contact-ig a:hover b { text-decoration: underline; }
+.foot-ig { margin-top: 14px; color: #fff; font-weight: 600; }
+.foot-ig:hover { text-decoration: underline; }
+.ig-follow { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.tt-card { background: linear-gradient(110deg, #010101 0%, #111 55%, #25F4EE 140%); box-shadow: 0 14px 30px -18px rgba(0,0,0,.6), inset 3px 0 0 #FE2C55; }
+.tt-card em { color: #010101; }
+@media (max-width: 900px) { .ig-follow { grid-template-columns: 1fr; } }
+.contact-ig.socials { display: flex; flex-wrap: wrap; gap: 10px 22px; }
+.foot-brand { display: grid; align-content: start; }
+.foot-ig + .foot-ig { margin-top: 8px; }
+.foot-brand .logo, .foot-ig { justify-self: start; }
+.ig-txt b { font-size: clamp(1.15rem, 1.9vw, 1.55rem); overflow-wrap: normal; word-break: normal; }
