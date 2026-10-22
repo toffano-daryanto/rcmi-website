@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792710958";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792711165";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792710958";
-import { SEED_EVENTS } from "./seed-events.js?v=1792710958";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792710958";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792710958";
+import { GALLERY } from "./gallery-data.js?v=1792711165";
+import { SEED_EVENTS } from "./seed-events.js?v=1792711165";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792711165";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792711165";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -3411,9 +3411,7 @@ async function loadAdmin() {
           ${since(u) ? `<small>${t("registered_on", { date: since(u) })}</small>` : ""}</div>
         <div class="actions">
           ${waNumber(u.whatsapp) ? `<a class="btn btn-sm btn-ghost" target="_blank" rel="noopener" href="https://wa.me/${waNumber(u.whatsapp)}">WhatsApp</a>` : ""}
-          ${u.role !== "admin" ? `<button class="btn btn-sm btn-ghost" data-mkmod="${esc(u.id)}" data-on="${u.role === "moderator" ? 0 : 1}">${t(u.role === "moderator" ? "remove_mod" : "make_mod")}</button>` : ""}
-          ${u.role !== "admin" ? `<button class="btn btn-sm btn-ghost" data-mkjury="${esc(u.id)}" data-on="${u.role === "jury" ? 0 : 1}">${t(u.role === "jury" ? "remove_jury" : "make_jury")}</button>` : ""}
-          ${u.role !== "admin" ? `<button class="btn btn-sm btn-ghost" data-mkadmin="${esc(u.id)}">${t("make_admin")}</button>` : ""}
+          ${roleSel(u)}
           ${u.role !== "admin" ? `<button class="btn btn-sm btn-danger" data-deactivate="${esc(u.id)}">${t("deactivate")}</button>` : ""}
         </div>
       </div>`).join("") : `<p class="muted">${t("no_general")}</p>`;
@@ -3435,7 +3433,7 @@ async function loadAdmin() {
         <img src="${esc(u.photoURL)}" alt="" referrerpolicy="no-referrer">
         <div class="grow"><strong>${u.accountType === "general" ? "" : memberNo(u.memberNo) + " · "}${esc(u.displayName)}</strong>${u.accountType === "general" ? `<span class="type-tag general">${t("type_general")}</span>` : ""}
           <small>${esc(u.city)} · ${u.instagram ? "@" + esc(u.instagram) : ""}${u.role === "admin" ? " · admin" : u.role === "moderator" ? " · " + t("role_mod") : u.role === "jury" ? " · " + t("role_jury") : ""}</small></div>
-        ${u.role !== "admin" ? `<div class="actions"><button class="btn btn-sm btn-ghost" data-mkmod="${esc(u.id)}" data-on="${u.role === "moderator" ? 0 : 1}">${t(u.role === "moderator" ? "remove_mod" : "make_mod")}</button><button class="btn btn-sm btn-ghost" data-mkjury="${esc(u.id)}" data-on="${u.role === "jury" ? 0 : 1}">${t(u.role === "jury" ? "remove_jury" : "make_jury")}</button><button class="btn btn-sm btn-ghost" data-mkadmin="${esc(u.id)}">${t("make_admin")}</button></div>` : ""}
+        <div class="actions">${roleSel(u)}</div>
       </div>`).join("");
     $("#admin-import").innerHTML = `
       <details class="panel-flat dues-settings" ${state.roster?.some(r => r.id === "m001") ? "" : "open"}>
@@ -4052,6 +4050,25 @@ $("#view-admin").addEventListener("click", async (e) => {
   } catch (err) { fail(err); }
 });
 
+
+/* ================= Roles: one menu per person (admins only). "Member" takes any role away. ================= */
+const ROLES = ["member", "moderator", "jury", "admin"];
+function roleSel(u) {
+  const r = u.role || "member";
+  if (!isAdmin()) return "";
+  if (u.id === state.user?.uid) return `<span class="type-tag">${t("ro_" + r)} · ${t("role_you")}</span>`;
+  return `<label class="role-sel"><span>${t("role_label")}</span><select data-role-of="${esc(u.id)}">${ROLES.map(x => `<option value="${x}" ${x === r ? "selected" : ""}>${t("ro_" + x)}</option>`).join("")}</select></label>`;
+}
+document.addEventListener("change", async (e) => {
+  const sel = e.target.closest("select[data-role-of]"); if (!sel || !isAdmin()) return;
+  const uid = sel.dataset.roleOf, u = state.siteUsers?.[uid], from = u?.role || "member", to = sel.value;
+  if (to === from) return;
+  if (from === "admin" && Object.values(state.siteUsers || {}).filter(x => x.role === "admin").length <= 1) { toast(t("role_last_admin")); sel.value = from; return; }
+  if (!confirm(t(to === "member" ? "role_remove_confirm" : "role_confirm", { name: u?.displayName || "", from: t("ro_" + from), to: t("ro_" + to) }))) { sel.value = from; return; }
+  sel.disabled = true;
+  try { await updateDoc(doc(db, "users", uid), { role: to }); toast(t("saved")); state.roster = null; ct.jurors = null; loadAdmin(); }
+  catch (err) { sel.value = from; sel.disabled = false; fail(err); }
+});
 
 /* ================= App: install to the home screen + phone push notifications ================= */
 const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);

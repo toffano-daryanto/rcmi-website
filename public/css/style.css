@@ -1267,3 +1267,5 @@ span.rep-badge { cursor: default; }
 .ct-regno { margin: 0; } .ct-regno b { font-family: var(--display); font-style: italic; font-size: 1.4rem; letter-spacing: .08em; color: var(--red); }
 /* News strip stays under the top bar while scrolling */
 .annc { position: sticky; top: var(--tb, 64px); z-index: 59; box-shadow: 0 4px 10px -6px rgba(0,0,0,.35); }
+.role-sel { display: inline-flex; align-items: center; gap: 6px; font-size: .85rem; font-weight: 600; }
+.role-sel select { padding: 6px 8px; border-radius: 6px; border: 1px solid var(--line); font: inherit; background: var(--surface); }
