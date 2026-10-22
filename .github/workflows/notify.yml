@@ -67,6 +67,13 @@ jobs:
           GMAIL_USER: ${{ secrets.GMAIL_USER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
         run: SA_JSON_PATH="$RUNNER_TEMP/sa.json" node user-notify.mjs
+      - name: Contest registration emails
+        if: always()
+        working-directory: scripts
+        env:
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+        run: SA_JSON_PATH="$RUNNER_TEMP/sa.json" node contest-mail.mjs
       - name: Clean up
         if: always()
         run: rm -f "$RUNNER_TEMP/sa.json"
