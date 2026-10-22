@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792712151";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792712744";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792712151";
-import { SEED_EVENTS } from "./seed-events.js?v=1792712151";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792712151";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792712151";
+import { GALLERY } from "./gallery-data.js?v=1792712744";
+import { SEED_EVENTS } from "./seed-events.js?v=1792712744";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792712744";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792712744";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -473,7 +473,7 @@ function show(screen) {
   // The main-site menu stays in the top bar everywhere; "How to join" only on the public pages.
   $("#landing-nav").hidden = false;
   const joinLink = $('#landing-nav a[href="#join"]'); if (joinLink) joinLink.hidden = screen === "app" || screen === "gate";
-  $$("#landing-nav a").forEach(a => a.classList.toggle("on", a.getAttribute("href") === "#/" + screen));
+  $$("#landing-nav a").forEach(a => a.classList.toggle("on", a.getAttribute("href") === "#/" + screen || (screen === "landing" && a.getAttribute("href") === "#/")));
   $("#gate").hidden = screen !== "gate";
   $("#app").hidden = screen !== "app";
   if (screen !== lastScreen && screen !== "landing") window.scrollTo(0, 0);
@@ -879,6 +879,8 @@ document.addEventListener("click", (e) => {
 /* ---------------- routing ---------------- */
 const TABS = ["collection", "events", "members", "dues", "activity", "card", "finance", "admin"];
 window.addEventListener("hashchange", render);
+// "Home" in the top menu: back to the main page, at the top (also when already there).
+document.querySelector('#landing-nav a[href="#/"]')?.addEventListener("click", () => { if (location.hash === "#/" || location.hash === "") window.scrollTo({ top: 0, behavior: "smooth" }); });
 function route() {
   if (!state.profile || state.profile.status !== "approved" || !isMemberRoute()) return;
   const [h, sub = ""] = location.hash.replace(/^#\/?/, "").split("/");
