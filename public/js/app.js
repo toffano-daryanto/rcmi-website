@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792711165";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792711266";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792711165";
-import { SEED_EVENTS } from "./seed-events.js?v=1792711165";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792711165";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792711165";
+import { GALLERY } from "./gallery-data.js?v=1792711266";
+import { SEED_EVENTS } from "./seed-events.js?v=1792711266";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792711266";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792711266";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -4053,16 +4053,20 @@ $("#view-admin").addEventListener("click", async (e) => {
 
 /* ================= Roles: one menu per person (admins only). "Member" takes any role away. ================= */
 const ROLES = ["member", "moderator", "jury", "admin"];
+// The founder (member RCMI-0001) is protected: no one else can change that account's role (the database enforces it too).
+const isFounder = (u) => Number(u?.memberNo) === 1 && (u?.accountType || "member") === "member";
 function roleSel(u) {
   const r = u.role || "member";
   if (!isAdmin()) return "";
-  if (u.id === state.user?.uid) return `<span class="type-tag">${t("ro_" + r)} · ${t("role_you")}</span>`;
+  if (isFounder(u) && u.id !== state.user?.uid) return `<span class="type-tag founder">👑 ${t("role_founder")} · ${t("ro_" + r)}</span>`;
+  if (u.id === state.user?.uid) return `<span class="type-tag ${isFounder(u) ? "founder" : ""}">${isFounder(u) ? `👑 ${t("role_founder")} · ` : ""}${t("ro_" + r)} · ${t("role_you")}</span>`;
   return `<label class="role-sel"><span>${t("role_label")}</span><select data-role-of="${esc(u.id)}">${ROLES.map(x => `<option value="${x}" ${x === r ? "selected" : ""}>${t("ro_" + x)}</option>`).join("")}</select></label>`;
 }
 document.addEventListener("change", async (e) => {
   const sel = e.target.closest("select[data-role-of]"); if (!sel || !isAdmin()) return;
   const uid = sel.dataset.roleOf, u = state.siteUsers?.[uid], from = u?.role || "member", to = sel.value;
   if (to === from) return;
+  if (isFounder(u)) { toast(t("role_founder_locked")); sel.value = from; return; }
   if (from === "admin" && Object.values(state.siteUsers || {}).filter(x => x.role === "admin").length <= 1) { toast(t("role_last_admin")); sel.value = from; return; }
   if (!confirm(t(to === "member" ? "role_remove_confirm" : "role_confirm", { name: u?.displayName || "", from: t("ro_" + from), to: t("ro_" + to) }))) { sel.value = from; return; }
   sel.disabled = true;

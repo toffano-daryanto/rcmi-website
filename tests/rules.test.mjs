@@ -288,3 +288,18 @@ test("jury role: only admins assign it", async () => {
   await assertFails(updateDoc(doc(as(U.m1), "users", U.m1), { role: "jury" }));
   await assertSucceeds(updateDoc(doc(as(U.admin), "users", U.m2), { role: "jury" }));
 });
+
+test("founder (RCMI-0001) can't be demoted, deactivated or deleted by anyone else", async () => {
+  await env.withSecurityRulesDisabled(async ctx => {
+    await setDoc(doc(ctx.firestore(), "users", "uFounder"), user("uFounder", { role: "admin", memberNo: 1 }));
+    await setDoc(doc(ctx.firestore(), "users", "uAdmin2"), user("uAdmin2", { role: "admin", memberNo: 50 }));
+  });
+  await assertFails(updateDoc(doc(as(U.admin), "users", "uFounder"), { role: "member" }));
+  await assertFails(updateDoc(doc(as(U.admin), "users", "uFounder"), { status: "deactivated" }));
+  await assertFails(updateDoc(doc(as(U.admin), "users", "uFounder"), { memberNo: 2 }));
+  await assertFails(updateDoc(doc(as(U.mod), "users", "uFounder"), { status: "deactivated" }));
+  await assertFails(deleteDoc(doc(as(U.admin), "users", "uFounder")));
+  await assertSucceeds(updateDoc(doc(as("uFounder"), "users", "uFounder"), { city: "Riyadh" }));     // own profile still editable
+  await assertSucceeds(updateDoc(doc(as("uFounder"), "users", "uAdmin2"), { role: "member" }));       // founder can still manage others
+  await assertSucceeds(updateDoc(doc(as(U.admin), "users", U.m2), { role: "moderator" }));            // admins manage everyone else
+});

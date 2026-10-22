@@ -86,8 +86,15 @@ service cloud.firestore {
             && rosterFree(invite().rosterId))
         );
 
+      // The founder's account (member RCMI-0001) is protected: nobody else can change its role, status or number,
+      // deactivate it or delete it — not even another admin.
+      function founder() { return resource.data.get('memberNo', 0) == 1 && resource.data.get('accountType', 'member') == 'member'; }
+      function founderSafe() {
+        return !founder() || request.auth.uid == uid
+          || !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status', 'memberNo', 'accountType', 'rosterId', 'email']);
+      }
       // Members can edit their own profile details, never their status, role or number.
-      allow update: if (signedIn() && request.auth.uid == uid
+      allow update: if founderSafe() && ((signedIn() && request.auth.uid == uid
           && request.resource.data.diff(resource.data).affectedKeys()
                .hasOnly(['displayName','city','instagram','whatsapp','bio','photoURL','updatedAt','emailOff'])
           && str(request.resource.data.displayName, 80))
@@ -98,10 +105,10 @@ service cloud.firestore {
         // … or deactivate / reactivate an account that isn't an admin or moderator.
         || (mod() && uid != request.auth.uid && resource.data.get('role', 'member') == 'member'
             && resource.data.status in ['approved', 'deactivated'] && request.resource.data.status in ['approved', 'deactivated']
-            && onlyKeys(['status', 'deactivatedAt', 'reactivatedAt']));
+            && onlyKeys(['status', 'deactivatedAt', 'reactivatedAt'])));
 
       // Admins; or the person themselves after a rejection, so they can sign up again.
-      allow delete: if admin() || (signedIn() && request.auth.uid == uid && resource.data.status == 'rejected')
+      allow delete: if (!founder() && admin()) || (signedIn() && request.auth.uid == uid && resource.data.status == 'rejected')
         || (mod() && resource.data.get('accountType', 'member') == 'general' && resource.data.status == 'pending');
     }
 
