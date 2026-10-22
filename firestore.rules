@@ -114,19 +114,35 @@ service cloud.firestore {
       function own(uid) { return signedIn() && request.auth.uid == uid; }
       allow read: if resource.data.get('public', false) == true || admin();
       allow create, update, delete: if admin();
+      // Spots: 'registered' moves by exactly one, in the same transaction as someone registering or withdrawing,
+      // and never above 'maxEntries' (default 100).
+      function myEntry() { return /databases/$(database)/documents/contests/$(cid)/entries/$(request.auth.uid); }
+      allow update: if approved() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['registered'])
+        && ((request.resource.data.registered == resource.data.get('registered', 0) + 1
+              && request.resource.data.registered <= resource.data.get('maxEntries', 100)
+              && resource.data.status == 'open' && !exists(myEntry()) && existsAfter(myEntry()))
+          || (request.resource.data.registered == resource.data.get('registered', 0) - 1
+              && exists(myEntry()) && !existsAfter(myEntry())));
 
-      // One entry per person (doc id = their uid). Others' entries stay hidden while entries are open.
+      // Registration = an entry doc (id = their uid), one per person; the photo is added later. Others' entries stay hidden while entries are open.
       match /entries/{uid} {
         allow read: if admin() || own(uid) || (c().get('public', false) == true && c().status != 'open');
-        allow create, update: if approved() && own(uid) && c().status == 'open'
+        function spotTaken() {
+          return getAfter(/databases/$(database)/documents/contests/$(cid)).data.get('registered', 0) == c().get('registered', 0) + 1;
+        }
+        allow create: if approved() && own(uid) && c().status == 'open' && spotTaken() && entryOk(uid);
+        allow update: if approved() && own(uid) && c().status == 'open' && entryOk(uid);
+        function entryOk(uid) { return true
           && !(uid in c().get('judges', [])) && me().get('role', 'member') != 'jury'
           && request.resource.data.keys().hasOnly(['uid', 'name', 'avatar', 'title', 'caption', 'photo', 'at'])
           && request.resource.data.uid == uid
-          && str(request.resource.data.title, 80) && request.resource.data.title.size() > 0
-          && str(request.resource.data.caption, 500) && str(request.resource.data.name, 80) && str(request.resource.data.avatar, 500)
-          && request.resource.data.photo is string && request.resource.data.photo.size() > 0 && request.resource.data.photo.size() < 900000;
+          // Step 1 registers (photo still empty); step 2 adds the photo before entries close.
+          && str(request.resource.data.title, 80) && str(request.resource.data.caption, 500)
+          && str(request.resource.data.name, 80) && str(request.resource.data.avatar, 500)
+          && request.resource.data.photo is string && request.resource.data.photo.size() < 900000; }
         allow update: if admin() && onlyKeys(['status', 'disqReason', 'votes', 'jury', 'final', 'rank']);
-        allow delete: if (own(uid) && c().status == 'open') || admin();
+        allow delete: if (own(uid) && c().status == 'open'
+            && getAfter(/databases/$(database)/documents/contests/$(cid)).data.get('registered', 0) == c().get('registered', 0) - 1) || admin();
       }
       // Public vote: one per signed-in account (doc id = voter uid), can be moved while voting is open; not for your own entry.
       // Who voted for whom stays private (you see only your own); the totals are published on the entries at the end.
@@ -135,7 +151,8 @@ service cloud.firestore {
         allow create, update: if approved() && own(voter) && c().status == 'voting'
           && request.resource.data.keys().hasOnly(['entry', 'at'])
           && request.resource.data.entry is string && request.resource.data.entry != voter
-          && get(/databases/$(database)/documents/contests/$(cid)/entries/$(request.resource.data.entry)).data.get('status', 'ok') == 'ok';
+          && get(/databases/$(database)/documents/contests/$(cid)/entries/$(request.resource.data.entry)).data.get('status', 'ok') == 'ok'
+          && get(/databases/$(database)/documents/contests/$(cid)/entries/$(request.resource.data.entry)).data.photo != '';
         allow delete: if (own(voter) && c().status == 'voting') || admin();
       }
       // Jury scores: one per judge per entry (id = judge_entry). A judge sees only their own; admins see all.
