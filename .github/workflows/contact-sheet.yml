@@ -20,7 +20,7 @@ jobs:
       - name: Build
         env: { GROUP: "${{ inputs.group }}" }
         run: |
-          node -e 'import("./public/js/gallery-data.js").then(m=>{const g=m.GALLERY.find(x=>x.key===process.env.GROUP);require("fs").writeFileSync("ids.json",JSON.stringify(g.items.filter(i=>i.kind==="photo").map(i=>i.id)))})'
+          node -e 'import("./public/js/gallery-data.js").then(m=>{const keys=process.env.GROUP.split(",");require("fs").writeFileSync("ids.json",JSON.stringify(m.GALLERY.filter(x=>keys.includes(x.key)).flatMap(g=>g.items.filter(i=>i.kind==="photo").map(i=>i.id))))})'
           python3 - <<'PY'
           import json, io, requests
           from PIL import Image, ImageDraw
