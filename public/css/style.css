@@ -1057,7 +1057,7 @@ span.rep-badge { cursor: default; }
   flex: 0 0 100%; scroll-snap-align: start; position: relative;
   min-height: clamp(440px, 64vh, 640px); display: flex; align-items: flex-end;
   padding: clamp(28px, 6vw, 72px) clamp(20px, 6vw, 80px) clamp(56px, 7vw, 88px);
-  background: linear-gradient(90deg, rgba(18,20,28,.94) 0%, rgba(18,20,28,.72) 42%, rgba(18,20,28,.15) 100%), var(--bg, none) center / cover no-repeat, var(--navy);
+  background: linear-gradient(90deg, rgba(18,20,28,.94) 0%, rgba(18,20,28,.72) 42%, rgba(18,20,28,.15) 100%), var(--bg, none) var(--pos, center) / cover no-repeat, var(--navy);
 }
 .hs-slide::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 6px; background: linear-gradient(to bottom, var(--red) 0 4px, var(--white) 4px 6px); }
 .hs-text { max-width: 640px; }
@@ -1073,7 +1073,7 @@ span.rep-badge { cursor: default; }
 .hs-dots { position: absolute; left: 0; right: 0; bottom: 20px; display: flex; justify-content: center; gap: 8px; }
 .hs-dots button { width: 10px; height: 10px; border-radius: 50%; border: 0; padding: 0; background: rgba(255,255,255,.45); cursor: pointer; transition: width .2s; }
 .hs-dots button[aria-current="true"] { width: 28px; border-radius: 5px; background: var(--yellow); }
-@media (max-width: 720px) { .hs-nav { display: none; } .hs-slide { background: linear-gradient(0deg, rgba(18,20,28,.95) 0%, rgba(18,20,28,.7) 50%, rgba(18,20,28,.2) 100%), var(--bg, none) center / cover no-repeat, var(--navy); } }
+@media (max-width: 720px) { .hs-nav { display: none; } .hs-slide { background: linear-gradient(0deg, rgba(18,20,28,.95) 0%, rgba(18,20,28,.7) 50%, rgba(18,20,28,.2) 100%), var(--bg, none) var(--pos, center) / cover no-repeat, var(--navy); } }
 
 /* Why RCMI strip */
 .usp { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); background: var(--surface); border-bottom: 1px solid var(--line); }

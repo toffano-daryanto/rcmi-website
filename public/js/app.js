@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792708282";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792708629";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792708282";
-import { SEED_EVENTS } from "./seed-events.js?v=1792708282";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792708282";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792708282";
+import { GALLERY } from "./gallery-data.js?v=1792708629";
+import { SEED_EVENTS } from "./seed-events.js?v=1792708629";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792708629";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792708629";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -192,15 +192,14 @@ lb.addEventListener("close", () => { $("#lb-stage").innerHTML = ""; });
 lb.addEventListener("keydown", (e) => { if (e.key === "ArrowLeft") lbStep(-1); if (e.key === "ArrowRight") lbStep(1); });
 lb.addEventListener("click", (e) => { if (e.target === lb) lb.close(); });
 
-/* Home slider: big banners on Kopdar (meet-up) photos, auto-advancing, swipeable. */
+/* Home slider: big banners on Kopdar and IDS 2025 photos, auto-advancing, swipeable. */
 function startSlider() {
   const hs = $("#hs"), track = $("#hs-track"); if (!hs || !track) return;
-  const kopdar = GALLERY.filter(g => /^meet/.test(g.key)).sort((a, b) => a.date.localeCompare(b.date))
-    .flatMap(g => g.items.filter(it => it.kind === "photo"));
+  // Each slide names its own photo (Kopdar + IDS 2025, none on the red stage backdrop).
   const slides = $$(".hs-slide", track);
-  slides.forEach((sl, i) => {
-    const ph = kopdar[i % Math.max(1, kopdar.length)];
-    if (ph) sl.style.setProperty("--bg", `url("${driveThumb(ph.id, 1600)}")`);
+  slides.forEach(sl => {
+    if (sl.dataset.photo) sl.style.setProperty("--bg", `url("${driveThumb(sl.dataset.photo, 1600)}")`);
+    if (sl.dataset.pos) sl.style.setProperty("--pos", sl.dataset.pos);
   });
   $("#hs-dots").innerHTML = slides.map((_, i) => `<button type="button" data-hs-to="${i}" aria-label="${i + 1}"></button>`).join("");
   let cur = 0, timer = null;
