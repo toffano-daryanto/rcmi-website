@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792712744";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792712949";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792712744";
-import { SEED_EVENTS } from "./seed-events.js?v=1792712744";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792712744";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792712744";
+import { GALLERY } from "./gallery-data.js?v=1792712949";
+import { SEED_EVENTS } from "./seed-events.js?v=1792712949";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792712949";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792712949";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -470,6 +470,7 @@ function show(screen) {
   $("#marketpage").hidden = screen !== "market";
   $("#dmpage").hidden = screen !== "dm";
   $("#contestpage").hidden = screen !== "contest";
+  $("#newspage").hidden = screen !== "news";
   // The main-site menu stays in the top bar everywhere; "How to join" only on the public pages.
   $("#landing-nav").hidden = false;
   const joinLink = $('#landing-nav a[href="#join"]'); if (joinLink) joinLink.hidden = screen === "app" || screen === "gate";
@@ -541,6 +542,12 @@ function render() {
     $("#market-hint").hidden = canPost;
     const done = () => openDeepLink();
     if (!state.listingsLoaded) { state.listingsLoaded = true; loadListings().then(done); } else { renderListings(); done(); }
+    return;
+  }
+  // News: new releases from resin brands; everyone reads, staff post.
+  if (location.hash.startsWith("#/news")) {
+    show("news");
+    renderNewsRoute();
     return;
   }
   // Photo contests: public pages; entering, voting and judging need an account.
@@ -4683,3 +4690,142 @@ async function renderHomeContest() {
     <em>${t(live.status === "open" ? "ct_register" : live.status === "voting" ? "ct_vote_now" : "ct_see")}</em></a>`;
 }
 renderHomeContest();
+
+
+/* ================= News: new product releases from resin brands =================
+   news/{id}: title, brand, model, scale, status (preorder|released|announced), releaseDate (text), price, link, photos[], body.
+   Admins and moderators post; everyone reads. #/news lists, #/news/<id> opens one. */
+const news = { list: null, at: 0, filter: "all", brand: "", q: "" };
+const NEWS_STATUS = ["preorder", "released", "announced"];
+async function loadNews(force = false) {
+  if (news.list && !force && Date.now() - news.at < 60e3) return news.list;
+  try {
+    const s = await getDocs(query(collection(db, "news"), orderBy("createdAt", "desc"), limit(200)));
+    news.list = s.docs.map(d => ({ id: d.id, ...d.data() })); news.at = Date.now();
+  } catch (e) { news.list = news.list || []; }
+  return news.list;
+}
+const safeLink = (u) => /^https?:\/\//i.test(String(u || "")) ? String(u) : "";
+function newsCard(n) {
+  const ph = photoSrc(n.photos?.[0]);
+  return `<a class="pcard news-card" href="#/news/${encodeURIComponent(n.id)}">
+    <span class="pc-img">${ph ? `<img src="${ph}" alt="" loading="lazy">` : `<span class="pc-empty">NEW</span>`}<span class="pc-badge ns-${esc(n.status)}">${t("ns_" + n.status)}</span></span>
+    <span class="pc-body">
+      <span class="news-brand">${esc(n.brand)}</span>
+      <span class="pc-title">${esc(n.title)}</span>
+      ${n.price ? `<span class="pc-price">${fmtIDR(n.price)}</span>` : ""}
+      <span class="pc-meta">${[n.scale, n.releaseDate ? t("news_release", { d: n.releaseDate }) : ""].filter(Boolean).map(esc).join(" · ") || fmtDate(n.createdAt, { day: "numeric", month: "short", year: "numeric" })}</span>
+    </span>
+  </a>`;
+}
+async function renderNewsRoute() {
+  $("#btn-add-news").hidden = !isStaff();
+  await loadNews();
+  if (!location.hash.startsWith("#/news")) return;
+  const brands = [...new Set(news.list.map(n => n.brand).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  const bs = $("#news-brand");
+  bs.innerHTML = `<option value="">${t("news_all_brands")}</option>` + brands.map(b => `<option ${b === news.brand ? "selected" : ""}>${esc(b)}</option>`).join("");
+  paintNews();
+  const id = decodeURIComponent(location.hash.replace(/^#\/news\/?/, ""));
+  if (id && state.newsOpened !== id) { state.newsOpened = id; const n = news.list.find(x => x.id === id); if (n) openNews(n); }
+  if (!id) state.newsOpened = null;
+}
+function paintNews() {
+  const words = news.q.toLowerCase().split(/\s+/).filter(Boolean);
+  const list = news.list.filter(n => (news.filter === "all" || n.status === news.filter) && (!news.brand || n.brand === news.brand)
+    && words.every(w => [n.title, n.brand, n.model, n.body, n.scale].join(" ").toLowerCase().includes(w)));
+  $("#news-list").innerHTML = list.length ? list.map(newsCard).join("") : `<p class="empty">${t(news.list.length ? "search_none" : "news_none")}</p>`;
+}
+function openNews(n) {
+  const link = safeLink(n.link);
+  openModal(`
+    ${n.photos?.length ? `<div class="detail-photos">${n.photos.map(p => `<img src="${photoSrc(p)}" alt="">`).join("")}</div>` : ""}
+    <span class="tag ns-tag ns-${esc(n.status)}">${t("ns_" + n.status)}</span>
+    <p class="news-brand">${esc(n.brand)}</p>
+    <h2>${esc(n.title)}</h2>
+    <dl class="news-facts">
+      ${n.model ? `<dt>${t("news_model")}</dt><dd>${esc(n.model)}</dd>` : ""}
+      ${n.scale ? `<dt>${t("news_scale")}</dt><dd>${esc(n.scale)}</dd>` : ""}
+      ${n.releaseDate ? `<dt>${t("news_date")}</dt><dd>${esc(n.releaseDate)}</dd>` : ""}
+      ${n.price ? `<dt>${t("l_price")}</dt><dd>${fmtIDR(n.price)}</dd>` : ""}
+    </dl>
+    ${n.body ? `<p class="news-body">${br(n.body)}</p>` : ""}
+    <p class="muted">${t("news_posted", { d: fmtDate(n.createdAt, { day: "numeric", month: "long", year: "numeric" }) })}</p>
+    <div class="form-actions">
+      ${link ? `<a class="btn btn-mat" href="${esc(link)}" target="_blank" rel="noopener nofollow">${t(n.status === "preorder" ? "news_preorder_btn" : "news_more_btn")} ↗</a>` : ""}
+      <button type="button" class="btn btn-ghost" data-act="share">${t("share")}</button>
+      ${isStaff() ? `<button type="button" class="btn btn-ghost" data-act="edit">${t("edit")}</button><button type="button" class="btn btn-danger" data-act="del">${t("delete")}</button>` : ""}
+      <button type="button" class="btn btn-ghost" data-act="close">${t("close")}</button>
+    </div>`);
+  $("#modal-body").onclick = async (ev) => {
+    const act = ev.target.closest("[data-act]")?.dataset.act;
+    if (act === "close") closeModal();
+    if (act === "share") {
+      const url = `${location.origin}/#/news/${encodeURIComponent(n.id)}`;
+      try { if (navigator.share) await navigator.share({ title: n.title, text: `${n.brand} — ${n.title}`, url }); else { await navigator.clipboard.writeText(url); toast(t("link_copied")); } } catch (e) {}
+    }
+    if (act === "edit") openNewsForm(n);
+    if (act === "del" && confirm(t("confirm_delete"))) {
+      try { await deleteDoc(doc(db, "news", n.id)); closeModal(); toast(t("deleted")); await loadNews(true); location.hash = "#/news"; renderNewsRoute(); renderHomeNews(); } catch (e2) { fail(e2); }
+    }
+  };
+  modal.addEventListener("close", () => { if (location.hash.startsWith("#/news/")) history.replaceState(null, "", "#/news"); state.newsOpened = null; }, { once: true });
+}
+function openNewsForm(n = null) {
+  openModal(`
+    <h2>${t(n ? "news_edit" : "news_add")}</h2>
+    <form class="form" id="f-news">
+      <div class="row2">
+        <label><span>${t("news_brand")} *</span><input name="brand" required maxlength="60" list="news-brands" value="${esc(n?.brand || "")}" placeholder="Tarmac Works, Ignition Model, …"></label>
+        <label><span>${t("news_status")}</span><select name="status">${NEWS_STATUS.map(x => `<option value="${x}" ${n?.status === x ? "selected" : ""}>${t("ns_" + x)}</option>`).join("")}</select></label>
+      </div>
+      <datalist id="news-brands">${[...new Set((news.list || []).map(x => x.brand))].map(b => `<option value="${esc(b)}">`).join("")}</datalist>
+      <label><span>${t("news_headline")} *</span><input name="title" required maxlength="120" value="${esc(n?.title || "")}"></label>
+      <div class="row2">
+        <label><span>${t("news_model")}</span><input name="model" maxlength="100" value="${esc(n?.model || "")}"></label>
+        <label><span>${t("news_scale")}</span><input name="scale" maxlength="20" value="${esc(n?.scale ?? "1:64")}"></label>
+      </div>
+      <div class="row2">
+        <label><span>${t("news_date")}</span><input name="releaseDate" maxlength="40" value="${esc(n?.releaseDate || "")}" placeholder="Dec 2026 / Q1 2027"></label>
+        <label><span>${t("l_price")} (Rp)</span><input name="price" type="number" min="0" step="1000" inputmode="numeric" value="${n?.price || ""}"></label>
+      </div>
+      <label><span>${t("news_link")}</span><input name="link" type="url" maxlength="500" value="${esc(n?.link || "")}" placeholder="https://…"></label>
+      <label><span>${t("news_body")}</span><textarea name="body" rows="4" maxlength="3000">${esc(n?.body || "")}</textarea></label>
+      <label><span>${t("photos")} (${t("news_max6")})${n?.photos?.length ? ` · ${t("news_photos_keep")}` : ""}</span><input type="file" name="photos" accept="image/*" multiple data-max="6"></label>
+      <div class="thumbs"></div>
+      <div class="form-actions"><button type="button" class="btn btn-ghost" data-act="close">${t("cancel")}</button><button class="btn btn-mat" type="submit">${t(n ? "save" : "news_publish")}</button></div>
+    </form>`);
+  const f = $("#f-news"); bindPhotoPreview(f);
+  $("#modal-body").onclick = (ev) => { if (ev.target.dataset.act === "close") closeModal(); };
+  f.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const link = f.link.value.trim();
+    if (link && !safeLink(link)) { toast(t("news_link_bad")); f.link.focus(); return; }
+    const btn = f.querySelector("[type=submit]"); btn.disabled = true;
+    try {
+      const photos = f.photos.files.length ? await storePhotos(f.photos, "market", 6, 0, btn) : (n?.photos || []);
+      const data = { title: f.title.value.trim(), brand: f.brand.value.trim(), model: f.model.value.trim(), scale: f.scale.value.trim(), status: f.status.value,
+        releaseDate: f.releaseDate.value.trim(), price: Number(f.price.value) > 0 ? Number(f.price.value) : null, link, photos, body: f.body.value.trim() };
+      if (n) await updateDoc(doc(db, "news", n.id), { ...data, updatedAt: serverTimestamp() });
+      else await addDoc(collection(db, "news"), { ...data, createdAt: serverTimestamp(), authorUid: state.user.uid, authorName: String(state.profile.displayName || "").slice(0, 80) });
+      closeModal(); toast(t(n ? "saved" : "news_published"));
+      await loadNews(true); state.newsOpened = null;
+      if (location.hash !== "#/news") location.hash = "#/news"; else renderNewsRoute();
+      renderHomeNews();
+    } catch (err) { fail(err); btn.disabled = false; }
+  });
+}
+$("#btn-add-news").addEventListener("click", () => openNewsForm());
+$$("[data-nfilter]").forEach(b => b.addEventListener("click", () => {
+  news.filter = b.dataset.nfilter;
+  $$("[data-nfilter]").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+  paintNews();
+}));
+$("#news-brand").addEventListener("change", (e) => { news.brand = e.target.value; paintNews(); });
+let newsQTimer; $("#news-q").addEventListener("input", (e) => { clearTimeout(newsQTimer); newsQTimer = setTimeout(() => { news.q = e.target.value; paintNews(); }, 150); });
+async function renderHomeNews() {
+  const list = (await loadNews()).slice(0, 4);
+  $("#home-news").hidden = !list.length;
+  $("#home-news-grid").innerHTML = list.map(newsCard).join("");
+}
+renderHomeNews();

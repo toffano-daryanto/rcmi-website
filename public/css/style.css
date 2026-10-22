@@ -1281,3 +1281,15 @@ span.rep-badge { cursor: default; }
 .usp .usp-scale { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 1.15rem; }
 .usp li b { font-family: var(--display); font-style: italic; font-weight: 800; text-transform: uppercase; font-size: 1rem; line-height: 1.15; color: var(--ink); }
 @media (max-width: 720px) { .usp { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; } .usp li, .usp li + li { padding: 12px 6px; border-top: 0; } .usp .cat-ic { width: 44px; height: 44px; } .usp li b { font-size: .85rem; } }
+/* News */
+.news-tools { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 16px; }
+.news-tools .search { min-width: 0; flex: 1 1 180px; }
+.news-brand { font-size: .72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--red); margin: 0; }
+.pc-badge.ns-preorder { background: var(--yellow); color: var(--navy); }
+.pc-badge.ns-released { background: var(--good); color: #fff; }
+.pc-badge.ns-announced { background: #2456A6; color: #fff; }
+.ns-tag { display: inline-block; padding: 3px 10px; border-radius: 4px; font-size: .75rem; font-weight: 700; text-transform: uppercase; }
+.ns-tag.ns-preorder { background: var(--yellow); color: var(--navy); } .ns-tag.ns-released { background: var(--good); color: #fff; } .ns-tag.ns-announced { background: #2456A6; color: #fff; }
+.news-facts { display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; margin: 8px 0 12px; }
+.news-facts dt { font-weight: 700; color: var(--muted); } .news-facts dd { margin: 0; }
+.news-body { white-space: normal; }

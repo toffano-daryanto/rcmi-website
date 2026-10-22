@@ -112,6 +112,21 @@ service cloud.firestore {
         || (mod() && resource.data.get('accountType', 'member') == 'general' && resource.data.status == 'pending');
     }
 
+    // ---------- News: new releases from resin brands (posted by admins and moderators, read by everyone) ----------
+    match /news/{id} {
+      allow read: if true;
+      allow create, update: if staff()
+        && request.resource.data.keys().hasOnly(['title', 'brand', 'model', 'scale', 'status', 'releaseDate', 'price', 'link', 'photos', 'body', 'createdAt', 'updatedAt', 'authorUid', 'authorName'])
+        && str(request.resource.data.title, 120) && request.resource.data.title.size() > 0
+        && str(request.resource.data.brand, 60) && request.resource.data.brand.size() > 0
+        && request.resource.data.status in ['preorder', 'released', 'announced']
+        && str(request.resource.data.body, 3000) && str(request.resource.data.link, 500)
+        && (request.resource.data.link == '' || request.resource.data.link.matches('https?://.+'))
+        && (request.resource.data.price == null || request.resource.data.price is number)
+        && request.resource.data.photos is list && request.resource.data.photos.size() <= 6;
+      allow delete: if staff();
+    }
+
     // ---------- Photo contests ----------
     // Phases: draft (admins only) → open (entries) → voting (public vote + jury) → judging (jury only) → closed (winners announced).
     // Jury = users with role 'jury', chosen per contest in 'judges'. Admins run everything.

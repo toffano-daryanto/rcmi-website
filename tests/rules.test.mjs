@@ -303,3 +303,15 @@ test("founder (RCMI-0001) can't be demoted, deactivated or deleted by anyone els
   await assertSucceeds(updateDoc(doc(as("uFounder"), "users", "uAdmin2"), { role: "member" }));       // founder can still manage others
   await assertSucceeds(updateDoc(doc(as(U.admin), "users", U.m2), { role: "moderator" }));            // admins manage everyone else
 });
+
+test("news: staff post, everyone reads, members can't post", async () => {
+  const n = { title: "Tarmac R34 Z-Tune", brand: "Tarmac Works", model: "Nissan Skyline R34", scale: "1:64", status: "preorder", releaseDate: "2026-12", price: 350000, link: "https://example.com/r34", photos: [], body: "Pre-order now", createdAt: serverTimestamp(), authorUid: U.mod, authorName: "Mod" };
+  await assertSucceeds(setDoc(doc(as(U.mod), "news", "n1"), n));
+  await assertSucceeds(setDoc(doc(as(U.admin), "news", "n2"), { ...n, price: null, link: "" }));
+  await assertFails(setDoc(doc(as(U.m1), "news", "n3"), n));
+  await assertFails(setDoc(doc(as(U.admin), "news", "n4"), { ...n, link: "javascript:alert(1)" }));
+  await assertFails(setDoc(doc(as(U.admin), "news", "n5"), { ...n, status: "rumour" }));
+  await assertSucceeds(getDocs(query(collection(anon(), "news"), orderBy("createdAt", "desc"), limit(50))));
+  await assertFails(deleteDoc(doc(as(U.m1), "news", "n1")));
+  await assertSucceeds(deleteDoc(doc(as(U.mod), "news", "n1")));
+});
