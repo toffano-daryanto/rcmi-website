@@ -1274,3 +1274,10 @@ span.rep-badge { cursor: default; }
 .ct-posters button { padding: 0; border: 0; background: none; cursor: zoom-in; border-radius: var(--radius-m); overflow: hidden; box-shadow: 0 0 0 1px var(--line), 0 14px 30px -18px rgba(0,0,0,.5); }
 .ct-posters img { display: block; width: 100%; aspect-ratio: 4 / 5; object-fit: cover; }
 .ct-home-ic.poster { width: 84px; height: 105px; border-radius: 8px; }
+/* "Why RCMI" boxes: same look as the Explore tiles */
+.usp { max-width: 1200px; margin: 0 auto; padding: clamp(24px, 4vw, 36px) 20px 0; list-style: none; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; background: none; border: 0; }
+.usp li, .usp li + li { display: grid; justify-items: center; align-content: start; gap: 8px; padding: 18px 10px; border: 0; border-radius: var(--radius-m); background: var(--surface); box-shadow: 0 0 0 1px var(--line); text-align: center; font-weight: 400; font-size: 1rem; }
+.usp .cat-ic { color: var(--red); }
+.usp .usp-scale { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 1.15rem; }
+.usp li b { font-family: var(--display); font-style: italic; font-weight: 800; text-transform: uppercase; font-size: 1rem; line-height: 1.15; color: var(--ink); }
+@media (max-width: 720px) { .usp { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; } .usp li, .usp li + li { padding: 12px 6px; border-top: 0; } .usp .cat-ic { width: 44px; height: 44px; } .usp li b { font-size: .85rem; } }
