@@ -32,6 +32,10 @@ beforeEach(async () => {
     await setDoc(doc(db, "cars", "car1"), { name: "R34", ownerUid: U.m1, ownerName: "M1", photos: [], createdAt: Timestamp.now(), likedBy: [] });
     await setDoc(doc(db, "listings", "lst1"), { type: "sell", title: "R34", price: 350000, ownerUid: U.m1, ownerName: "M1", photos: [], status: "open", likedBy: [], createdAt: Timestamp.now() });
     await setDoc(doc(db, "listings", "war1"), { type: "sell", title: "GR86", price: 300000, ownerUid: U.m1, ownerName: "M1", photos: [], status: "open", war: true, qty: 2, claimed: 0, warStart: null, createdAt: Timestamp.now() });
+    await setDoc(doc(db, "users", "uJury1"), user("uJury1", { role: "jury", accountType: "general" }));
+    await setDoc(doc(db, "users", "uJury2"), user("uJury2", { role: "jury", memberNo: 9 }));
+    await setDoc(doc(db, "contests", "c1"), { title: "Best diorama", status: "open", public: true, judges: ["uJury1", "uJury2"], juryWeight: 70, createdAt: Timestamp.now() });
+    await setDoc(doc(db, "contests", "cDraft"), { title: "Draft", status: "draft", public: false, judges: [], createdAt: Timestamp.now() });
     await setDoc(doc(db, "contacts", U.m1), { name: "M1", whatsapp: "0811", instagram: "m1" });
   });
 });
@@ -205,4 +209,56 @@ test("contact form: signed-in user sends; only admins read", async () => {
   await assertSucceeds(addDoc(collection(as(U.gen), "messages"), { name: "G", contact: "0811", topic: "pasar", message: "Hi", status: "new", createdAt: serverTimestamp(), uid: U.gen, email: `${U.gen}@gmail.com`, lang: "en" }));
   await assertFails(getDocs(collection(as(U.m1), "messages")));
   await assertSucceeds(getDocs(query(collection(as(U.admin), "messages"), where("status", "==", "new"))));
+});
+
+// ---------- Photo contest ----------
+const entry = (uid, extra = {}) => ({ uid, name: uid, avatar: "", title: "My R34", caption: "", photo: "https://drive.google.com/thumbnail?id=x", at: serverTimestamp(), ...extra });
+const setPhase = (status) => env.withSecurityRulesDisabled(ctx => updateDoc(doc(ctx.firestore(), "contests", "c1"), { status }));
+test("contest: drafts hidden; entry while open (1 per person, hidden from others); jury can't enter", async () => {
+  await assertFails(getDoc(doc(anon(), "contests", "cDraft")));
+  await assertSucceeds(getDoc(doc(anon(), "contests", "c1")));
+  await assertSucceeds(getDocs(query(collection(anon(), "contests"), where("public", "==", true))));
+  await assertSucceeds(setDoc(doc(as(U.m1), "contests", "c1", "entries", U.m1), entry(U.m1)));
+  await assertSucceeds(setDoc(doc(as(U.gen), "contests", "c1", "entries", U.gen), entry(U.gen)));
+  await assertFails(setDoc(doc(as(U.m1), "contests", "c1", "entries", U.m2), entry(U.m2)));          // not for someone else
+  await assertFails(setDoc(doc(as("uJury1"), "contests", "c1", "entries", "uJury1"), entry("uJury1"))); // jury can't enter
+  await assertFails(setDoc(doc(as(U.m2), "contests", "c1", "entries", U.m2), entry(U.m2, { status: "ok" })));
+  await assertFails(getDoc(doc(as(U.m2), "contests", "c1", "entries", U.m1)));                        // hidden while open
+  await assertSucceeds(getDoc(doc(as(U.m1), "contests", "c1", "entries", U.m1)));
+  await assertFails(setDoc(doc(as(U.m1), "contests", "c1", "votes", U.m1), { entry: U.gen, at: serverTimestamp() })); // no voting yet
+});
+test("contest: voting (one vote, not own, private) + jury scoring + admin results", async () => {
+  await env.withSecurityRulesDisabled(async ctx => {
+    const db = ctx.firestore();
+    await setDoc(doc(db, "contests", "c1", "entries", U.m1), entry(U.m1, { at: Timestamp.now() }));
+    await setDoc(doc(db, "contests", "c1", "entries", U.gen), entry(U.gen, { at: Timestamp.now() }));
+  });
+  await setPhase("voting");
+  await assertFails(setDoc(doc(as(U.m2), "contests", "c1", "entries", U.m2), entry(U.m2)));          // entries closed
+  await assertSucceeds(getDocs(collection(as(U.m2), "contests", "c1", "entries")));                  // everyone sees entries now
+  await assertSucceeds(setDoc(doc(as(U.m2), "contests", "c1", "votes", U.m2), { entry: U.m1, at: serverTimestamp() }));
+  await assertSucceeds(setDoc(doc(as(U.m2), "contests", "c1", "votes", U.m2), { entry: U.gen, at: serverTimestamp() })); // move vote
+  await assertFails(setDoc(doc(as(U.m1), "contests", "c1", "votes", U.m1), { entry: U.m1, at: serverTimestamp() }));    // own entry
+  await assertFails(getDoc(doc(as(U.m1), "contests", "c1", "votes", U.m2)));                          // votes private
+  await assertSucceeds(getDoc(doc(as(U.m2), "contests", "c1", "votes", U.m2)));
+  const sc = (j, e, total) => setDoc(doc(as(j), "contests", "c1", "scores", `${j}_${e}`), { judge: j, entry: e, crit: { comp: total }, total, note: "", at: serverTimestamp() });
+  await assertSucceeds(sc("uJury1", U.m1, 8));
+  await assertSucceeds(sc("uJury2", U.m1, 9));
+  await assertFails(sc(U.m2, U.m1, 10));                                                              // not jury
+  await assertFails(sc("uJury1", U.m1, 11));                                                          // out of range
+  await assertFails(getDoc(doc(as("uJury1"), "contests", "c1", "scores", `uJury2_${U.m1}`)));         // other judge's score
+  await assertSucceeds(getDocs(query(collection(as("uJury1"), "contests", "c1", "scores"), where("judge", "==", "uJury1"))));
+  await setPhase("judging");
+  await assertFails(setDoc(doc(as(U.m2), "contests", "c1", "votes", U.m2), { entry: U.m1, at: serverTimestamp() })); // voting closed
+  await assertSucceeds(sc("uJury1", U.gen, 7));                                                       // jury can still score
+  await assertSucceeds(getDocs(collection(as(U.admin), "contests", "c1", "scores")));
+  await assertSucceeds(getDocs(collection(as(U.admin), "contests", "c1", "votes")));
+  await assertSucceeds(updateDoc(doc(as(U.admin), "contests", "c1", "entries", U.m1), { votes: 0, jury: 8.5, final: 59.5, rank: 1 }));
+  await assertFails(updateDoc(doc(as(U.m1), "contests", "c1", "entries", U.m1), { rank: 1 }));
+  await assertSucceeds(updateDoc(doc(as(U.admin), "contests", "c1"), { status: "closed", winners: [] }));
+  await assertSucceeds(setDoc(doc(as(U.admin), "notices", "nc1"), { uid: U.m1, kind: "contest_win", target: "contest", postId: "c1", title: "Best diorama", note: "1", at: serverTimestamp(), read: false }));
+});
+test("jury role: only admins assign it", async () => {
+  await assertFails(updateDoc(doc(as(U.m1), "users", U.m1), { role: "jury" }));
+  await assertSucceeds(updateDoc(doc(as(U.admin), "users", U.m2), { role: "jury" }));
 });

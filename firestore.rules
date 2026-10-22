@@ -105,6 +105,53 @@ service cloud.firestore {
         || (mod() && resource.data.get('accountType', 'member') == 'general' && resource.data.status == 'pending');
     }
 
+    // ---------- Photo contests ----------
+    // Phases: draft (admins only) → open (entries) → voting (public vote + jury) → judging (jury only) → closed (winners announced).
+    // Jury = users with role 'jury', chosen per contest in 'judges'. Admins run everything.
+    function jury() { return approved() && me().role == 'jury'; }
+    match /contests/{cid} {
+      function c() { return get(/databases/$(database)/documents/contests/$(cid)).data; }
+      function own(uid) { return signedIn() && request.auth.uid == uid; }
+      allow read: if resource.data.get('public', false) == true || admin();
+      allow create, update, delete: if admin();
+
+      // One entry per person (doc id = their uid). Others' entries stay hidden while entries are open.
+      match /entries/{uid} {
+        allow read: if admin() || own(uid) || (c().get('public', false) == true && c().status != 'open');
+        allow create, update: if approved() && own(uid) && c().status == 'open'
+          && !(uid in c().get('judges', [])) && me().get('role', 'member') != 'jury'
+          && request.resource.data.keys().hasOnly(['uid', 'name', 'avatar', 'title', 'caption', 'photo', 'at'])
+          && request.resource.data.uid == uid
+          && str(request.resource.data.title, 80) && request.resource.data.title.size() > 0
+          && str(request.resource.data.caption, 500) && str(request.resource.data.name, 80) && str(request.resource.data.avatar, 500)
+          && request.resource.data.photo is string && request.resource.data.photo.size() > 0 && request.resource.data.photo.size() < 900000;
+        allow update: if admin() && onlyKeys(['status', 'disqReason', 'votes', 'jury', 'final', 'rank']);
+        allow delete: if (own(uid) && c().status == 'open') || admin();
+      }
+      // Public vote: one per signed-in account (doc id = voter uid), can be moved while voting is open; not for your own entry.
+      // Who voted for whom stays private (you see only your own); the totals are published on the entries at the end.
+      match /votes/{voter} {
+        allow read: if admin() || own(voter);
+        allow create, update: if approved() && own(voter) && c().status == 'voting'
+          && request.resource.data.keys().hasOnly(['entry', 'at'])
+          && request.resource.data.entry is string && request.resource.data.entry != voter
+          && get(/databases/$(database)/documents/contests/$(cid)/entries/$(request.resource.data.entry)).data.get('status', 'ok') == 'ok';
+        allow delete: if (own(voter) && c().status == 'voting') || admin();
+      }
+      // Jury scores: one per judge per entry (id = judge_entry). A judge sees only their own; admins see all.
+      match /scores/{sid} {
+        allow read: if admin() || (signedIn() && resource.data.judge == request.auth.uid);
+        allow create, update: if jury() && request.auth.uid in c().get('judges', []) && c().status in ['voting', 'judging']
+          && sid == request.auth.uid + '_' + request.resource.data.entry
+          && request.resource.data.keys().hasOnly(['judge', 'entry', 'crit', 'total', 'note', 'at'])
+          && request.resource.data.judge == request.auth.uid
+          && exists(/databases/$(database)/documents/contests/$(cid)/entries/$(request.resource.data.entry))
+          && request.resource.data.crit is map && request.resource.data.total is number
+          && request.resource.data.total >= 1 && request.resource.data.total <= 10 && str(request.resource.data.note, 500);
+        allow delete: if admin();
+      }
+    }
+
     // Phone push notifications: each device's Firebase Cloud Messaging token, written by its owner.
     match /users/{uid}/push/{token} {
       allow read, delete: if signedIn() && request.auth.uid == uid;
