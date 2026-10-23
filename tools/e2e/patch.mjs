@@ -13,3 +13,7 @@ writeFileSync(f, s);
 // No uploads to the real Google Drive: photos are stored inside the test database instead.
 writeFileSync("public/js/config.js", `export const firebaseConfig = { apiKey: "demo-key", authDomain: "demo-rcmi.firebaseapp.com", projectId: "demo-rcmi", appId: "1:1:web:1" };\nexport const uploadUrl = "";\n`);
 console.log("site patched for emulators");
+// Turn on the sign-in and database emulators for this throwaway copy.
+const fb = JSON.parse(readFileSync("firebase.json", "utf8"));
+fb.emulators = { auth: { port: 9099 }, firestore: { port: 8080 }, ui: { enabled: false }, singleProjectMode: true };
+writeFileSync("firebase.json", JSON.stringify(fb, null, 2));
