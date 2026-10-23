@@ -15,11 +15,11 @@ jobs:
       - uses: actions/setup-node@v5
         with: { node-version: 22 }
       - run: npm i --no-save --no-audit --no-fund playwright@1.48.2 && npx playwright install --with-deps chromium
-      - run: node tools/posters/render.mjs
+      - run: node tools/posters/render.mjs && sh tools/bump-version.sh
       - name: Commit images
         run: |
           git config user.name "github-actions"; git config user.email "github-actions@users.noreply.github.com"
-          git add public/img/contest/poster-*.jpg
+          git add public/img/contest/poster-*.jpg public/js public/index.html
           if git diff --cached --quiet; then echo "No change"; exit 0; fi
           git commit -m "Contest posters (rendered)"
           git push

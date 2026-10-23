@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792717408";
-import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792717408";
-import { SEED_EVENTS } from "./seed-events.js?v=1792717408";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792717408";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792717408";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792718386";
+import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792718386";
+import { GALLERY } from "./gallery-data.js?v=1792718386";
+import { SEED_EVENTS } from "./seed-events.js?v=1792718386";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792718386";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792718386";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -4270,6 +4270,7 @@ $("#btn-install-3")?.addEventListener("click", () => installApp());
    Flow: admin creates (draft) → publishes: registration open (account needed; register, then submit 1 photo)
    → voting (everyone signed in: 1 vote; jury scores blind on 4 criteria) → judging (jury only) → admin announces winners. */
 const CT_STEPS = ["open", "voting", "judging", "closed"];
+const POSTER_V = "7f88efdf";   // changed by tools/posters/render.mjs so phones fetch the new poster instead of an old cached copy
 const CT_POSTERS = ["r32", "f40"];
 // Contest sponsors (logos in public/img/sponsors/).
 const CT_SPONSORS = [{ name: "Kourin Labs", logo: "/img/sponsors/kourin-labs.jpg" }];
@@ -4277,8 +4278,8 @@ const sponsorsHTML = () => CT_SPONSORS.length ? `<div class="ct-sponsors"><small
   <div class="ct-sponsor-logos">${CT_SPONSORS.map(sp => `<figure><img src="${sp.logo}" alt="${esc(sp.name)}" loading="lazy"><figcaption>${esc(sp.name)}</figcaption></figure>`).join("")}</div>
   <small class="muted">${t("ct_more_sponsors")}</small></div>` : "";   // public/img/contest/poster-*.jpg (rendered from tools/posters)
 function openPoster(p) {
-  openModal(`<img class="ct-big" src="/img/contest/poster-${p}.jpg" alt="${esc(t("ct_poster_alt"))}">
-    <div class="form-actions"><a class="btn btn-mat" href="/img/contest/poster-${p}.jpg" download="RCMI-Photo-Contest-${p}.jpg">${t("ct_poster_dl")}</a><button type="button" class="btn btn-ghost" data-act="close">${t("close")}</button></div>`);
+  openModal(`<img class="ct-big" src="/img/contest/poster-${p}.jpg?v=${POSTER_V}" alt="${esc(t("ct_poster_alt"))}">
+    <div class="form-actions"><a class="btn btn-mat" href="/img/contest/poster-${p}.jpg?v=${POSTER_V}" download="RCMI-Photo-Contest-${p}.jpg">${t("ct_poster_dl")}</a><button type="button" class="btn btn-ghost" data-act="close">${t("close")}</button></div>`);
   $("#modal-body").onclick = (ev) => { if (ev.target.dataset.act === "close") closeModal(); };
 }
 document.addEventListener("click", (e) => { const b = e.target.closest("[data-ct-poster]"); if (b) { e.preventDefault(); openPoster(b.dataset.ctPoster); } });
@@ -4323,7 +4324,7 @@ async function renderContestRoute() {
       ${state.user ? "" : `<button type="button" class="btn btn-mat" data-ct="signin">${t("ct_soon_cta")}</button>`}
     </div>
     ${sponsorsHTML()}
-    <div class="ct-posters">${CT_POSTERS.map(p => `<button type="button" data-ct-poster="${p}"><img src="/img/contest/poster-${p}.jpg" alt="${esc(t("ct_poster_alt"))}" loading="lazy"></button>`).join("")}</div>`}
+    <div class="ct-posters">${CT_POSTERS.map(p => `<button type="button" data-ct-poster="${p}"><img src="/img/contest/poster-${p}.jpg?v=${POSTER_V}" alt="${esc(t("ct_poster_alt"))}" loading="lazy"></button>`).join("")}</div>`}
     <div class="ct-list">${ct.list.length ? ct.list.map(c => `
       <a class="ct-item" href="#/contest/${encodeURIComponent(c.id)}">
         <span class="ct-item-cover">${c.winners?.[0]?.photo ? `<img src="${photoSrc(c.winners[0].photo)}" alt="" loading="lazy">` : `<span>📸</span>`}</span>
@@ -4736,7 +4737,7 @@ async function renderHomeContest() {
   if (!live) {
     box.hidden = false;
     box.innerHTML = `<a class="ct-home soon" href="#/contest">
-      <span class="ct-home-ic poster"><img src="/img/contest/poster-r32.jpg" alt=""></span>
+      <span class="ct-home-ic poster"><img src="/img/contest/poster-r32.jpg?v=${POSTER_V}" alt=""></span>
       <span class="ct-home-t"><small>${t("ct_soon_badge")}</small><b>${t("ct_soon_t")}</b><span>${t("ct_soon_d")}</span>
         ${CT_SPONSORS.length ? `<span class="ct-home-sp">${t("ct_sponsored_by")} <img src="${CT_SPONSORS[0].logo}" alt="${esc(CT_SPONSORS[0].name)}"></span>` : ""}</span>
       <em>${t("ct_soon_badge")}</em></a>`;

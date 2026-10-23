@@ -13,3 +13,12 @@ for (const n of ["r32", "f40"]) {
   console.log("rendered", n);
 }
 await b.close();
+
+// New file version for the site, so browsers and the app's cache load the new posters instead of the old ones.
+import { readFileSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+const img = (n) => readFileSync(path.join(dir, "../../public/img/contest/poster-" + n + ".jpg"));
+const v = createHash("md5").update(img("r32")).update(img("f40")).digest("hex").slice(0, 8);
+const appFile = path.join(dir, "../../public/js/app.js");
+writeFileSync(appFile, readFileSync(appFile, "utf8").replace(/const POSTER_V = "[^"]*"/, `const POSTER_V = "${v}"`));
+console.log("poster version", v);
