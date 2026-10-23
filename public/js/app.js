@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792712949";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792713860";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792712949";
-import { SEED_EVENTS } from "./seed-events.js?v=1792712949";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792712949";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792712949";
+import { GALLERY } from "./gallery-data.js?v=1792713860";
+import { SEED_EVENTS } from "./seed-events.js?v=1792713860";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792713860";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792713860";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -4713,8 +4713,7 @@ function newsCard(n) {
     <span class="pc-body">
       <span class="news-brand">${esc(n.brand)}</span>
       <span class="pc-title">${esc(n.title)}</span>
-      ${n.price ? `<span class="pc-price">${fmtIDR(n.price)}</span>` : ""}
-      <span class="pc-meta">${[n.scale, n.releaseDate ? t("news_release", { d: n.releaseDate }) : ""].filter(Boolean).map(esc).join(" · ") || fmtDate(n.createdAt, { day: "numeric", month: "short", year: "numeric" })}</span>
+      <span class="pc-meta news-when">${n.releaseDate ? esc(t("news_release", { d: n.releaseDate })) : esc(n.scale || "")}</span>
     </span>
   </a>`;
 }
@@ -4737,7 +4736,6 @@ function paintNews() {
   $("#news-list").innerHTML = list.length ? list.map(newsCard).join("") : `<p class="empty">${t(news.list.length ? "search_none" : "news_none")}</p>`;
 }
 function openNews(n) {
-  const link = safeLink(n.link);
   openModal(`
     ${n.photos?.length ? `<div class="detail-photos">${n.photos.map(p => `<img src="${photoSrc(p)}" alt="">`).join("")}</div>` : ""}
     <span class="tag ns-tag ns-${esc(n.status)}">${t("ns_" + n.status)}</span>
@@ -4747,12 +4745,10 @@ function openNews(n) {
       ${n.model ? `<dt>${t("news_model")}</dt><dd>${esc(n.model)}</dd>` : ""}
       ${n.scale ? `<dt>${t("news_scale")}</dt><dd>${esc(n.scale)}</dd>` : ""}
       ${n.releaseDate ? `<dt>${t("news_date")}</dt><dd>${esc(n.releaseDate)}</dd>` : ""}
-      ${n.price ? `<dt>${t("l_price")}</dt><dd>${fmtIDR(n.price)}</dd>` : ""}
     </dl>
     ${n.body ? `<p class="news-body">${br(n.body)}</p>` : ""}
     <p class="muted">${t("news_posted", { d: fmtDate(n.createdAt, { day: "numeric", month: "long", year: "numeric" }) })}</p>
     <div class="form-actions">
-      ${link ? `<a class="btn btn-mat" href="${esc(link)}" target="_blank" rel="noopener nofollow">${t(n.status === "preorder" ? "news_preorder_btn" : "news_more_btn")} ↗</a>` : ""}
       <button type="button" class="btn btn-ghost" data-act="share">${t("share")}</button>
       ${isStaff() ? `<button type="button" class="btn btn-ghost" data-act="edit">${t("edit")}</button><button type="button" class="btn btn-danger" data-act="del">${t("delete")}</button>` : ""}
       <button type="button" class="btn btn-ghost" data-act="close">${t("close")}</button>
@@ -4785,11 +4781,7 @@ function openNewsForm(n = null) {
         <label><span>${t("news_model")}</span><input name="model" maxlength="100" value="${esc(n?.model || "")}"></label>
         <label><span>${t("news_scale")}</span><input name="scale" maxlength="20" value="${esc(n?.scale ?? "1:64")}"></label>
       </div>
-      <div class="row2">
-        <label><span>${t("news_date")}</span><input name="releaseDate" maxlength="40" value="${esc(n?.releaseDate || "")}" placeholder="Dec 2026 / Q1 2027"></label>
-        <label><span>${t("l_price")} (Rp)</span><input name="price" type="number" min="0" step="1000" inputmode="numeric" value="${n?.price || ""}"></label>
-      </div>
-      <label><span>${t("news_link")}</span><input name="link" type="url" maxlength="500" value="${esc(n?.link || "")}" placeholder="https://…"></label>
+      <label><span>${t("news_date")}</span><input name="releaseDate" maxlength="40" value="${esc(n?.releaseDate || "")}" placeholder="Q1 2027 / Dec 2026 / Out now"></label>
       <label><span>${t("news_body")}</span><textarea name="body" rows="4" maxlength="3000">${esc(n?.body || "")}</textarea></label>
       <label><span>${t("photos")} (${t("news_max6")})${n?.photos?.length ? ` · ${t("news_photos_keep")}` : ""}</span><input type="file" name="photos" accept="image/*" multiple data-max="6"></label>
       <div class="thumbs"></div>
@@ -4799,13 +4791,11 @@ function openNewsForm(n = null) {
   $("#modal-body").onclick = (ev) => { if (ev.target.dataset.act === "close") closeModal(); };
   f.addEventListener("submit", async (e) => {
     e.preventDefault();
-    const link = f.link.value.trim();
-    if (link && !safeLink(link)) { toast(t("news_link_bad")); f.link.focus(); return; }
     const btn = f.querySelector("[type=submit]"); btn.disabled = true;
     try {
       const photos = f.photos.files.length ? await storePhotos(f.photos, "market", 6, 0, btn) : (n?.photos || []);
       const data = { title: f.title.value.trim(), brand: f.brand.value.trim(), model: f.model.value.trim(), scale: f.scale.value.trim(), status: f.status.value,
-        releaseDate: f.releaseDate.value.trim(), price: Number(f.price.value) > 0 ? Number(f.price.value) : null, link, photos, body: f.body.value.trim() };
+        releaseDate: f.releaseDate.value.trim(), price: null, link: "", photos, body: f.body.value.trim() };   // News lists items only: no prices or shop links
       if (n) await updateDoc(doc(db, "news", n.id), { ...data, updatedAt: serverTimestamp() });
       else await addDoc(collection(db, "news"), { ...data, createdAt: serverTimestamp(), authorUid: state.user.uid, authorName: String(state.profile.displayName || "").slice(0, 80) });
       closeModal(); toast(t(n ? "saved" : "news_published"));

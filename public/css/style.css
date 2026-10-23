@@ -1293,3 +1293,4 @@ span.rep-badge { cursor: default; }
 .news-facts { display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; margin: 8px 0 12px; }
 .news-facts dt { font-weight: 700; color: var(--muted); } .news-facts dd { margin: 0; }
 .news-body { white-space: normal; }
+.news-when { font-weight: 700; color: var(--ink); }
