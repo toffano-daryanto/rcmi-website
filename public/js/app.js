@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792716207";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792716582";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792716207";
-import { SEED_EVENTS } from "./seed-events.js?v=1792716207";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792716207";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792716207";
+import { GALLERY } from "./gallery-data.js?v=1792716582";
+import { SEED_EVENTS } from "./seed-events.js?v=1792716582";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792716582";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792716582";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -2418,7 +2418,8 @@ function showMembers() {
   const id = state.sub;
   $("#members-list").hidden = !!id;
   $("#member-profile").hidden = !id;
-  if (id) renderProfile(id); else renderRoster();
+  if (id) { renderProfile(id); if (state.lastProfile !== id) window.scrollTo(0, 0); } else renderRoster();
+  state.lastProfile = id;
 }
 function renderRoster() {
   $("#mem-sync-bar").hidden = !isAdmin();
@@ -2448,8 +2449,8 @@ function renderRoster() {
       const wa = waNumber(u.whatsapp);
       const since = fmtDate(u.approvedAt || u.createdAt, { day: "numeric", month: "short", year: "numeric" });
       return `<div class="r-item r-general">
-        <span class="r-no">${u.photoURL ? `<img src="${esc(u.photoURL)}" alt="" referrerpolicy="no-referrer">` : esc(initials(u.displayName))}</span>
-        <span><strong>${esc(u.displayName)}</strong>
+        <a class="r-no" href="#/members/g-${esc(u.id)}" aria-label="${esc(u.displayName)}">${u.photoURL ? `<img src="${esc(u.photoURL)}" alt="" referrerpolicy="no-referrer">` : esc(initials(u.displayName))}</a>
+        <span><a class="gcard-name" href="#/members/g-${esc(u.id)}"><strong>${u.generalNo ? generalNo(u.generalNo) + " · " : ""}${esc(u.displayName)}</strong></a>
           <small>${[u.city, u.instagram && "@" + u.instagram].filter(Boolean).map(esc).join(" · ") || "—"}</small>
           <small>${[u.whatsapp, u.email].filter(Boolean).map(esc).join(" · ")}</small>
           ${since ? `<small class="muted">${t("registered_on", { date: since })}</small>` : ""}
@@ -2589,7 +2590,11 @@ $("#roster").addEventListener("click", (e) => {
 
 async function renderProfile(id) {
   const box = $("#member-profile");
-  const r = (state.roster || []).find(x => x.id === id);
+  // General users have no roster record: their page is #/members/g-<uid> (admins), built from their account.
+  const gen = id.startsWith("g-");
+  const gu = gen && isAdmin() ? (state.siteUsers[id.slice(2)] || (state.deactUsers || {})[id.slice(2)]) : null;
+  const r = gen ? (gu && { id, memberNo: null, name: gu.displayName, city: gu.city, province: "", claimedBy: gu.id, joined: "", status: "member" })
+    : (state.roster || []).find(x => x.id === id);
   if (!r || (r.status === "applicant" && !isAdmin())) {
     box.innerHTML = `<a class="btn btn-ghost profile-back" href="#/members">← ${t("back_members")}</a><p class="empty">${t("member_not_found")}</p>`;
     return;
@@ -2601,17 +2606,18 @@ async function renderProfile(id) {
   const place = [city, r.province].filter(Boolean).join(", ");
   const since = r.joined ? new Date(r.joined) : (u?.approvedAt || u?.createdAt);
   const ig = igHandle(u?.instagram), wa = waNumber(u?.whatsapp);
-  const priv = isAdmin() ? state.rosterPrivate[r.id] : null;
+  const priv = isAdmin() ? (gen ? {} : state.rosterPrivate[r.id]) : null;
   box.innerHTML = `
     <a class="btn btn-ghost profile-back" href="#/members">← ${t("back_members")}</a>
     <div class="profile">
-      <div>${cardHTML({ no: r.memberNo, name, city, instagram: u?.instagram, photoURL: u?.photoURL, since, uid: u?.id || r.claimedBy || "" })}</div>
+      <div>${cardHTML({ general: gen, no: gen ? u?.generalNo : r.memberNo, name, city, instagram: u?.instagram, photoURL: u?.photoURL, since, uid: u?.id || r.claimedBy || "" })}</div>
       <div>
         <h1>${esc(name)}</h1>
         ${u && u.id !== state.user?.uid ? `<button type="button" class="btn btn-sm btn-mat" data-dm="${esc(u.id)}" data-dm-name="${esc(name)}" data-dm-photo="${esc(u.photoURL || "")}">✉️ ${t("dm_message")}</button>` : ""}
         ${u?.bio ? `<p class="bio">${esc(u.bio)}</p>` : ""}
         <dl>
           ${r.memberNo ? `<dt>${t("card_member")}</dt><dd>${memberNo(r.memberNo)}</dd>` : ""}
+          ${gen ? `<dt>${t("type_general")}</dt><dd>${u?.generalNo ? generalNo(u.generalNo) : "—"}</dd>` : ""}
           ${place ? `<dt>${t("f_city")}</dt><dd>${esc(place)}</dd>` : ""}
           ${since ? `<dt>${t("registered")}</dt><dd>${fmtDate(since, { day: "numeric", month: "long", year: "numeric" })}</dd>` : ""}
           ${ig ? `<dt>Instagram</dt><dd><a href="https://instagram.com/${encodeURIComponent(ig)}" target="_blank" rel="noopener">@${esc(ig)}</a></dd>` : ""}
@@ -2620,17 +2626,18 @@ async function renderProfile(id) {
         </dl>
         ${priv ? `<div class="admin-box"><small>${t("admin_only")}</small>
           ${priv.phone ? `${t("phone")}: <a href="https://wa.me/${waNumber(priv.phone)}" target="_blank" rel="noopener">${esc(priv.phone)}</a><br>` : ""}
+          ${gen && u?.email ? `Email: ${esc(u.email)}<br>` : ""}
           ${priv.shirtSize ? `${t("shirt")}: ${esc(priv.shirtSize)} × ${priv.shirtQty || 1} — ${priv.shirtPaid ? t("paid") : t("unpaid")}<br>` : ""}
           <span id="profile-dues"></span>
           <div id="profile-addr-admin"></div>
-          <form class="invite-form" id="f-invite" data-r="${esc(r.id)}">
+          ${gen ? "" : `<form class="invite-form" id="f-invite" data-r="${esc(r.id)}">
             <label for="invite-phone">${t("phone_label_admin")}</label>
             <div class="invite-row">
               <input id="invite-phone" type="tel" name="phone" value="${esc(priv.phone || "")}" placeholder="08…" autocomplete="off" inputmode="tel">
               <button class="btn btn-sm btn-mat" type="submit">${t("save")}</button>
             </div>
             <small class="muted">${r.claimedBy ? t("gmail_linked") : t("phone_hint_admin")}</small>
-          </form>
+          </form>`}
         </div>` : ""}
         ${isStaff() && u && u.id !== state.user.uid && (isAdmin() ? u.role !== "admin" : !isStaffRole(u)) ? `<div class="deact-box">
           ${deact ? `<p class="muted">${t("deact_is")}</p><button type="button" class="btn btn-mat" data-reactivate="${esc(u.id)}">${t("reactivate")}</button>`
@@ -3040,15 +3047,10 @@ async function takeGeneralNo() {
   } catch (e) { console.warn("general number", e); }
   state.takingNo = false;
 }
-// Admin: a general user's card in a pop-up (they have no member profile page).
+// Admin: a general user's name / "View card" opens their details page (same layout as exclusive members).
 document.addEventListener("click", (e) => {
   const b = e.target.closest("[data-gcard]"); if (!b) return;
-  const u = state.siteUsers?.[b.dataset.gcard] || (state.deactUsers || {})[b.dataset.gcard]; if (!u) return;
-  openModal(`<div class="gcard-modal">${cardHTML({ general: true, uid: u.id, no: u.generalNo, name: u.displayName, city: u.city, instagram: u.instagram, photoURL: u.photoURL, since: u.approvedAt || u.createdAt })}</div>
-    <p class="muted">${[u.email, u.whatsapp].filter(Boolean).map(esc).join(" · ")}</p>
-    <div class="form-actions">${u.id !== state.user?.uid ? `<button type="button" class="btn btn-mat" data-dm="${esc(u.id)}" data-dm-name="${esc(u.displayName || "")}" data-dm-photo="${esc(u.photoURL || "")}">✉️ ${t("dm_message")}</button>` : ""}<button type="button" class="btn btn-ghost" data-act="close">${t("close")}</button></div>`);
-  fillSellerStatus($("#modal-body"));
-  $("#modal-body").onclick = (ev) => { if (ev.target.dataset.act === "close") closeModal(); };
+  location.hash = `#/members/g-${encodeURIComponent(b.dataset.gcard)}`;
 });
 const generalNo = (n) => n ? `G-${String(n).padStart(4, "0")}` : "";
 function renderCard() {
@@ -3470,9 +3472,9 @@ async function loadAdmin() {
     $("#admin-members").innerHTML = members.map(u => `
       <div class="row">
         <img src="${esc(u.photoURL)}" alt="" referrerpolicy="no-referrer">
-        <div class="grow"><strong>${u.accountType === "general" ? "" : memberNo(u.memberNo) + " · "}${esc(u.displayName)}</strong>${u.accountType === "general" ? `<span class="type-tag general">${t("type_general")}</span>` : ""}
+        <div class="grow"><a class="gcard-name" href="#/members/${encodeURIComponent(u.rosterId || "u-" + u.id)}"><strong>${u.accountType === "general" ? "" : memberNo(u.memberNo) + " · "}${esc(u.displayName)}</strong></a>${u.accountType === "general" ? `<span class="type-tag general">${t("type_general")}</span>` : ""}
           <small>${esc(u.city)} · ${u.instagram ? "@" + esc(u.instagram) : ""}${u.role === "admin" ? " · admin" : u.role === "moderator" ? " · " + t("role_mod") : u.role === "jury" ? " · " + t("role_jury") : ""}</small></div>
-        <div class="actions">${roleSel(u)}</div>
+        <div class="actions"><a class="btn btn-sm btn-mat" href="#/members/${encodeURIComponent(u.rosterId || "u-" + u.id)}">🪪 ${t("view_details")}</a>${roleSel(u)}</div>
       </div>`).join("");
     $("#admin-import").innerHTML = `
       <details class="panel-flat dues-settings" ${state.roster?.some(r => r.id === "m001") ? "" : "open"}>
