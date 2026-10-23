@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792716582";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792716774";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792716582";
-import { SEED_EVENTS } from "./seed-events.js?v=1792716582";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792716582";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792716582";
+import { GALLERY } from "./gallery-data.js?v=1792716774";
+import { SEED_EVENTS } from "./seed-events.js?v=1792716774";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792716774";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792716774";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -2446,17 +2446,14 @@ function renderRoster() {
       .sort((a, b) => String(a.displayName).localeCompare(String(b.displayName)));
     $("#general-count").textContent = `(${all.length})`;
     $("#general-roster").innerHTML = gens.map(u => {
-      const wa = waNumber(u.whatsapp);
-      const since = fmtDate(u.approvedAt || u.createdAt, { day: "numeric", month: "short", year: "numeric" });
-      return `<div class="r-item r-general">
-        <a class="r-no" href="#/members/g-${esc(u.id)}" aria-label="${esc(u.displayName)}">${u.photoURL ? `<img src="${esc(u.photoURL)}" alt="" referrerpolicy="no-referrer">` : esc(initials(u.displayName))}</a>
-        <span><a class="gcard-name" href="#/members/g-${esc(u.id)}"><strong>${u.generalNo ? generalNo(u.generalNo) + " · " : ""}${esc(u.displayName)}</strong></a>
-          <small>${[u.city, u.instagram && "@" + u.instagram].filter(Boolean).map(esc).join(" · ") || "—"}</small>
-          <small>${[u.whatsapp, u.email].filter(Boolean).map(esc).join(" · ")}</small>
-          ${since ? `<small class="muted">${t("registered_on", { date: since })}</small>` : ""}
-          ${wa ? `<a class="r-wa" href="https://wa.me/${wa}" target="_blank" rel="noopener">WhatsApp</a>` : ""}
-          ${u.role !== "admin" ? `<button type="button" class="r-deact" data-deactivate="${esc(u.id)}">${t("deactivate")}</button>` : ""}</span>
-      </div>`;
+      const deact = u.status === "deactivated";
+      // Same tile as the member list; tap to open their details page.
+      return `<button type="button" class="r-item" data-member="g-${esc(u.id)}">
+      <span class="r-no">${u.photoURL ? `<img src="${esc(u.photoURL)}" alt="" referrerpolicy="no-referrer">` : u.generalNo ? "#" + u.generalNo : esc(initials(u.displayName))}</span>
+      <span><strong>${esc(u.displayName)}</strong>
+        <small>${[u.generalNo ? generalNo(u.generalNo) : t("type_general"), u.city].filter(Boolean).map(esc).join(" · ")}</small>
+        ${deact ? `<small class="type-tag blocked">${t("deact_tag")}</small>` : `<small class="r-on">✓ ${t("on_site")}</small>`}</span>
+    </button>`;
     }).join("") || `<p class="empty">${t(all.length ? "no_results" : "no_general")}</p>`;
   }
 }
@@ -2584,6 +2581,9 @@ $("#mem-sync-link").addEventListener("click", async () => {
 });
 
 $("#member-search").addEventListener("input", (e) => { state.memberSearch = e.target.value; renderRoster(); });
+$("#general-roster").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-member]"); if (b) location.hash = `#/members/${encodeURIComponent(b.dataset.member)}`;
+});
 $("#roster").addEventListener("click", (e) => {
   const b = e.target.closest("[data-member]"); if (b) location.hash = `#/members/${encodeURIComponent(b.dataset.member)}`;
 });
