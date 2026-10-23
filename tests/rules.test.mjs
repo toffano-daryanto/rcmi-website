@@ -313,5 +313,6 @@ test("news: staff post, everyone reads, members can't post", async () => {
   await assertFails(setDoc(doc(as(U.admin), "news", "n5"), { ...n, status: "rumour" }));
   await assertSucceeds(getDocs(query(collection(anon(), "news"), orderBy("createdAt", "desc"), limit(50))));
   await assertFails(deleteDoc(doc(as(U.m1), "news", "n1")));
-  await assertSucceeds(deleteDoc(doc(as(U.mod), "news", "n1")));
+  await assertFails(deleteDoc(doc(as(U.mod), "news", "n1")));     // moderators can't delete news
+  await assertSucceeds(deleteDoc(doc(as(U.admin), "news", "n1")));
 });

@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792713982";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792714162";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792713982";
-import { SEED_EVENTS } from "./seed-events.js?v=1792713982";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792713982";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792713982";
+import { GALLERY } from "./gallery-data.js?v=1792714162";
+import { SEED_EVENTS } from "./seed-events.js?v=1792714162";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792714162";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792714162";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -4751,7 +4751,8 @@ function openNews(n) {
     <p class="muted">${t("news_posted", { d: fmtDate(n.createdAt, { day: "numeric", month: "long", year: "numeric" }) })}</p>
     <div class="form-actions">
       <button type="button" class="btn btn-ghost" data-act="share">${t("share")}</button>
-      ${isStaff() ? `<button type="button" class="btn btn-ghost" data-act="edit">${t("edit")}</button><button type="button" class="btn btn-danger" data-act="del">${t("delete")}</button>` : ""}
+      ${isStaff() ? `<button type="button" class="btn btn-ghost" data-act="edit">${t("edit")}</button>` : ""}
+      ${isAdmin() ? `<button type="button" class="btn btn-danger" data-act="del">${t("delete")}</button>` : ""}
       <button type="button" class="btn btn-ghost" data-act="close">${t("close")}</button>
     </div>`);
   $("#modal-body").onclick = async (ev) => {
@@ -4762,7 +4763,7 @@ function openNews(n) {
       try { if (navigator.share) await navigator.share({ title: n.title, text: `${n.brand} — ${n.title}`, url }); else { await navigator.clipboard.writeText(url); toast(t("link_copied")); } } catch (e) {}
     }
     if (act === "edit") openNewsForm(n);
-    if (act === "del" && confirm(t("confirm_delete"))) {
+    if (act === "del" && isAdmin() && confirm(t("confirm_delete"))) {
       try { await deleteDoc(doc(db, "news", n.id)); closeModal(); toast(t("deleted")); await loadNews(true); location.hash = "#/news"; renderNewsRoute(); renderHomeNews(); } catch (e2) { fail(e2); }
     }
   };

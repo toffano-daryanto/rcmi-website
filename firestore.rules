@@ -124,7 +124,8 @@ service cloud.firestore {
         && (request.resource.data.link == '' || request.resource.data.link.matches('https?://.+'))
         && (request.resource.data.price == null || request.resource.data.price is number)
         && request.resource.data.photos is list && request.resource.data.photos.size() <= 6;
-      allow delete: if staff();
+      // Only admins delete news.
+      allow delete: if admin();
     }
 
     // ---------- Photo contests ----------
