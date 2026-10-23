@@ -51,7 +51,7 @@ if (!users.length && !proofs.length && !messages.length && !delReqs.length && !r
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 const no = (n) => `RCMI-${String(n).padStart(4, "0")}`;
 const kind = (u) =>
-  u.accountType === "general" ? "General user — active" :
+  u.accountType === "general" ? "Associate member — active" :
   u.status === "approved" ? `Member — activated by phone as ${no(u.memberNo)}` :
   "New member — waiting for payment &amp; your approval";
 const nameOf = async (uid) => { const s = await db.doc(`users/${uid}`).get(); return s.exists ? s.data().displayName : uid; };

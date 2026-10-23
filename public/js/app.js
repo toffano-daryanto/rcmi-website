@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792717031";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792717408";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792717031";
-import { SEED_EVENTS } from "./seed-events.js?v=1792717031";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792717031";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792717031";
+import { GALLERY } from "./gallery-data.js?v=1792717408";
+import { SEED_EVENTS } from "./seed-events.js?v=1792717408";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792717408";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792717408";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -2998,7 +2998,7 @@ function cardHTML({ no, name, city, instagram, photoURL, since, general = false,
   const sub = [city, instagram ? "@" + igHandle(instagram) : "", since ? `${t("card_since")} ${fmtDate(since, { month: "short", year: "numeric" })}` : ""].filter(Boolean).map(esc).join(" · ");
   return `
     <div class="mcard" role="img" aria-label="RCMI ${esc(name)} ${no ? "#" + no : ""}">
-      <p class="mcard-kicker">${general ? "General Member" : "Exclusive Member"}</p>
+      <p class="mcard-kicker">${general ? "Associate Member" : "Exclusive Member"}</p>
       <img class="mcard-logo" src="/img/logo-dark.png" alt="">
       ${photoURL
         ? `<img class="mcard-photo" src="${esc(bigPhoto(photoURL))}" alt="" referrerpolicy="no-referrer" onerror="this.outerHTML='<div class=&quot;mcard-photo mcard-initials&quot;>${esc(initials(name))}</div>'">`
@@ -3052,7 +3052,7 @@ document.addEventListener("click", (e) => {
   const b = e.target.closest("[data-gcard]"); if (!b) return;
   location.hash = `#/members/g-${encodeURIComponent(b.dataset.gcard)}`;
 });
-const generalNo = (n) => n ? `G-${String(n).padStart(4, "0")}` : "";
+const generalNo = (n) => n ? `A-${String(n).padStart(4, "0")}` : "";   // Associate Member number
 function renderCard() {
   const p = state.profile;
   $("#member-card").hidden = false;
