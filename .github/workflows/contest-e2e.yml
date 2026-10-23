@@ -1,0 +1,27 @@
+name: Contest test round
+# Plays one full photo-contest round (register → photos → voting → jury → winners) in a real browser,
+# against throwaway local Firebase emulators. Never touches the live database, Drive, email or push.
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with: { node-version: 22 }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 21 }
+      - run: npm i --no-save --no-audit --no-fund firebase-tools@14 firebase-admin@13 playwright@1.48.2 && npx playwright install --with-deps chromium
+      - run: node tools/e2e/patch.mjs
+      - name: Run the round
+        run: |
+          (cd public && python3 -m http.server 5055 >/dev/null 2>&1 &)
+          npx firebase emulators:exec --only auth,firestore --project demo-rcmi \
+            "node tools/e2e/seed.mjs && node tools/e2e/run.mjs && node tools/e2e/check.mjs"
+      - if: always()
+        run: '{ echo "## Contest test round"; echo "\`\`\`"; cat e2e-out/steps.txt 2>/dev/null; echo; cat e2e-out/report.txt 2>/dev/null; echo "\`\`\`"; } >> "$GITHUB_STEP_SUMMARY"'
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with: { name: contest-e2e, path: e2e-out }
