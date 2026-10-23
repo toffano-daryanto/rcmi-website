@@ -330,3 +330,21 @@ test("general users: registration number taken once, in step with the counter", 
   await assertFails(updateDoc(doc(as(U.gen), "users", U.gen), { generalNo: 1 }));            // can't pick a number
   await assertFails(updateDoc(doc(as(U.m2), "counters", "general"), { seq: 99 }));
 });
+
+test("multiple roles: moderator + jury both work; jury can't enter; admin assigns", async () => {
+  await env.withSecurityRulesDisabled(ctx => setDoc(doc(ctx.firestore(), "users", "uMulti"), user("uMulti", { role: "moderator", roles: ["moderator", "jury"], memberNo: 77 })));
+  // moderator powers
+  await assertSucceeds(updateDoc(doc(as("uMulti"), "users", U.m2), { status: "deactivated", deactivatedAt: serverTimestamp() }));
+  // jury powers (scoring) during voting, and can't enter as a participant
+  const sc = { judge: "uMulti", entry: U.m1, crit: { light: 8 }, total: 8, note: "", at: serverTimestamp() };
+  await env.withSecurityRulesDisabled(async ctx => {
+    await updateDoc(doc(ctx.firestore(), "contests", "c1"), { status: "voting", judges: ["uMulti"] });
+    await setDoc(doc(ctx.firestore(), "contests", "c1", "entries", U.m1), { uid: U.m1, regNo: 1, name: "M1", avatar: "", title: "R34", caption: "", photo: "x", at: Timestamp.now() });
+  });
+  await assertSucceeds(setDoc(doc(as("uMulti"), "contests", "c1", "scores", `uMulti_${U.m1}`), sc));
+  // a moderator can't deactivate someone who holds a role
+  await assertFails(updateDoc(doc(as(U.mod), "users", "uMulti"), { status: "deactivated" }));
+  // only admins set roles
+  await assertFails(updateDoc(doc(as("uMulti"), "users", U.m1), { roles: ["admin"] }));
+  await assertSucceeds(updateDoc(doc(as(U.admin), "users", U.m1), { role: "moderator", roles: ["moderator", "jury"] }));
+});

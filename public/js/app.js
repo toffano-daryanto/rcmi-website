@@ -631,10 +631,10 @@ onAuthStateChanged(auth, (user) => {
       $("#tab-admin").hidden = !isStaff();
       { const ta = $("#tab-admin"); ta.dataset.i18n = isMod() ? "tab_mod" : "tab_admin"; ta.textContent = t(ta.dataset.i18n); }
       $("#tab-finance").hidden = state.profile.accountType === "general";
-      if (state.profile.role === "admin") refreshInboxCount();
+      if (isAdmin()) refreshInboxCount();
       // The bell: admins get sign-ups/messages too; everyone gets notices about their own posts.
       if (state.profile.status === "approved") { startNotifs(); renderBell(); if (state.addrFor !== user.uid) { state.addrFor = user.uid; loadMyAddr(); } } else stopNotifs();
-      $("#btn-add-event").hidden = state.profile.role !== "admin";
+      $("#btn-add-event").hidden = !isAdmin();
       const general = isGeneral();
       $$('.tabs a[data-tab="members"], .tabs a[data-tab="dues"]').forEach(a => { a.hidden = general; });
       const ct = $("#tab-card"); ct.dataset.i18n = "tab_card"; ct.textContent = t(ct.dataset.i18n);
@@ -906,12 +906,16 @@ function rerender() {
   if ($("#app").hidden) return;
   ({ collection: renderCars, events: renderEvents, members: showMembers, dues: renderDues, activity: renderActivity, finance: renderFinance, card: renderCard, admin: loadAdmin })[state.tab]();
 }
-const isAdmin = () => state.profile?.role === "admin";
+// A person can hold several roles: "role" is the main one, "roles" lists all (admin, moderator, jury).
+const rolesOf = (u) => [...new Set([...(u?.roles || []), ...(u?.role && u.role !== "member" ? [u.role] : [])])];
+const hasRole = (u, r) => rolesOf(u).includes(r);
+const mainRole = (roles) => ["admin", "moderator", "jury"].find(r => roles.includes(r)) || "member";
+const isAdmin = () => hasRole(state.profile, "admin");
 // Moderator: approves/rejects general users, handles listing delete requests, deletes posts, deactivates accounts.
-const isMod = () => state.profile?.role === "moderator";
+const isMod = () => hasRole(state.profile, "moderator") && !isAdmin();
 const isStaff = () => isAdmin() || isMod();
-const isStaffRole = (u) => u?.role === "admin" || u?.role === "moderator";
-const isJury = () => state.profile?.role === "jury" && state.profile?.status === "approved";
+const isStaffRole = (u) => hasRole(u, "admin") || hasRole(u, "moderator");
+const isJury = () => hasRole(state.profile, "jury") && state.profile?.status === "approved";
 // Two account types: RCMI members, and general users (non-members). Older accounts without the field are members.
 const isGeneral = () => state.profile?.accountType === "general";
 // Seller contact for the market, readable by any approved account (members and general users).
@@ -2639,7 +2643,7 @@ async function renderProfile(id) {
             <small class="muted">${r.claimedBy ? t("gmail_linked") : t("phone_hint_admin")}</small>
           </form>`}
         </div>` : ""}
-        ${isStaff() && u && u.id !== state.user.uid && (isAdmin() ? u.role !== "admin" : !isStaffRole(u)) ? `<div class="deact-box">
+        ${isStaff() && u && u.id !== state.user.uid && (isAdmin() ? !hasRole(u, "admin") : !isStaffRole(u)) ? `<div class="deact-box">
           ${deact ? `<p class="muted">${t("deact_is")}</p><button type="button" class="btn btn-mat" data-reactivate="${esc(u.id)}">${t("reactivate")}</button>`
                   : `<button type="button" class="btn btn-danger" data-deactivate="${esc(u.id)}">${t("deactivate")}</button><small class="muted">${t("deact_hint")}</small>`}
         </div>` : ""}
@@ -3446,14 +3450,14 @@ async function loadAdmin() {
     $("#admin-general").innerHTML = generals.length ? generals.map(u => `
       <div class="row">
         <img src="${esc(u.photoURL)}" alt="" referrerpolicy="no-referrer">
-        <div class="grow"><button type="button" class="btn-link gcard-name" data-gcard="${esc(u.id)}"><strong>${u.generalNo ? generalNo(u.generalNo) + " · " : ""}${esc(u.displayName)}</strong></button><span class="type-tag general">${t("type_general")}</span>${u.role === "moderator" ? `<span class="type-tag">${t("role_mod")}</span>` : ""}${u.role === "jury" ? `<span class="type-tag jury">${t("role_jury")}</span>` : ""}
+        <div class="grow"><button type="button" class="btn-link gcard-name" data-gcard="${esc(u.id)}"><strong>${u.generalNo ? generalNo(u.generalNo) + " · " : ""}${esc(u.displayName)}</strong></button><span class="type-tag general">${t("type_general")}</span>${rolesOf(u).map(r => `<span class="type-tag ${r === "jury" ? "jury" : ""}">${t("ro_" + r)}</span>`).join("")}
           <small>${esc(u.city)}${u.instagram ? " · @" + esc(u.instagram) : ""}${u.email ? " · " + esc(u.email) : ""}${u.whatsapp ? " · " + esc(u.whatsapp) : ""}</small>
           ${since(u) ? `<small>${t("registered_on", { date: since(u) })}</small>` : ""}</div>
         <div class="actions">
           <button type="button" class="btn btn-sm btn-mat" data-gcard="${esc(u.id)}">🪪 ${t("view_card")}</button>
           ${waNumber(u.whatsapp) ? `<a class="btn btn-sm btn-ghost" target="_blank" rel="noopener" href="https://wa.me/${waNumber(u.whatsapp)}">WhatsApp</a>` : ""}
           ${roleSel(u)}
-          ${u.role !== "admin" ? `<button class="btn btn-sm btn-danger" data-deactivate="${esc(u.id)}">${t("deactivate")}</button>` : ""}
+          ${!hasRole(u, "admin") ? `<button class="btn btn-sm btn-danger" data-deactivate="${esc(u.id)}">${t("deactivate")}</button>` : ""}
         </div>
       </div>`).join("") : `<p class="muted">${t("no_general")}</p>`;
     $("#admin-pending").innerHTML = pending.length ? pending.map(u => `
@@ -3473,7 +3477,7 @@ async function loadAdmin() {
       <div class="row">
         <img src="${esc(u.photoURL)}" alt="" referrerpolicy="no-referrer">
         <div class="grow"><a class="gcard-name" href="#/members/${encodeURIComponent(u.rosterId || "u-" + u.id)}"><strong>${u.accountType === "general" ? "" : memberNo(u.memberNo) + " · "}${esc(u.displayName)}</strong></a>${u.accountType === "general" ? `<span class="type-tag general">${t("type_general")}</span>` : ""}
-          <small>${esc(u.city)} · ${u.instagram ? "@" + esc(u.instagram) : ""}${u.role === "admin" ? " · admin" : u.role === "moderator" ? " · " + t("role_mod") : u.role === "jury" ? " · " + t("role_jury") : ""}</small></div>
+          <small>${esc(u.city)} · ${u.instagram ? "@" + esc(u.instagram) : ""}${rolesOf(u).map(r => " · " + t("ro_" + r)).join("")}</small></div>
         <div class="actions"><a class="btn btn-sm btn-mat" href="#/members/${encodeURIComponent(u.rosterId || "u-" + u.id)}">🪪 ${t("view_details")}</a>${roleSel(u)}</div>
       </div>`).join("");
     $("#admin-import").innerHTML = `
@@ -4092,27 +4096,33 @@ $("#view-admin").addEventListener("click", async (e) => {
 });
 
 
-/* ================= Roles: one menu per person (admins only). "Member" takes any role away. ================= */
-const ROLES = ["member", "moderator", "jury", "admin"];
-// The founder (member RCMI-0001) is protected: no one else can change that account's role (the database enforces it too).
+/* ================= Roles: tick boxes per person (admins only). A person can hold several roles; none = regular member. ================= */
+const ROLE_OPTS = ["moderator", "jury", "admin"];
+// The founder (member RCMI-0001) is protected: no one else can change that account's roles (the database enforces it too).
 const isFounder = (u) => Number(u?.memberNo) === 1 && (u?.accountType || "member") === "member";
+const roleTags = (u) => rolesOf(u).map(r => t("ro_" + r)).join(" + ") || t("ro_member");
 function roleSel(u) {
-  const r = u.role || "member";
   if (!isAdmin()) return "";
-  if (isFounder(u) && u.id !== state.user?.uid) return `<span class="type-tag founder">👑 ${t("role_founder")} · ${t("ro_" + r)}</span>`;
-  if (u.id === state.user?.uid) return `<span class="type-tag ${isFounder(u) ? "founder" : ""}">${isFounder(u) ? `👑 ${t("role_founder")} · ` : ""}${t("ro_" + r)} · ${t("role_you")}</span>`;
-  return `<label class="role-sel"><span>${t("role_label")}</span><select data-role-of="${esc(u.id)}">${ROLES.map(x => `<option value="${x}" ${x === r ? "selected" : ""}>${t("ro_" + x)}</option>`).join("")}</select></label>`;
+  if (isFounder(u) && u.id !== state.user?.uid) return `<span class="type-tag founder">👑 ${t("role_founder")} · ${roleTags(u)}</span>`;
+  if (u.id === state.user?.uid) return `<span class="type-tag ${isFounder(u) ? "founder" : ""}">${isFounder(u) ? `👑 ${t("role_founder")} · ` : ""}${roleTags(u)} · ${t("role_you")}</span>`;
+  const mine = rolesOf(u);
+  return `<fieldset class="role-sel" data-role-of="${esc(u.id)}"><legend>${t("role_label")}</legend>
+    ${ROLE_OPTS.map(r => `<label><input type="checkbox" value="${r}" ${mine.includes(r) ? "checked" : ""}> ${t("ro_" + r)}</label>`).join("")}</fieldset>`;
 }
 document.addEventListener("change", async (e) => {
-  const sel = e.target.closest("select[data-role-of]"); if (!sel || !isAdmin()) return;
-  const uid = sel.dataset.roleOf, u = state.siteUsers?.[uid], from = u?.role || "member", to = sel.value;
-  if (to === from) return;
-  if (isFounder(u)) { toast(t("role_founder_locked")); sel.value = from; return; }
-  if (from === "admin" && Object.values(state.siteUsers || {}).filter(x => x.role === "admin").length <= 1) { toast(t("role_last_admin")); sel.value = from; return; }
-  if (!confirm(t(to === "member" ? "role_remove_confirm" : "role_confirm", { name: u?.displayName || "", from: t("ro_" + from), to: t("ro_" + to) }))) { sel.value = from; return; }
-  sel.disabled = true;
-  try { await updateDoc(doc(db, "users", uid), { role: to }); toast(t("saved")); state.roster = null; ct.jurors = null; loadAdmin(); }
-  catch (err) { sel.value = from; sel.disabled = false; fail(err); }
+  const box = e.target.closest("fieldset[data-role-of]"); if (!box || !isAdmin() || e.target.type !== "checkbox") return;
+  const uid = box.dataset.roleOf, u = state.siteUsers?.[uid] || (state.deactUsers || {})[uid];
+  const before = rolesOf(u), roles = [...box.querySelectorAll("input:checked")].map(x => x.value);
+  const undo = () => box.querySelectorAll("input").forEach(x => { x.checked = before.includes(x.value); });
+  if (isFounder(u)) { toast(t("role_founder_locked")); undo(); return; }
+  if (before.includes("admin") && !roles.includes("admin") && Object.values(state.siteUsers || {}).filter(x => hasRole(x, "admin")).length <= 1) { toast(t("role_last_admin")); undo(); return; }
+  const r = e.target.value, on = e.target.checked;
+  if (!confirm(t(on ? "role_add_confirm" : "role_take_confirm", { name: u?.displayName || "", role: t("ro_" + r) }))) { undo(); return; }
+  box.disabled = true;
+  try {
+    await updateDoc(doc(db, "users", uid), { roles, role: mainRole(roles) });
+    toast(t("saved")); state.roster = null; ct.jurors = null; loadAdmin();
+  } catch (err) { undo(); box.disabled = false; fail(err); }
 });
 
 /* ================= App: install to the home screen + phone push notifications ================= */
@@ -4347,7 +4357,12 @@ async function openContest(id, tok) {
 }
 async function loadJurors() {
   if (ct.jurors) return ct.jurors;
-  try { const s = await getDocs(query(collection(db, "users"), where("role", "==", "jury"))); ct.jurors = s.docs.map(d => ({ id: d.id, ...d.data() })); }
+  try {
+    // Jury members: anyone with the jury role (main role or one of several).
+    const [a, b] = await Promise.all([getDocs(query(collection(db, "users"), where("role", "==", "jury"))), getDocs(query(collection(db, "users"), where("roles", "array-contains", "jury")))]);
+    const m = new Map(); [...a.docs, ...b.docs].forEach(d => m.set(d.id, { id: d.id, ...d.data() }));
+    ct.jurors = [...m.values()];
+  }
   catch (e) { ct.jurors = []; }
   return ct.jurors;
 }

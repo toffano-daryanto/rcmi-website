@@ -17,9 +17,11 @@ service cloud.firestore {
     function me() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
     function hasProfile() { return signedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)); }
     function approved() { return hasProfile() && me().status == 'approved'; }
-    function admin() { return approved() && me().role == 'admin'; }
+    // A person can hold several roles: 'role' is the main one, 'roles' lists all of them (admin, moderator, jury).
+    function hasRole(r) { return me().get('role', 'member') == r || r in me().get('roles', []); }
+    function admin() { return approved() && hasRole('admin'); }
     // Moderator: approve/reject general users, approve listing delete requests, delete posts, deactivate accounts.
-    function mod() { return approved() && me().role == 'moderator'; }
+    function mod() { return approved() && hasRole('moderator'); }
     function staff() { return admin() || mod(); }
     function onlyKeys(keys) { return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys); }
     function member() { return approved() && me().get('accountType', 'member') == 'member'; }
@@ -91,7 +93,7 @@ service cloud.firestore {
       function founder() { return resource.data.get('memberNo', 0) == 1 && resource.data.get('accountType', 'member') == 'member'; }
       function founderSafe() {
         return !founder() || request.auth.uid == uid
-          || !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status', 'memberNo', 'accountType', 'rosterId', 'email']);
+          || !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'roles', 'status', 'memberNo', 'accountType', 'rosterId', 'email']);
       }
       // Members can edit their own profile details, never their status, role or number.
       allow update: if founderSafe() && ((signedIn() && request.auth.uid == uid
@@ -107,7 +109,7 @@ service cloud.firestore {
         || (mod() && resource.data.get('accountType', 'member') == 'general' && resource.data.status == 'pending'
             && request.resource.data.status == 'approved' && onlyKeys(['status', 'approvedAt']))
         // … or deactivate / reactivate an account that isn't an admin or moderator.
-        || (mod() && uid != request.auth.uid && resource.data.get('role', 'member') == 'member'
+        || (mod() && uid != request.auth.uid && resource.data.get('role', 'member') == 'member' && resource.data.get('roles', []).size() == 0
             && resource.data.status in ['approved', 'deactivated'] && request.resource.data.status in ['approved', 'deactivated']
             && onlyKeys(['status', 'deactivatedAt', 'reactivatedAt'])));
 
@@ -144,7 +146,7 @@ service cloud.firestore {
     // ---------- Photo contests ----------
     // Phases: draft (admins only) → open (entries) → voting (public vote + jury) → judging (jury only) → closed (winners announced).
     // Jury = users with role 'jury', chosen per contest in 'judges'. Admins run everything.
-    function jury() { return approved() && me().role == 'jury'; }
+    function jury() { return approved() && hasRole('jury'); }
     match /contests/{cid} {
       function c() { return get(/databases/$(database)/documents/contests/$(cid)).data; }
       function own(uid) { return signedIn() && request.auth.uid == uid; }
@@ -175,7 +177,7 @@ service cloud.firestore {
         allow update: if approved() && own(uid) && c().status == 'open' && entryOk(uid)
           && request.resource.data.regNo == resource.data.regNo;
         function entryOk(uid) { return true
-          && !(uid in c().get('judges', [])) && me().get('role', 'member') != 'jury'
+          && !(uid in c().get('judges', [])) && !hasRole('jury')
           && request.resource.data.keys().hasOnly(['uid', 'regNo', 'name', 'avatar', 'title', 'caption', 'photo', 'at'])
           && request.resource.data.uid == uid
           // Step 1 registers (photo still empty); step 2 adds the photo before entries close.

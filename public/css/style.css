@@ -1313,3 +1313,6 @@ span.rep-badge { cursor: default; }
 .ct-sponsor-logos figcaption { font-size: .8rem; font-weight: 700; }
 .ct-home-sp { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: .78rem; text-transform: uppercase; letter-spacing: .08em; opacity: .85; }
 .ct-home-sp img { height: 26px; width: auto; border-radius: 3px; }
+fieldset.role-sel { border: 1px solid var(--line); border-radius: 6px; padding: 4px 10px 6px; margin: 0; display: inline-flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; }
+fieldset.role-sel legend { font-size: .72rem; font-weight: 700; color: var(--muted); padding: 0 4px; text-transform: uppercase; letter-spacing: .06em; }
+fieldset.role-sel label { display: inline-flex; align-items: center; gap: 4px; font-size: .85rem; font-weight: 600; cursor: pointer; }
