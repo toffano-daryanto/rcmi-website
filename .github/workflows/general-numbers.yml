@@ -1,0 +1,16 @@
+name: Number general users (one-off)
+on: workflow_dispatch
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with: { node-version: 22 }
+      - working-directory: scripts
+        env: { SA_JSON: "${{ secrets.FIREBASE_SERVICE_ACCOUNT }}" }
+        run: |
+          printf '%s' "$SA_JSON" > "$RUNNER_TEMP/sa.json"
+          npm install --no-audit --no-fund --silent
+          SA_JSON_PATH="$RUNNER_TEMP/sa.json" node general-numbers.mjs
+          rm -f "$RUNNER_TEMP/sa.json"

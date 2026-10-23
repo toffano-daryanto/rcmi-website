@@ -96,8 +96,12 @@ service cloud.firestore {
       // Members can edit their own profile details, never their status, role or number.
       allow update: if founderSafe() && ((signedIn() && request.auth.uid == uid
           && request.resource.data.diff(resource.data).affectedKeys()
-               .hasOnly(['displayName','city','instagram','whatsapp','bio','photoURL','updatedAt','emailOff'])
-          && str(request.resource.data.displayName, 80))
+               .hasOnly(['displayName','city','instagram','whatsapp','bio','photoURL','updatedAt','emailOff','generalNo'])
+          && str(request.resource.data.displayName, 80)
+          // General users take their registration number once, in the same transaction that moves counters/general on by one.
+          && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['generalNo'])
+              || (resource.data.get('accountType', 'member') == 'general' && !('generalNo' in resource.data)
+                  && request.resource.data.generalNo == getAfter(/databases/$(database)/documents/counters/general).data.seq)))
         || admin()
         // Moderator: approve a pending general user …
         || (mod() && resource.data.get('accountType', 'member') == 'general' && resource.data.status == 'pending'
@@ -110,6 +114,15 @@ service cloud.firestore {
       // Admins; or the person themselves after a rejection, so they can sign up again.
       allow delete: if (!founder() && admin()) || (signedIn() && request.auth.uid == uid && resource.data.status == 'rejected')
         || (mod() && resource.data.get('accountType', 'member') == 'general' && resource.data.status == 'pending');
+    }
+
+    // ---------- Registration numbers for general users (exclusive members have memberNo) ----------
+    match /counters/general {
+      allow read: if signedIn();
+      allow update: if approved() && me().get('accountType', 'member') == 'general' && !('generalNo' in me())
+        && onlyKeys(['seq']) && request.resource.data.seq == resource.data.get('seq', 0) + 1
+        && getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.generalNo == request.resource.data.seq;
+      allow create, delete: if admin();
     }
 
     // ---------- News: new releases from resin brands (posted by admins and moderators, read by everyone) ----------

@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792714896";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792716105";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792714896";
-import { SEED_EVENTS } from "./seed-events.js?v=1792714896";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792714896";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792714896";
+import { GALLERY } from "./gallery-data.js?v=1792716105";
+import { SEED_EVENTS } from "./seed-events.js?v=1792716105";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792716105";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792716105";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -2997,7 +2997,7 @@ function cardHTML({ no, name, city, instagram, photoURL, since, general = false,
         ? `<img class="mcard-photo" src="${esc(bigPhoto(photoURL))}" alt="" referrerpolicy="no-referrer" onerror="this.outerHTML='<div class=&quot;mcard-photo mcard-initials&quot;>${esc(initials(name))}</div>'">`
         : `<div class="mcard-photo mcard-initials">${esc(initials(name))}</div>`}
       <p class="mcard-name">${esc(name)}</p>
-      ${general ? "" : `<p class="mcard-no">${no ? "#" + no : esc(t("applicant"))}</p>`}
+      ${general ? (no ? `<p class="mcard-no">#${no}</p>` : "") : `<p class="mcard-no">${no ? "#" + no : esc(t("applicant"))}</p>`}
       ${uid ? `<p class="mcard-seller" data-seller="${esc(uid)}"></p>` : ""}
       ${sub ? `<p class="mcard-sub">${sub}</p>` : ""}
     </div>`;
@@ -3024,15 +3024,33 @@ async function fillSellerStatus(root) {
   el.className = `mcard-seller lv-${lv.cls}`;
   el.innerHTML = `<b>${t(lv.key)}</b>${bits ? `<span>${bits}</span>` : ""}`;
 }
+// General users get their own registration number (#1, #2, …), taken once from counters/general.
+async function takeGeneralNo() {
+  if (state.takingNo) return; state.takingNo = true;
+  try {
+    const no = await runTransaction(db, async (tx) => {
+      const cref = doc(db, "counters", "general"), uref = doc(db, "users", state.user.uid);
+      const [c, u] = await Promise.all([tx.get(cref), tx.get(uref)]);
+      if (u.data()?.generalNo) return u.data().generalNo;
+      const next = (c.data()?.seq || 0) + 1;
+      tx.update(cref, { seq: next }); tx.update(uref, { generalNo: next });
+      return next;
+    });
+    state.profile.generalNo = no; renderCard();
+  } catch (e) { console.warn("general number", e); }
+  state.takingNo = false;
+}
+const generalNo = (n) => n ? `G-${String(n).padStart(4, "0")}` : "";
 function renderCard() {
   const p = state.profile;
   $("#member-card").hidden = false;
   const r = (state.roster || []).find(x => x.id === p.rosterId);
   $("#member-card").innerHTML = cardHTML({
-    general: isGeneral(), uid: state.user.uid, no: p.memberNo, name: p.displayName, city: p.city, instagram: p.instagram, photoURL: p.photoURL,
+    general: isGeneral(), uid: state.user.uid, no: isGeneral() ? p.generalNo : p.memberNo, name: p.displayName, city: p.city, instagram: p.instagram, photoURL: p.photoURL,
     since: r?.joined ? new Date(r.joined) : (p.approvedAt || p.createdAt)
   });
   fillSellerStatus($("#member-card"));
+  if (isGeneral() && !p.generalNo && p.status === "approved") takeGeneralNo();
   const f = $("#form-profile");
   ["displayName", "city", "instagram", "whatsapp", "bio"].forEach(k => { if (document.activeElement !== f[k]) f[k].value = p[k] || ""; });
   f._syncSame?.();
@@ -3416,7 +3434,7 @@ async function loadAdmin() {
     $("#admin-general").innerHTML = generals.length ? generals.map(u => `
       <div class="row">
         <img src="${esc(u.photoURL)}" alt="" referrerpolicy="no-referrer">
-        <div class="grow"><strong>${esc(u.displayName)}</strong><span class="type-tag general">${t("type_general")}</span>${u.role === "moderator" ? `<span class="type-tag">${t("role_mod")}</span>` : ""}${u.role === "jury" ? `<span class="type-tag jury">${t("role_jury")}</span>` : ""}
+        <div class="grow"><strong>${u.generalNo ? generalNo(u.generalNo) + " · " : ""}${esc(u.displayName)}</strong><span class="type-tag general">${t("type_general")}</span>${u.role === "moderator" ? `<span class="type-tag">${t("role_mod")}</span>` : ""}${u.role === "jury" ? `<span class="type-tag jury">${t("role_jury")}</span>` : ""}
           <small>${esc(u.city)}${u.instagram ? " · @" + esc(u.instagram) : ""}${u.email ? " · " + esc(u.email) : ""}${u.whatsapp ? " · " + esc(u.whatsapp) : ""}</small>
           ${since(u) ? `<small>${t("registered_on", { date: since(u) })}</small>` : ""}</div>
         <div class="actions">

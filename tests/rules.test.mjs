@@ -317,3 +317,16 @@ test("news: staff post, everyone reads, members can't post", async () => {
   await assertFails(deleteDoc(doc(as(U.mod), "news", "n1")));     // moderators can't delete news
   await assertSucceeds(deleteDoc(doc(as(U.admin), "news", "n1")));
 });
+
+test("general users: registration number taken once, in step with the counter", async () => {
+  await env.withSecurityRulesDisabled(ctx => setDoc(doc(ctx.firestore(), "counters", "general"), { seq: 4 }));
+  const take = (uid) => { const db = as(uid); return runTransaction(db, async (tx) => {
+    const cref = doc(db, "counters", "general"), c = (await tx.get(cref)).data();
+    tx.update(cref, { seq: c.seq + 1 }); tx.update(doc(db, "users", uid), { generalNo: c.seq + 1 });
+  }); };
+  await assertSucceeds(take(U.gen));
+  await assertFails(take(U.gen));                                                            // only once
+  await assertFails(take(U.m1));                                                             // members use memberNo
+  await assertFails(updateDoc(doc(as(U.gen), "users", U.gen), { generalNo: 1 }));            // can't pick a number
+  await assertFails(updateDoc(doc(as(U.m2), "counters", "general"), { seq: 99 }));
+});
