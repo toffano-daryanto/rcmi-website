@@ -18,7 +18,7 @@ for (const [i, it] of items.entries()) {
     title: String(it.title).slice(0, 120), brand: String(it.brand).slice(0, 60), model: String(it.model || "").slice(0, 100),
     scale: String(it.scale || "1:64").slice(0, 20), status: ["preorder", "released", "announced"].includes(it.status) ? it.status : "announced",
     releaseDate: String(it.releaseDate || "").slice(0, 40), price: typeof it.price === "number" ? it.price : null,
-    link: ok(it.link).slice(0, 500), photos: [], body: String(it.body || "").slice(0, 3000),
+    link: ok(it.link).slice(0, 500), photos: (it.photos || []).filter(x => /^\/img\/news\/[\w.-]+\.jpg$/.test(x)).slice(0, 6), body: String(it.body || "").slice(0, 3000),
     authorUid: "rcmi", authorName: "RCMI"
   };
   // New items keep the list's order (newest first); existing ones keep their date.

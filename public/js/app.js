@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792713860";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792713982";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792713860";
-import { SEED_EVENTS } from "./seed-events.js?v=1792713860";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792713860";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792713860";
+import { GALLERY } from "./gallery-data.js?v=1792713982";
+import { SEED_EVENTS } from "./seed-events.js?v=1792713982";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792713982";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792713982";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -68,7 +68,8 @@ const driveUrl = (id) => `https://drive.google.com/thumbnail?id=${encodeURICompo
 // Only our own kinds of image addresses are ever put into the page.
 function photoSrc(p) {
   p = String(p || "");
-  return /^(data:image\/(jpeg|png|webp);base64,|https:\/\/(drive\.google\.com|lh3\.googleusercontent\.com)\/)/.test(p) ? esc(p) : "";
+  // Also the site's own news photos (public/img/news/…).
+  return /^(data:image\/(jpeg|png|webp);base64,|https:\/\/(drive\.google\.com|lh3\.googleusercontent\.com)\/|\/img\/news\/[\w.-]+\.jpg$)/.test(p) ? esc(p) : "";
 }
 function toJpegBase64(src, maxSide = 2048, q = 0.88) {
   // src: a File, or a canvas (layout collage)
