@@ -1,0 +1,39 @@
+name: Monthly release news
+# 1st of every month: finds new 1:64 resin model cars (Horizon Diecast listings from the last ~month),
+# saves their photos on the site and posts them to the News page. Only items with photos; no prices or shop links.
+on:
+  schedule:
+    - cron: "17 1 1 * *"
+  workflow_dispatch:
+    inputs:
+      days: { description: "Look back this many days", default: "35" }
+permissions:
+  contents: write
+  actions: write
+concurrency: { group: news, cancel-in-progress: false }
+jobs:
+  news:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with: { node-version: 22 }
+      - name: Find new resin releases and download their photos
+        run: |
+          pip install --quiet pillow
+          python3 tools/news-monthly.py "${{ inputs.days || '35' }}"
+          python3 tools/news-images.py tools/news-auto.json
+      - name: Publish photos to the site
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          git config user.name "github-actions"; git config user.email "github-actions@users.noreply.github.com"
+          git add public/img/news tools/news-auto.json
+          if ! git diff --cached --quiet; then git commit -qm "Monthly release news"; git push; gh workflow run deploy.yml --ref main; sleep 90; fi
+      - name: Post to the News page
+        working-directory: scripts
+        env: { SA_JSON: "${{ secrets.FIREBASE_SERVICE_ACCOUNT }}" }
+        run: |
+          printf '%s' "$SA_JSON" > "$RUNNER_TEMP/sa.json"
+          npm install --no-audit --no-fund --silent
+          SA_JSON_PATH="$RUNNER_TEMP/sa.json" node seed-news.mjs news-auto.json
+          rm -f "$RUNNER_TEMP/sa.json"
