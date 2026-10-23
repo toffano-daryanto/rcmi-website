@@ -123,7 +123,7 @@ service cloud.firestore {
         && str(request.resource.data.body, 3000) && str(request.resource.data.link, 500)
         && (request.resource.data.link == '' || request.resource.data.link.matches('https?://.+'))
         && (request.resource.data.price == null || request.resource.data.price is number)
-        && request.resource.data.photos is list && request.resource.data.photos.size() <= 6;
+        && request.resource.data.photos is list && request.resource.data.photos.size() >= 1 && request.resource.data.photos.size() <= 6;
       // Only admins delete news.
       allow delete: if admin();
     }

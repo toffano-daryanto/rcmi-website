@@ -9,11 +9,13 @@ const db = getFirestore();
 const items = JSON.parse(readFileSync(new URL("../tools/news-seed.json", import.meta.url), "utf8"));
 const slug = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 80);
 const ok = (u) => /^https?:\/\//.test(u || "") ? u : "";
-let n = 0;
+let n = 0, removed = 0;
 for (const [i, it] of items.entries()) {
   const id = slug(`${it.brand}-${it.title}`);
   const ref = db.doc(`news/${id}`);
   const old = await ref.get();
+  // No picture, no post: an item without photos is taken down.
+  if (!(it.photos || []).length) { if (old.exists) { await ref.delete(); removed++; } continue; }
   const data = {
     title: String(it.title).slice(0, 120), brand: String(it.brand).slice(0, 60), model: String(it.model || "").slice(0, 100),
     scale: String(it.scale || "1:64").slice(0, 20), status: ["preorder", "released", "announced"].includes(it.status) ? it.status : "announced",
@@ -24,4 +26,4 @@ for (const [i, it] of items.entries()) {
   // New items keep the list's order (newest first); existing ones keep their date.
   if (old.exists) await ref.update(data); else { await ref.set({ ...data, createdAt: Timestamp.fromMillis(Date.now() - i * 60000) }); n++; }
 }
-console.log(`News: ${n} added, ${items.length - n} updated.`);
+console.log(`News: ${n} added, ${removed} taken down (no photo).`);

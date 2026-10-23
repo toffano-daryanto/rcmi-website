@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792714162";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792714190";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792714162";
-import { SEED_EVENTS } from "./seed-events.js?v=1792714162";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792714162";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792714162";
+import { GALLERY } from "./gallery-data.js?v=1792714190";
+import { SEED_EVENTS } from "./seed-events.js?v=1792714190";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792714190";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792714190";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -4785,7 +4785,7 @@ function openNewsForm(n = null) {
       </div>
       <label><span>${t("news_date")}</span><input name="releaseDate" maxlength="40" value="${esc(n?.releaseDate || "")}" placeholder="Q1 2027 / Dec 2026 / Out now"></label>
       <label><span>${t("news_body")}</span><textarea name="body" rows="4" maxlength="3000">${esc(n?.body || "")}</textarea></label>
-      <label><span>${t("photos")} (${t("news_max6")})${n?.photos?.length ? ` · ${t("news_photos_keep")}` : ""}</span><input type="file" name="photos" accept="image/*" multiple data-max="6"></label>
+      <label><span>${t("photos")} * (${t("news_max6")})${n?.photos?.length ? ` · ${t("news_photos_keep")}` : ""}</span><input type="file" name="photos" accept="image/*" multiple data-max="6"></label>
       <div class="thumbs"></div>
       <div class="form-actions"><button type="button" class="btn btn-ghost" data-act="close">${t("cancel")}</button><button class="btn btn-mat" type="submit">${t(n ? "save" : "news_publish")}</button></div>
     </form>`);
@@ -4793,6 +4793,7 @@ function openNewsForm(n = null) {
   $("#modal-body").onclick = (ev) => { if (ev.target.dataset.act === "close") closeModal(); };
   f.addEventListener("submit", async (e) => {
     e.preventDefault();
+    if (!f.photos.files.length && !(n?.photos || []).length) { toast(t("news_photo_needed")); return; }   // every news post needs a picture
     const btn = f.querySelector("[type=submit]"); btn.disabled = true;
     try {
       const photos = f.photos.files.length ? await storePhotos(f.photos, "market", 6, 0, btn) : (n?.photos || []);
