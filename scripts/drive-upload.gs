@@ -8,6 +8,7 @@
  * which Firestore verifies when the script reads their profile (status must be "approved").
  * Collection photos: RCMI members only. Market photos: members and general users.
  * Contest photos: anyone registered for that contest; saved in RCMI/Contests/<contest name>/ (folder made automatically).
+ * Up to 2 per person: the 2nd one (kind "contest2") gets "_2" at the end of its file name.
  *
  * After changing this code: Deploy → Manage deployments → ✏️ Edit → Version: New version → Deploy
  * (keeps the same web app URL, so the website needs no change).
@@ -24,7 +25,8 @@ const MAX_PER_HOUR = 80;             // uploads per account per hour
 function doPost(e) {
   try {
     const req = JSON.parse(e.postData.contents);
-    const folderId = FOLDERS[req.kind];
+    const second = req.kind === "contest2";   // a participant's 2nd contest photo
+    const folderId = FOLDERS[second ? "contest" : req.kind];
     if (!folderId) return out({ error: "bad kind" });
 
     // 1. Who is this? Read the Firebase ID token (checked for real by Firestore in step 2).
@@ -48,7 +50,7 @@ function doPost(e) {
 
     // Contest: the person must be registered for that contest while registration is open.
     let targetFolder = null, contestFileBase = "";
-    if (req.kind === "contest") {
+    if (req.kind === "contest" || second) {
       const cid = String(req.contestId || "");
       if (!/^[\w-]{1,60}$/.test(cid)) return out({ error: "no contest" });
       const base = "https://firestore.googleapis.com/v1/projects/" + PROJECT_ID + "/databases/(default)/documents/contests/" + cid;
@@ -60,10 +62,10 @@ function doPost(e) {
       if ((cf.status && cf.status.stringValue) !== "open") return out({ error: "registration closed" });
       const contestName = (cf.title && cf.title.stringValue) || cid;
       targetFolder = contestFolder(cid, contestName);
-      // File name: <contest name>_<participant name>_<7-digit registration number>
+      // File name: <contest name>_<participant name>_<7-digit registration number>, plus "_2" for a second photo
       const ef = JSON.parse(er.getContentText()).fields || {};
       const no = ef.regNo ? String(ef.regNo.integerValue || ef.regNo.doubleValue || "").padStart(7, "0") : "0000000";
-      contestFileBase = [contestName, (ef.name && ef.name.stringValue) || uid, no].map(cleanName).join("_");
+      contestFileBase = [contestName, (ef.name && ef.name.stringValue) || uid, no].map(cleanName).join("_") + (second ? "_2" : "");
     }
 
     // 3. Simple rate limit per account.

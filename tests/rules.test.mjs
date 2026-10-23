@@ -348,3 +348,25 @@ test("multiple roles: moderator + jury both work; jury can't enter; admin assign
   await assertFails(updateDoc(doc(as("uMulti"), "users", U.m1), { roles: ["admin"] }));
   await assertSucceeds(updateDoc(doc(as(U.admin), "users", U.m1), { role: "moderator", roles: ["moderator", "jury"] }));
 });
+
+test("contest: up to 2 photos per person (second photo = uid_2, same number, no extra spot)", async () => {
+  await assertSucceeds(reg(U.m1));                                                                       // photo 1 + registration (regNo 1)
+  const p2 = (uid, extra = {}) => setDoc(doc(as(uid), "contests", "c1", "entries", uid + "_2"), entry(uid, { regNo: 1, title: "Second", ...extra }));
+  await assertSucceeds(p2(U.m1));                                                                        // 2nd photo
+  await assertSucceeds(getDoc(doc(as(U.m1), "contests", "c1")).then(d => { if (d.data().registered !== 1) throw new Error("2nd photo must not take a spot"); }));
+  await assertFails(p2(U.m1, { regNo: 5 }));                                                             // must keep their number
+  await assertFails(setDoc(doc(as(U.m1), "contests", "c1", "entries", U.m1 + "_3"), entry(U.m1, { regNo: 1 })));   // no 3rd photo
+  await assertFails(p2(U.m2, { regNo: 1 }));                                                             // not registered → no 2nd photo
+  await assertFails(setDoc(doc(as(U.m2), "contests", "c1", "entries", U.m1 + "_2"), entry(U.m2, { regNo: 1 })));   // not someone else's
+  await assertFails(getDoc(doc(as(U.m2), "contests", "c1", "entries", U.m1 + "_2")));                  // hidden while open
+  await assertSucceeds(getDoc(doc(as(U.m1), "contests", "c1", "entries", U.m1 + "_2")));
+  await assertSucceeds(deleteDoc(doc(as(U.m1), "contests", "c1", "entries", U.m1 + "_2")));            // remove it again
+  await assertSucceeds(p2(U.m1));
+  // voting: can't vote for your own 2nd photo, can vote for someone else's
+  await assertSucceeds(reg(U.m2));
+  await assertSucceeds(setDoc(doc(as(U.m2), "contests", "c1", "entries", U.m2 + "_2"), entry(U.m2, { regNo: 2 })));
+  await setPhase("voting");
+  await assertFails(setDoc(doc(as(U.m1), "contests", "c1", "votes", U.m1), { entry: U.m1 + "_2", at: serverTimestamp() }));
+  await assertSucceeds(setDoc(doc(as(U.m1), "contests", "c1", "votes", U.m1), { entry: U.m2 + "_2", at: serverTimestamp() }));
+  await assertFails(deleteDoc(doc(as(U.m1), "contests", "c1", "entries", U.m1 + "_2")));              // locked once voting starts
+});

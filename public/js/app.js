@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792718810";
-import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792718810";
-import { GALLERY } from "./gallery-data.js?v=1792718810";
-import { SEED_EVENTS } from "./seed-events.js?v=1792718810";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792718810";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792718810";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792719315";
+import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792719315";
+import { GALLERY } from "./gallery-data.js?v=1792719315";
+import { SEED_EVENTS } from "./seed-events.js?v=1792719315";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792719315";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792719315";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -97,7 +97,7 @@ async function uploadToDrive(kind, src, name, onStep) {
     .then(r => r.json()).catch(() => ({ error: "upload failed" }));
   let j = await send(k);
   // Upload script not updated for contests yet: keep working by saving in the Market folder.
-  if (k === "contest" && j.error === "bad kind") j = await send("market");
+  if (k.startsWith("contest") && j.error === "bad kind") j = await send("market");
   if (!j.id) throw new Error(t("upload_failed") + (j.error ? ` (${j.error})` : ""));
   onStep?.();
   return driveUrl(j.id);
@@ -4287,11 +4287,16 @@ document.addEventListener("click", (e) => { const b = e.target.closest("[data-ct
 const CT_CRIT = ["light", "story", "craft", "theme", "creat"];
 const CT_WEIGHT = { theme: 1.5 };
 const ctWeight = (k) => CT_WEIGHT[k] || 1;
-const ct = { list: null, cur: null, entries: [], myEntry: null, myVote: null, myScores: {}, allScores: null, allVotes: null, jurors: null, tok: 0 };
+const ct = { list: null, cur: null, entries: [], myEntry: null, myEntry2: null, myVote: null, myScores: {}, allScores: null, allVotes: null, jurors: null, tok: 0 };
 const br = (x) => esc(x).replace(/\n/g, "<br>");
 const ctWhen = (ts) => toDate(ts) ? `${fmtDate(ts, { day: "numeric", month: "short", year: "numeric" })}, ${toDate(ts).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" })}` : "";
 const ctOk = (e) => !!e.photo && (e.status || "ok") === "ok";
 const regNo = (n) => n ? String(n).padStart(7, "0") : "";
+// Up to 2 photos per person: photo 1 is the registration doc (id = uid), photo 2 is a second doc (id = uid_2).
+const CT_SECOND = "_2";
+const isSecond = (e) => String(e?.id || "").endsWith(CT_SECOND);
+const ctOwner = (e) => e?.uid || String(e?.id || "").replace(/_2$/, "");
+const ctPeople = (list) => [...new Set(list.map(ctOwner))];
 function contestNoticeText(n) {
   const title = `<strong>${esc(n.title)}</strong>`;
   if (n.kind === "contest_win") return t("nt_contest_win", { n: esc(n.note), title });
@@ -4343,9 +4348,10 @@ async function openContest(id, tok) {
   if (!snap?.exists()) { $("#contest-root").innerHTML = `<a class="btn btn-ghost" href="#/contest">← ${t("ct_all")}</a><p class="empty">${t("not_found")}</p>`; return; }
   const c = ct.cur = { id, ...snap.data() };
   const uid = state.user?.uid;
-  Object.assign(ct, { entries: [], myEntry: null, myVote: null, myScores: {}, allScores: null, allVotes: null });
+  Object.assign(ct, { entries: [], myEntry: null, myEntry2: null, myVote: null, myScores: {}, allScores: null, allVotes: null });
   const jobs = [];
   if (uid) jobs.push(getDoc(doc(db, "contests", id, "entries", uid)).then(s => { ct.myEntry = s.exists() ? { id: s.id, ...s.data() } : null; }).catch(() => {}));
+  if (uid) jobs.push(getDoc(doc(db, "contests", id, "entries", uid + CT_SECOND)).then(s => { ct.myEntry2 = s.exists() ? { id: s.id, ...s.data() } : null; }).catch(() => {}));
   if (c.status !== "open" || isAdmin()) jobs.push(getDocs(collection(db, "contests", id, "entries")).then(s => { ct.entries = s.docs.map(d => ({ id: d.id, ...d.data() })); }).catch(() => {}));
   if (uid && c.status === "voting") jobs.push(getDoc(doc(db, "contests", id, "votes", uid)).then(s => { ct.myVote = s.exists() ? s.data().entry : null; }).catch(() => {}));
   if (uid && (c.judges || []).includes(uid)) jobs.push(getDocs(query(collection(db, "contests", id, "scores"), where("judge", "==", uid))).then(s => { s.docs.forEach(d => { ct.myScores[d.data().entry] = d.data(); }); }).catch(() => {}));
@@ -4417,26 +4423,33 @@ function ctMainHTML(c) {
       <p class="muted">${t("ct_reg_d", { type: t(isGeneral() ? "type_general" : "type_member") })}</p>
       <label class="lay-check"><input type="checkbox" id="ct-agree"> <span>${t("ct_agree")}</span></label>
       <button type="button" class="btn btn-mat" data-ct="register">${t("ct_register")}</button>`;
-    else if (!me.photo || state.ctEditing) box = `
-      <h3>${me.photo ? t("ct_change_photo") : `✅ ${t("ct_registered")}`}</h3>
+    else if (!me.photo || state.ctEditing) {
+      const slot = me.photo ? state.ctEditing : 1, cur = slot === 2 ? (ct.myEntry2 || {}) : me;
+      box = `
+      <h3>${slot === 2 && !cur.photo ? t("ct_second_t") : cur.photo ? `${t("ct_change_photo")} · ${t("ct_photo_n", { n: slot })}` : `✅ ${t("ct_registered")}`}</h3>
       ${me.regNo ? `<p class="ct-regno">${t("ct_regno")}: <b>${regNo(me.regNo)}</b></p>` : ""}
       <p class="muted">${t("ct_submit_d", { d: c.submitEnd ? ctWhen(c.submitEnd) : t("ct_before_close") })}</p>
-      <form class="form" id="f-ct-entry">
-        <label><span>${t("ct_photo")} *</span><input type="file" name="photo" accept="image/*" ${me.photo ? "" : "required"}></label>
+      <form class="form" id="f-ct-entry" data-slot="${slot}">
+        <label><span>${t("ct_photo")} *</span><input type="file" name="photo" accept="image/*" ${cur.photo ? "" : "required"}></label>
         <div class="thumbs"></div>
-        <label><span>${t("ct_entry_title")} *</span><input name="title" required maxlength="80" value="${esc(me.title || "")}"></label>
-        <label><span>${t("ct_caption")}</span><textarea name="caption" rows="2" maxlength="500">${esc(me.caption || "")}</textarea></label>
+        <label><span>${t("ct_entry_title")} *</span><input name="title" required maxlength="80" value="${esc(cur.title || "")}"></label>
+        <label><span>${t("ct_caption")}</span><textarea name="caption" rows="2" maxlength="500">${esc(cur.caption || "")}</textarea></label>
         <div class="form-actions">
           ${me.photo ? `<button type="button" class="btn btn-ghost" data-ct="cancel-edit">${t("cancel")}</button>` : `<button type="button" class="btn btn-ghost" data-ct="withdraw">${t("ct_unregister")}</button>`}
           <button class="btn btn-mat" type="submit">${t("ct_submit")}</button>
         </div>
       </form>`;
-    else box = `
+    }
+    else {
+      const mine = [me, ct.myEntry2].filter(e => e?.photo);
+      box = `
       <h3>✅ ${t("ct_submitted")}</h3>
       ${me.regNo ? `<p class="ct-regno">${t("ct_regno")}: <b>${regNo(me.regNo)}</b></p>` : ""}
-      <div class="ct-grid one">${entryCard(me)}</div>
+      <div class="ct-grid ${mine.length > 1 ? "two" : "one"}">${mine.map((e, i) => entryCard(e, `<small class="muted">${t("ct_photo_n", { n: i + 1 })}</small>
+        <span class="ct-mine-acts"><button type="button" class="btn btn-sm btn-ghost" data-ct="edit" data-slot="${i + 1}">${t("ct_change_photo")}</button>${i === 1 ? `<button type="button" class="btn btn-sm btn-ghost" data-ct="remove-second">${t("ct_remove_second")}</button>` : ""}</span>`)).join("")}</div>
       <p class="muted">${t("ct_submitted_d")}</p>
-      <div class="form-actions"><button type="button" class="btn btn-ghost" data-ct="edit">${t("ct_change_photo")}</button><button type="button" class="btn btn-ghost" data-ct="withdraw">${t("ct_withdraw")}</button></div>`;
+      <div class="form-actions">${mine.length < 2 ? `<button type="button" class="btn btn-mat" data-ct="edit" data-slot="2">${t("ct_add_second")}</button>` : ""}<button type="button" class="btn btn-ghost" data-ct="withdraw">${t("ct_withdraw")}</button></div>`;
+    }
     const max = c.maxEntries || 100, taken = Math.min(max, c.registered || 0);
     return `<div class="ct-spots"><div><b>${taken}</b> / ${max} ${t("ct_spots")}</div><span><i style="width:${Math.round(taken / max * 100)}%"></i></span><small>${t("ct_spots_left", { n: max - taken })}</small></div>
       <section class="ct-box panel-flat">${box}</section>`;
@@ -4447,8 +4460,8 @@ function ctMainHTML(c) {
     return `
       <div class="ct-gallery-head"><h2>${t("ct_entries")} <small>(${ok.length})</small></h2>
         <p class="muted">${voting ? (uid ? t(ct.myVote ? "ct_voted_d" : "ct_vote_d") : t("ct_vote_signin")) : t("ct_judging_d")}</p></div>
-      ${me && me.status === "disq" ? `<p class="mod-note">🚫 ${t("ct_disq_mine")}${me.disqReason ? `<br><strong>${t("mod_reason")}:</strong> ${esc(me.disqReason)}` : ""}</p>` : ""}
-      <div class="ct-grid">${list.map(e => entryCard(e, voting ? (e.id === uid ? `<em class="ct-mine">${t("ct_yours")}</em>`
+      ${[me, ct.myEntry2].filter(x => x && x.status === "disq").map(x => `<p class="mod-note">🚫 ${t("ct_disq_mine")} (${esc(x.title || "")})${x.disqReason ? `<br><strong>${t("mod_reason")}:</strong> ${esc(x.disqReason)}` : ""}</p>`).join("")}
+      <div class="ct-grid">${list.map(e => entryCard(e, voting ? (ctOwner(e) === uid ? `<em class="ct-mine">${t("ct_yours")}</em>`
         : `<button type="button" class="ct-vote ${ct.myVote === e.id ? "on" : ""}" data-ct-vote="${esc(e.id)}">${ct.myVote === e.id ? `★ ${t("ct_your_vote")}` : `☆ ${t("ct_vote")}`}</button>`) : "")).join("") || `<p class="empty">${t("ct_no_entries")}</p>`}</div>`;
   }
   // closed: winners podium + full ranking
@@ -4460,7 +4473,7 @@ function ctMainHTML(c) {
       ${c.announcedAt ? `<p class="muted">${t("ct_announced", { d: ctWhen(c.announcedAt) })}</p>` : ""}
       <div class="podium">${winners.map(w => `
         <figure class="pod r${w.rank}">
-          <button type="button" class="ct-ph" data-ct-view="${esc(w.uid)}"><img src="${photoSrc(w.photo)}" alt="" loading="lazy"><span class="ct-rank r${w.rank}">${w.rank === 1 ? "🥇" : w.rank === 2 ? "🥈" : w.rank === 3 ? "🥉" : "#" + w.rank}</span></button>
+          <button type="button" class="ct-ph" data-ct-view="${esc(w.entry || w.uid)}"><img src="${photoSrc(w.photo)}" alt="" loading="lazy"><span class="ct-rank r${w.rank}">${w.rank === 1 ? "🥇" : w.rank === 2 ? "🥈" : w.rank === 3 ? "🥉" : "#" + w.rank}</span></button>
           <figcaption><b>${esc(w.title)}</b><span>${esc(w.name)}</span><small>${t("ct_final", { s: Number(w.final || 0).toFixed(1) })}</small></figcaption>
         </figure>`).join("")}</div>
     </section>
@@ -4512,11 +4525,11 @@ function adminContestHTML(c) {
     </div>
     <h3>${t("ct_jury_panel")} <small>(${judges.length})</small></h3>
     ${judges.length ? `<ul class="ct-judges">${judges.map(j => `<li>${esc(j.displayName)} <small class="muted">${(ct.allScores || []).filter(s => s.judge === j.id).length}/${ok.length} ${t("ct_scored")}</small></li>`).join("")}</ul>` : `<p class="mod-note">${t("ct_no_judges")}</p>`}
-    <h3>${t("ct_participants")} <small>(${ct.entries.length} ${t("ct_registered_n")}, ${ct.entries.filter(e => e.photo).length} ${t("ct_with_photo")})</small></h3>
-    <div class="ct-admin-list">${ct.entries.map(e => `
+    <h3>${t("ct_participants")} <small>(${ct.entries.filter(e => !isSecond(e)).length} ${t("ct_registered_n")}, ${ct.entries.filter(e => e.photo).length} ${t("ct_photos_n")})</small></h3>
+    <div class="ct-admin-list">${[...ct.entries].sort((a, b) => (a.regNo || 0) - (b.regNo || 0) || a.id.localeCompare(b.id)).map(e => `
       <div class="row">
         ${e.photo ? `<img src="${photoSrc(e.photo)}" alt="" data-ct-view="${esc(e.id)}">` : `<span class="ct-nophoto">—</span>`}
-        <div class="grow"><strong>${e.regNo ? `${regNo(e.regNo)} · ` : ""}${esc(e.name)}</strong>${e.status === "disq" ? `<span class="type-tag">${t("ct_disq")}</span>` : ""}<small>${esc(e.title || t("ct_no_photo_yet"))}</small></div>
+        <div class="grow"><strong>${e.regNo ? `${regNo(e.regNo)} · ` : ""}${esc(e.name)}</strong>${isSecond(e) ? `<span class="type-tag">${t("ct_photo_n", { n: 2 })}</span>` : ""}${e.status === "disq" ? `<span class="type-tag">${t("ct_disq")}</span>` : ""}<small>${esc(e.title || t("ct_no_photo_yet"))}</small></div>
         <div class="actions">${e.status === "disq" ? `<button class="btn btn-sm btn-ghost" data-ct-reinstate="${esc(e.id)}">${t("ct_reinstate")}</button>` : `<button class="btn btn-sm btn-ghost" data-ct-disq="${esc(e.id)}">${t("ct_disqualify")}</button>`}</div>
       </div>`).join("") || `<p class="muted">${t("ct_no_regs")}</p>`}</div>
     ${res.length ? `<h3>${t("ct_results_live")}</h3>
@@ -4580,7 +4593,7 @@ async function setContestPhase(to) {
   if (!confirm(t("ct_phase_confirm", { p: t("ct_ph_" + to) }))) return;
   try {
     await updateDoc(doc(db, "contests", c.id), { status: to, public: true, [`${to}At`]: serverTimestamp() });
-    if (to === "voting") await noticeAll(c, ct.entries.filter(ctOk).map(e => e.id), "contest_voting");
+    if (to === "voting") await noticeAll(c, ctPeople(ct.entries.filter(ctOk)), "contest_voting");
     toast(t("saved")); renderContestRoute();
   } catch (err) { fail(err); }
 }
@@ -4591,7 +4604,7 @@ function openAnnounce() {
     <h2>🏆 ${t("ct_go_announce")}</h2>
     <p class="muted">${t("ct_announce_d", { j: ct.cur.juryWeight ?? 70 })}</p>
     <p><b>${t("ct_three_winners")}</b></p>
-    <ol class="ct-preview">${res.slice(0, 5).map(r => `<li><b>${esc(r.e.title)}</b> · ${esc(r.e.name)} — ${r.final.toFixed(1)}</li>`).join("")}</ol>
+    <ol class="ct-preview">${res.slice(0, 6).map(r => `<li><b>${esc(r.e.title)}</b> · ${esc(r.e.name)}${isSecond(r.e) ? ` (${t("ct_photo_n", { n: 2 })})` : ""} — ${r.final.toFixed(1)}</li>`).join("")}</ol>
     <div class="form-actions"><button type="button" class="btn btn-ghost" data-act="close">${t("cancel")}</button><button type="button" class="btn btn-mat" data-act="go">${t("ct_announce_btn")}</button></div>`);
   $("#modal-body").onclick = async (ev) => {
     const act = ev.target.dataset.act;
@@ -4602,18 +4615,21 @@ function openAnnounce() {
     try {
       const b = writeBatch(db);
       res.forEach((r, i) => b.update(doc(db, "contests", c.id, "entries", r.e.id), { votes: r.votes, jury: Math.round(r.jury * 100) / 100, final: Math.round(r.final * 10) / 10, rank: i + 1 }));
-      const winners = res.slice(0, n).map((r, i) => ({ uid: r.e.id, rank: i + 1, name: r.e.name, title: r.e.title, photo: r.e.photo, final: Math.round(r.final * 10) / 10 }));
+      // One prize per person: if someone has two photos near the top, only their best one takes a place.
+      const seen = new Set(), top = [];
+      for (const r of res) { const who = ctOwner(r.e); if (seen.has(who)) continue; seen.add(who); top.push(r); if (top.length === n) break; }
+      const winners = top.map((r, i) => ({ uid: ctOwner(r.e), entry: r.e.id, rank: i + 1, name: r.e.name, title: r.e.title, photo: r.e.photo, final: Math.round(r.final * 10) / 10 }));
       b.update(doc(db, "contests", c.id), { status: "closed", public: true, winners, announcedAt: serverTimestamp() });
       await b.commit();
       const winIds = new Set(winners.map(w => w.uid));
       for (const w of winners) await noticeAll(c, [w.uid], "contest_win", String(w.rank));
-      await noticeAll(c, res.map(r => r.e.id).filter(u => !winIds.has(u)), "contest_result");
+      await noticeAll(c, ctPeople(res.map(r => r.e)).filter(u => !winIds.has(u)), "contest_result");
       closeModal(); toast(t("ct_announced_done")); renderContestRoute();
     } catch (err) { fail(err); ev.target.disabled = false; }
   };
 }
 function viewEntry(id) {
-  const e = ct.entries.find(x => x.id === id) || (ct.myEntry?.id === id ? ct.myEntry : null) || (ct.cur?.winners || []).map(w => ({ id: w.uid, ...w })).find(x => x.id === id);
+  const e = ct.entries.find(x => x.id === id) || [ct.myEntry, ct.myEntry2].find(x => x?.id === id) || (ct.cur?.winners || []).map(w => ({ id: w.entry || w.uid, ...w })).find(x => x.id === id);
   if (!e) return;
   const anon = ["voting", "judging"].includes(ct.cur?.status) && !isAdmin();
   openModal(`<img class="ct-big" src="${photoSrc(e.photo)}" alt="">
@@ -4635,12 +4651,13 @@ $("#contest-root").addEventListener("submit", async (e) => {
   const c = ct.cur, uid = state.user?.uid; if (!c || !uid) return;
   const btn = f.querySelector("[type=submit]");
   if (f.id === "f-ct-entry") {
+    const slot = Number(f.dataset.slot) === 2 ? 2 : 1, cur = slot === 2 ? ct.myEntry2 : ct.myEntry;
     const hasFile = f.photo.files.length > 0;
-    if (!hasFile && !ct.myEntry?.photo) { toast(t("ct_photo_needed")); return; }
+    if (!hasFile && !cur?.photo) { toast(t("ct_photo_needed")); return; }
     btn.disabled = true;
     try {
-      const photo = hasFile ? (await storePhotos(f.photo, `contest:${c.id}`, 1, 0, btn))[0] : ct.myEntry.photo;
-      await setDoc(doc(db, "contests", c.id, "entries", uid), { uid, regNo: ct.myEntry.regNo, name: String(state.profile.displayName || "").slice(0, 80), avatar: String(state.profile.photoURL || state.user.photoURL || "").slice(0, 500),
+      const photo = hasFile ? (await storePhotos(f.photo, `${slot === 2 ? "contest2" : "contest"}:${c.id}`, 1, 0, btn))[0] : cur.photo;
+      await setDoc(doc(db, "contests", c.id, "entries", slot === 2 ? uid + CT_SECOND : uid), { uid, regNo: ct.myEntry.regNo, name: String(state.profile.displayName || "").slice(0, 80), avatar: String(state.profile.photoURL || state.user.photoURL || "").slice(0, 500),
         title: f.title.value.trim().slice(0, 80), caption: f.caption.value.trim().slice(0, 500), photo, at: serverTimestamp() });
       state.ctEditing = false; toast(t("ct_submitted")); renderContestRoute();
     } catch (err) { fail(err); btn.disabled = false; }
@@ -4686,7 +4703,12 @@ $("#contest-root").addEventListener("click", async (e) => {
     } catch (err) { if (err.code === "full") { toast(t("ct_full")); renderContestRoute(); } else fail(err); }
     return;
   }
-  if (a === "edit") { state.ctEditing = true; $("#ct-main").innerHTML = ctMainHTML(c); return; }
+  if (a === "edit") { state.ctEditing = Number(e.target.closest("[data-ct]").dataset.slot) === 2 ? 2 : 1; $("#ct-main").innerHTML = ctMainHTML(c); return; }
+  if (a === "remove-second") {
+    if (!confirm(t("ct_remove_second_confirm"))) return;
+    try { await deleteDoc(doc(db, "contests", c.id, "entries", uid + CT_SECOND)); toast(t("deleted")); renderContestRoute(); } catch (err) { fail(err); }
+    return;
+  }
   if (a === "cancel-edit") { state.ctEditing = false; $("#ct-main").innerHTML = ctMainHTML(c); return; }
   if (a === "withdraw") {
     if (!confirm(t("ct_withdraw_confirm"))) return;
@@ -4695,6 +4717,7 @@ $("#contest-root").addEventListener("click", async (e) => {
         const cref = doc(db, "contests", c.id), cs = (await tx.get(cref)).data() || {};
         tx.update(cref, { registered: Math.max(0, (cs.registered || 1) - 1) });
         tx.delete(doc(db, "contests", c.id, "entries", uid));
+        if (ct.myEntry2) tx.delete(doc(db, "contests", c.id, "entries", uid + CT_SECOND));
       });
       toast(t("ct_withdrawn")); renderContestRoute();
     } catch (err) { fail(err); }
@@ -4716,7 +4739,7 @@ $("#contest-root").addEventListener("click", async (e) => {
   const dq = e.target.closest("[data-ct-disq]");
   if (dq && isAdmin()) {
     const reason = prompt(t("ct_disq_reason")); if (!reason || !reason.trim()) return;
-    try { await updateDoc(doc(db, "contests", c.id, "entries", dq.dataset.ctDisq), { status: "disq", disqReason: reason.trim().slice(0, 300) }); await noticeAll(c, [dq.dataset.ctDisq], "contest_disq", reason.trim()); toast(t("saved")); renderContestRoute(); } catch (err) { fail(err); }
+    try { await updateDoc(doc(db, "contests", c.id, "entries", dq.dataset.ctDisq), { status: "disq", disqReason: reason.trim().slice(0, 300) }); await noticeAll(c, [dq.dataset.ctDisq.replace(/_2$/, "")], "contest_disq", reason.trim()); toast(t("saved")); renderContestRoute(); } catch (err) { fail(err); }
     return;
   }
   const rs = e.target.closest("[data-ct-reinstate]");

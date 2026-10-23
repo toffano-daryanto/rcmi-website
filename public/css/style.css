@@ -1200,6 +1200,8 @@ span.rep-badge { cursor: default; }
 .ct-gallery-head h2 small, .ct-admin h3 small { font-size: .7em; color: var(--muted); font-style: normal; }
 .ct-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(220px, 46%), 1fr)); gap: 14px; }
 .ct-grid.one { grid-template-columns: minmax(0, 320px); }
+.ct-grid.two { grid-template-columns: repeat(2, minmax(0, 260px)); }
+.ct-mine-acts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .ct-card { margin: 0; background: var(--surface); border-radius: var(--radius-m); overflow: hidden; box-shadow: 0 0 0 1px var(--line); display: flex; flex-direction: column; }
 .ct-card.voted { box-shadow: 0 0 0 3px var(--yellow); }
 .ct-ph { position: relative; display: block; width: 100%; aspect-ratio: 1; padding: 0; border: 0; background: var(--primer); cursor: zoom-in; overflow: hidden; }

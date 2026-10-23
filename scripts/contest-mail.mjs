@@ -28,7 +28,7 @@ function page(c, e, kind) {
   const head = "You're registered! ✅";
   const next = e.photo
     ? `<p>Your photo is already in. You can still change it until <b>${esc(deadline)}</b>.</p>`
-    : `<p><b>Next step:</b> submit your photo (1 per person) on the contest page before <b>${esc(deadline)}</b>. Registrations without a photo aren't included in voting.</p>`;
+    : `<p><b>Next step:</b> submit your photo (up to 2 per person) on the contest page before <b>${esc(deadline)}</b>. Registrations without a photo aren't included in voting.</p>`;
   return `<div style="font-family:Arial,sans-serif;max-width:600px;color:#12141C">
     <div style="background:#12141C;color:#fff;padding:18px 22px;border-bottom:4px solid #D6102B">
       <div style="font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#FFC72C;font-weight:bold">RCMI Photo Contest</div>
@@ -55,6 +55,7 @@ for (const c of contests) {
   const [entries, log] = await Promise.all([db.collection(`contests/${c.id}/entries`).get(), db.collection(`contests/${c.id}/mail`).get()]);
   const done = Object.fromEntries(log.docs.map(d => [d.id, d.data()]));
   for (const d of entries.docs) {
+    if (d.id.endsWith("_2")) continue;   // a second photo, not a registration
     const e = d.data(), m = done[d.id] || {};
     if (m.reg) continue;   // already confirmed
     const kind = "reg";
