@@ -1302,3 +1302,5 @@ span.rep-badge { cursor: default; }
 .jury-c output { font-weight: 800; font-size: 1.3rem; text-align: right; grid-column: 2; grid-row: 1; }
 .jury-c input { grid-column: 1 / -1; width: 100%; accent-color: var(--red); }
 @media (max-width: 600px) { .jury-c { grid-template-columns: 1fr auto; } }
+.gcard-name { padding: 0; text-align: left; color: inherit; text-decoration: none; } .gcard-name:hover strong { text-decoration: underline; }
+.gcard-modal { display: grid; justify-items: center; margin-bottom: 12px; } .gcard-modal .mcard { max-width: 320px; }

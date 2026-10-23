@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792716105";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792716207";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792716105";
-import { SEED_EVENTS } from "./seed-events.js?v=1792716105";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792716105";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792716105";
+import { GALLERY } from "./gallery-data.js?v=1792716207";
+import { SEED_EVENTS } from "./seed-events.js?v=1792716207";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792716207";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792716207";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -3040,6 +3040,16 @@ async function takeGeneralNo() {
   } catch (e) { console.warn("general number", e); }
   state.takingNo = false;
 }
+// Admin: a general user's card in a pop-up (they have no member profile page).
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-gcard]"); if (!b) return;
+  const u = state.siteUsers?.[b.dataset.gcard] || (state.deactUsers || {})[b.dataset.gcard]; if (!u) return;
+  openModal(`<div class="gcard-modal">${cardHTML({ general: true, uid: u.id, no: u.generalNo, name: u.displayName, city: u.city, instagram: u.instagram, photoURL: u.photoURL, since: u.approvedAt || u.createdAt })}</div>
+    <p class="muted">${[u.email, u.whatsapp].filter(Boolean).map(esc).join(" · ")}</p>
+    <div class="form-actions">${u.id !== state.user?.uid ? `<button type="button" class="btn btn-mat" data-dm="${esc(u.id)}" data-dm-name="${esc(u.displayName || "")}" data-dm-photo="${esc(u.photoURL || "")}">✉️ ${t("dm_message")}</button>` : ""}<button type="button" class="btn btn-ghost" data-act="close">${t("close")}</button></div>`);
+  fillSellerStatus($("#modal-body"));
+  $("#modal-body").onclick = (ev) => { if (ev.target.dataset.act === "close") closeModal(); };
+});
 const generalNo = (n) => n ? `G-${String(n).padStart(4, "0")}` : "";
 function renderCard() {
   const p = state.profile;
@@ -3434,10 +3444,11 @@ async function loadAdmin() {
     $("#admin-general").innerHTML = generals.length ? generals.map(u => `
       <div class="row">
         <img src="${esc(u.photoURL)}" alt="" referrerpolicy="no-referrer">
-        <div class="grow"><strong>${u.generalNo ? generalNo(u.generalNo) + " · " : ""}${esc(u.displayName)}</strong><span class="type-tag general">${t("type_general")}</span>${u.role === "moderator" ? `<span class="type-tag">${t("role_mod")}</span>` : ""}${u.role === "jury" ? `<span class="type-tag jury">${t("role_jury")}</span>` : ""}
+        <div class="grow"><button type="button" class="btn-link gcard-name" data-gcard="${esc(u.id)}"><strong>${u.generalNo ? generalNo(u.generalNo) + " · " : ""}${esc(u.displayName)}</strong></button><span class="type-tag general">${t("type_general")}</span>${u.role === "moderator" ? `<span class="type-tag">${t("role_mod")}</span>` : ""}${u.role === "jury" ? `<span class="type-tag jury">${t("role_jury")}</span>` : ""}
           <small>${esc(u.city)}${u.instagram ? " · @" + esc(u.instagram) : ""}${u.email ? " · " + esc(u.email) : ""}${u.whatsapp ? " · " + esc(u.whatsapp) : ""}</small>
           ${since(u) ? `<small>${t("registered_on", { date: since(u) })}</small>` : ""}</div>
         <div class="actions">
+          <button type="button" class="btn btn-sm btn-mat" data-gcard="${esc(u.id)}">🪪 ${t("view_card")}</button>
           ${waNumber(u.whatsapp) ? `<a class="btn btn-sm btn-ghost" target="_blank" rel="noopener" href="https://wa.me/${waNumber(u.whatsapp)}">WhatsApp</a>` : ""}
           ${roleSel(u)}
           ${u.role !== "admin" ? `<button class="btn btn-sm btn-danger" data-deactivate="${esc(u.id)}">${t("deactivate")}</button>` : ""}
