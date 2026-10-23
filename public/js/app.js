@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792714190";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792714896";
 import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792596508";
-import { GALLERY } from "./gallery-data.js?v=1792714190";
-import { SEED_EVENTS } from "./seed-events.js?v=1792714190";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792714190";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792714190";
+import { GALLERY } from "./gallery-data.js?v=1792714896";
+import { SEED_EVENTS } from "./seed-events.js?v=1792714896";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792714896";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792714896";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -4236,7 +4236,10 @@ function openPoster(p) {
   $("#modal-body").onclick = (ev) => { if (ev.target.dataset.act === "close") closeModal(); };
 }
 document.addEventListener("click", (e) => { const b = e.target.closest("[data-ct-poster]"); if (b) { e.preventDefault(); openPoster(b.dataset.ctPoster); } });
-const CT_CRIT = ["comp", "creat", "theme", "quality"];
+// Jury criteria, each 1–10; Theme counts 1.5×. Jury score = weighted average (still 1–10).
+const CT_CRIT = ["light", "story", "craft", "theme", "creat"];
+const CT_WEIGHT = { theme: 1.5 };
+const ctWeight = (k) => CT_WEIGHT[k] || 1;
 const ct = { list: null, cur: null, entries: [], myEntry: null, myVote: null, myScores: {}, allScores: null, allVotes: null, jurors: null, tok: 0 };
 const br = (x) => esc(x).replace(/\n/g, "<br>");
 const ctWhen = (ts) => toDate(ts) ? `${fmtDate(ts, { day: "numeric", month: "short", year: "numeric" })}, ${toDate(ts).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" })}` : "";
@@ -4423,7 +4426,10 @@ function juryHTML(c) {
         <button type="button" class="ct-ph" data-ct-view="${esc(e.id)}"><img src="${photoSrc(e.photo)}" alt="" loading="lazy"></button>
         <div class="jury-f">
           <b>${t("ct_entry_n", { n: i + 1 })} · ${esc(e.title)}</b>
-          ${CT_CRIT.map(k => `<label class="jury-c"><span>${t("ct_c_" + k)}</span><input type="range" name="${k}" min="1" max="10" step="1" value="${sc?.crit?.[k] || 5}"><output>${sc?.crit?.[k] || 5}</output></label>`).join("")}
+          ${CT_CRIT.map(k => `<label class="jury-c">
+            <span class="jury-cn"><b>${t("ct_c_" + k)}${ctWeight(k) !== 1 ? ` <em>(×${ctWeight(k)})</em>` : ""}</b><small>${t("ct_cd_" + k)}</small></span>
+            <output>${sc?.crit?.[k] || 5}</output>
+            <input type="range" name="${k}" min="1" max="10" step="1" value="${sc?.crit?.[k] || 5}"></label>`).join("")}
           <input name="note" maxlength="500" placeholder="${esc(t("ct_note_ph"))}" value="${esc(sc?.note || "")}">
           <div class="jury-save"><span class="ct-total">${sc ? `✓ ${Number(sc.total).toFixed(2)}` : ""}</span><button class="btn btn-sm btn-mat" type="submit">${t(sc ? "ct_update" : "save")}</button></div>
         </div>
@@ -4568,7 +4574,7 @@ $("#contest-root").addEventListener("change", (e) => {
   }
 });
 $("#contest-root").addEventListener("input", (e) => {
-  if (e.target.matches(".jury-c input")) e.target.nextElementSibling.textContent = e.target.value;
+  if (e.target.matches(".jury-c input")) e.target.closest(".jury-c").querySelector("output").textContent = e.target.value;
 });
 $("#contest-root").addEventListener("submit", async (e) => {
   const f = e.target; e.preventDefault();
@@ -4588,7 +4594,8 @@ $("#contest-root").addEventListener("submit", async (e) => {
   }
   if (f.matches("[data-score]")) {
     const entry = f.dataset.score, crit = Object.fromEntries(CT_CRIT.map(k => [k, Number(f[k].value)]));
-    const total = Math.round(CT_CRIT.reduce((a, k) => a + crit[k], 0) / CT_CRIT.length * 100) / 100;
+    const wsum = CT_CRIT.reduce((a, k) => a + ctWeight(k), 0);
+    const total = Math.round(CT_CRIT.reduce((a, k) => a + crit[k] * ctWeight(k), 0) / wsum * 100) / 100;
     btn.disabled = true;
     try {
       const data = { judge: uid, entry, crit, total, note: f.note.value.trim().slice(0, 500), at: serverTimestamp() };
