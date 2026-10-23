@@ -3,7 +3,7 @@ name: Contest test round
 # against throwaway local Firebase emulators. Never touches the live database, Drive, email or push.
 on: workflow_dispatch
 permissions:
-  contents: read
+  contents: write
 jobs:
   e2e:
     runs-on: ubuntu-latest
@@ -25,6 +25,10 @@ jobs:
       - if: always()
         run: |
           { echo "## Contest test round"; echo '```'; cat e2e-out/steps.txt e2e-out/report.txt 2>/dev/null; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
-      - if: always()
-        uses: actions/upload-artifact@v4
-        with: { name: contest-e2e, path: e2e-out }
+      - name: Save results to the tool-e2e branch
+        if: always()
+        run: |
+          mkdir -p /tmp/res && cp -r e2e-out/. /tmp/res/ 2>/dev/null || true
+          cd /tmp/res && git init -q -b tool-e2e && git add -A
+          git -c user.name=github-actions -c user.email=github-actions@users.noreply.github.com commit -qm "Contest test round results" --allow-empty
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" tool-e2e
