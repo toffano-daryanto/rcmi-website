@@ -21,8 +21,10 @@ html,body { margin:0; }
 .div { display:flex; align-items:center; gap:8px; margin:12px 0 7px }
 .div::before,.div::after { content:""; flex:1; height:1.4px; background:#000 }
 .div span { font-weight:800; font-size:9px; letter-spacing:.12em; text-transform:uppercase }
-.row { display:flex; justify-content:center; align-items:center; gap:14px; flex-wrap:wrap }
-.lg { display:flex; align-items:center; justify-content:center; height:52px }
+.row { display:flex; justify-content:center; align-items:flex-end; gap:12px; flex-wrap:wrap }
+.lg { display:flex; flex-direction:column; align-items:center; justify-content:flex-end; gap:3px; height:64px }
+.lg em { font-style:normal; font-weight:700; font-size:7.5px; letter-spacing:.06em; text-transform:uppercase; white-space:nowrap }
+.lg.sm { height:40px } .lg.sm em { font-size:6.5px }
 .bottom { align-self:stretch }
 </style></head><body><div class="p">
 <img class="rcmi" src="../logos/rcmi.png" alt="RCMI">
@@ -36,9 +38,9 @@ html,body { margin:0; }
 <p class="photo">for the photo “[Photo title]”</p></div>
 <p class="msg">RCMI Photo Contest 2026 · Your best shot of a 1:64 model car<br>[DATE] 2026 · rcmi-website.web.app</p>
 <div class="bottom">
-<div class="div"><span>Jury</span></div>
-<div class="row"><span class="lg"><img src="../logos/diecast-diorama.png" style="height:34px;width:auto;display:block"></span><span class="lg"><img src="../logos/setsudou.png" style="height:22px;width:auto;display:block"></span><span class="lg"><img src="../logos/ricky.png" style="height:26px;width:auto;display:block"></span></div>
 <div class="div"><span>Sponsored by</span></div>
-<div class="row"><span class="lg"><img src="../logos/toko-kuning.png" style="height:50px;width:auto;display:block"></span><span class="lg"><img src="../logos/kepopic.png" style="height:26px;width:auto;display:block"></span><span class="lg"><img src="../logos/hellios.png" style="height:42px;width:auto;display:block"></span><span class="lg"><img src="../logos/arsaka.png" style="height:48px;width:auto;display:block"></span><span class="lg"><img src="../logos/bebetoys.png" style="height:30px;width:auto;display:block"></span><span class="lg"><img src="../logos/kourin.png" style="height:24px;width:auto;display:block"></span></div>
+<div class="row"><span class="lg"><img src="../logos/toko-kuning.png" style="height:50px;width:auto;display:block"><em>Toko Kuning</em></span><span class="lg"><img src="../logos/kepopic.png" style="height:26px;width:auto;display:block"><em>Kepopic Studio</em></span><span class="lg"><img src="../logos/hellios.png" style="height:42px;width:auto;display:block"><em>Hellios Studio</em></span><span class="lg"><img src="../logos/arsaka.png" style="height:48px;width:auto;display:block"><em>Arsaka Toys</em></span><span class="lg"><img src="../logos/bebetoys.png" style="height:30px;width:auto;display:block"><em>bebetoys</em></span><span class="lg"><img src="../logos/kourin.png" style="height:24px;width:auto;display:block"><em>Kourin Labs</em></span></div>
+<div class="div"><span>Jury</span></div>
+<div class="row"><span class="lg sm"><img src="../logos/diecast-diorama.png" style="height:21px;width:auto;display:block"><em>Diecast &amp; Diorama</em></span><span class="lg sm"><img src="../logos/setsudou.png" style="height:14px;width:auto;display:block"><em>setsudou</em></span><span class="lg sm"><img src="../logos/ricky.png" style="height:16px;width:auto;display:block"><em>Ricky Robertus</em></span></div>
 </div>
 </div></body></html>

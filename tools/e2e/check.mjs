@@ -32,10 +32,10 @@ const res = entries.filter(e => e.photo).map(e => {
 }).sort((a, b) => b.final - a.final);
 out.push("", "Full ranking (each photo on its own):", ...res.map((r, i) => `  ${i + 1}. ${r.title} — ${r.name}: jury ${r.jury.toFixed(2)}, votes ${r.votes}, final ${r.final.toFixed(1)}`), "");
 const seen = new Set(), expect = [];
-for (const r of res) { if (seen.has(r.uid)) continue; seen.add(r.uid); expect.push(r); if (expect.length === 3) break; }
+for (const r of res) { if (seen.has(r.uid)) continue; seen.add(r.uid); expect.push(r); if (expect.length === 5) break; }
 const got = c.winners || [];
-ok(got.length === 3, `${got.length} winners announced`);
-expect.forEach((r, i) => ok(got[i]?.entry === r.id && got[i]?.uid === r.uid, `${["🥇", "🥈", "🥉"][i]} expected ${r.name} "${r.title}" (${r.final.toFixed(1)}) — site announced ${got[i]?.name} "${got[i]?.title}" (${got[i]?.final})`));
+ok(got.length === expect.length, `${got.length} winners announced (up to 5, one per person; ${expect.length} people had photos)`);
+expect.forEach((r, i) => ok(got[i]?.entry === r.id && got[i]?.uid === r.uid, `${["🥇", "🥈", "🥉", "4th", "5th"][i]} expected ${r.name} "${r.title}" (${r.final.toFixed(1)}) — site announced ${got[i]?.name} "${got[i]?.title}" (${got[i]?.final})`));
 ok(new Set(got.map(x => x.uid)).size === got.length, "no one won twice (one prize per person)");
 for (const g of got) ok(notices.some(x => x.uid === g.uid && x.kind === "contest_win" && x.note === String(g.rank)), `${g.name} got a "you won #${g.rank}" notification`);
 const others = [...new Set(entries.filter(e => e.photo).map(e => e.uid))].filter(u => !got.some(g => g.uid === u));

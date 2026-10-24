@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792835813";
-import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792835813";
-import { GALLERY } from "./gallery-data.js?v=1792835813";
-import { SEED_EVENTS } from "./seed-events.js?v=1792835813";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792835813";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792835813";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792840991";
+import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792840991";
+import { GALLERY } from "./gallery-data.js?v=1792840991";
+import { SEED_EVENTS } from "./seed-events.js?v=1792840991";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792840991";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792840991";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -4353,7 +4353,7 @@ async function renderContestRoute() {
     ${ct.list.some(c => c.status !== "draft") ? "" : `<div class="ct-soon">
       <span class="ct-badge ph-open">${t("ct_soon_badge")}</span>
       <h2>📸 ${t("ct_soon_t")}</h2><p>${t("ct_soon_d")}</p>
-      <dl><dt>${t("ct_step_open")}</dt><dd>${t("ct_soon_badge")}</dd><dt>${t("ct_step_voting")}</dt><dd>${t("ct_soon_badge")}</dd><dt>${t("ct_step_closed")}</dt><dd>${t("ct_soon_badge")}</dd><dt>${t("ct_participants")}</dt><dd>${t("ct_max_n", { n: 100 })}</dd><dt>${t("ct_winners")}</dt><dd>🥇 🥈 🥉</dd></dl>
+      <dl><dt>${t("ct_step_open")}</dt><dd>${t("ct_sched_open")}</dd><dt>${t("ct_step_voting")}</dt><dd>${t("ct_sched_vote")}</dd><dt>${t("ct_step_closed")}</dt><dd>${t("ct_sched_closed")}</dd><dt>${t("ct_participants")}</dt><dd>${t("ct_max_n", { n: 100 })}</dd><dt>${t("ct_winners")}</dt><dd>🥇 🥈 🥉 4 5</dd></dl>
       ${state.user ? "" : `<button type="button" class="btn btn-mat" data-ct="signin">${t("ct_soon_cta")}</button>`}
     </div>
     ${sponsorsHTML()}
@@ -4566,9 +4566,18 @@ function adminContestHTML(c) {
       <tbody>${res.map((r, i) => `<tr><td>${i + 1}</td><td>${esc(r.e.title)}<small> · ${esc(r.e.name)}</small></td><td>${r.jury.toFixed(2)} <small>(${r.nScores})</small></td><td>${r.votes}</td><td><b>${r.final.toFixed(1)}</b></td></tr>`).join("")}</tbody></table></div>` : ""}`;
 }
 function toTs(v) { return v ? Timestamp.fromDate(new Date(v)) : null; }
+// Standard schedule: 2 weeks to register & upload, then 1 week of public voting + jury; winners announced at the end of that week.
+const CT_DAYS_OPEN = 14, CT_DAYS_VOTE = 7;
+const endOfDay = (d) => { const x = new Date(d); x.setHours(23, 59, 0, 0); return x; };
+const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+function ctSchedule(from = new Date()) {
+  const submitEnd = endOfDay(addDays(from, CT_DAYS_OPEN)), voteEnd = endOfDay(addDays(submitEnd, CT_DAYS_VOTE));
+  return { submitEnd, voteEnd, announceAt: voteEnd };
+}
 function tsInput(ts) { const d = toDate(ts); if (!d) return ""; const z = new Date(d.getTime() - d.getTimezoneOffset() * 6e4); return z.toISOString().slice(0, 16); }
 async function openContestForm(c = null) {
   const jurors = await loadJurors();
+  const plan = ctSchedule(), d0 = (x) => tsInput(Timestamp.fromDate(x));
   const chosen = new Set(c ? c.judges || [] : jurors.map(j => j.id));
   openModal(`
     <h2>${t(c ? "ct_edit" : "ct_new")}</h2>
@@ -4579,11 +4588,11 @@ async function openContestForm(c = null) {
       <label><span>${t("ct_prizes")}</span><textarea name="prizes" rows="3" maxlength="1000" placeholder="1st: …&#10;2nd: …&#10;3rd: …">${esc(c?.prizes || "")}</textarea></label>
       <label><span>${t("ct_rules")}</span><textarea name="rules" rows="4" maxlength="3000">${esc(c?.rules || t("ct_rules_default"))}</textarea></label>
       <div class="row2">
-        <label><span>${t("ct_f_submit_end")}</span><input type="datetime-local" name="submitEnd" value="${tsInput(c?.submitEnd)}"></label>
-        <label><span>${t("ct_f_vote_end")}</span><input type="datetime-local" name="voteEnd" value="${tsInput(c?.voteEnd)}"></label>
+        <label><span>${t("ct_f_submit_end")}</span><input type="datetime-local" name="submitEnd" value="${c ? tsInput(c.submitEnd) : d0(plan.submitEnd)}"></label>
+        <label><span>${t("ct_f_vote_end")}</span><input type="datetime-local" name="voteEnd" value="${c ? tsInput(c.voteEnd) : d0(plan.voteEnd)}"></label>
       </div>
       <div class="row2">
-        <label><span>${t("ct_f_announce")}</span><input type="datetime-local" name="announceAt" value="${tsInput(c?.announceAt)}"></label>
+        <label><span>${t("ct_f_announce")}</span><input type="datetime-local" name="announceAt" value="${c ? tsInput(c.announceAt) : d0(plan.announceAt)}"></label>
         <label><span>${t("ct_f_weight")}</span><input type="number" name="juryWeight" min="0" max="100" step="5" value="${c?.juryWeight ?? 70}"></label>
       </div>
       <label><span>${t("ct_f_max")}</span><input type="number" name="maxEntries" min="1" max="1000" step="1" value="${c?.maxEntries ?? 100}"></label>
@@ -4621,7 +4630,11 @@ async function setContestPhase(to) {
   if (to === "voting" && !(c.judges || []).length && !confirm(t("ct_no_judges_confirm"))) return;
   if (!confirm(t("ct_phase_confirm", { p: t("ct_ph_" + to) }))) return;
   try {
-    await updateDoc(doc(db, "contests", c.id), { status: to, public: true, [`${to}At`]: serverTimestamp() });
+    // Keep the standard schedule when the dates are missing or already past: opening gives 2 weeks, voting 1 week.
+    const extra = {}, now = Date.now();
+    if (to === "open" && !(ms(c.submitEnd) > now)) { const p = ctSchedule(); Object.assign(extra, { submitEnd: Timestamp.fromDate(p.submitEnd), voteEnd: Timestamp.fromDate(p.voteEnd), announceAt: Timestamp.fromDate(p.announceAt) }); }
+    if (to === "voting" && !(ms(c.voteEnd) > now)) { const v = endOfDay(addDays(new Date(), CT_DAYS_VOTE)); Object.assign(extra, { voteEnd: Timestamp.fromDate(v), announceAt: Timestamp.fromDate(v) }); }
+    await updateDoc(doc(db, "contests", c.id), { status: to, public: true, [`${to}At`]: serverTimestamp(), ...extra });
     if (to === "voting") await noticeAll(c, ctPeople(ct.entries.filter(ctOk)), "contest_voting");
     toast(t("saved")); renderContestRoute();
   } catch (err) { fail(err); }
@@ -4640,7 +4653,7 @@ function openAnnounce() {
     if (act === "close") { closeModal(); return; }
     if (act !== "go") return;
     ev.target.disabled = true;
-    const c = ct.cur, n = 3;   // always 3 winners: 1st, 2nd, 3rd
+    const c = ct.cur, n = 5;   // always 5 winners: 1st to 5th place
     try {
       const b = writeBatch(db);
       res.forEach((r, i) => b.update(doc(db, "contests", c.id, "entries", r.e.id), { votes: r.votes, jury: Math.round(r.jury * 100) / 100, final: Math.round(r.final * 10) / 10, rank: i + 1 }));

@@ -12,7 +12,7 @@ def plaque(n):
     ordn, title = PLACES[n]
     logo = lambda f, h: f'<img src="../logos/{f}.png" style="height:{h}px;width:auto;display:block">'
     sizes = {"toko-kuning": 50, "arsaka": 48, "hellios": 42, "kepopic": 26, "bebetoys": 30, "kourin": 24, "diecast-diorama": 34, "setsudou": 22, "ricky": 26}
-    row = lambda items: "".join(f'<span class="lg">{logo(f, sizes[f])}</span>' for f, _ in items)
+    row = lambda items, k=1: "".join(f'<span class="lg{" sm" if k < 1 else ""}">{logo(f, round(sizes[f] * k))}<em>{a}</em></span>' for f, a in items)
     return f'''<!doctype html><html><head><meta charset="utf-8"><title>RCMI Photo Contest plaque — {ordn} place</title>{FONTS}
 <style>
 @page {{ size: 148mm 210mm; margin: 0 }}
@@ -36,8 +36,10 @@ html,body {{ margin:0; }}
 .div {{ display:flex; align-items:center; gap:8px; margin:12px 0 7px }}
 .div::before,.div::after {{ content:""; flex:1; height:1.4px; background:#000 }}
 .div span {{ font-weight:800; font-size:9px; letter-spacing:.12em; text-transform:uppercase }}
-.row {{ display:flex; justify-content:center; align-items:center; gap:14px; flex-wrap:wrap }}
-.lg {{ display:flex; align-items:center; justify-content:center; height:52px }}
+.row {{ display:flex; justify-content:center; align-items:flex-end; gap:12px; flex-wrap:wrap }}
+.lg {{ display:flex; flex-direction:column; align-items:center; justify-content:flex-end; gap:3px; height:64px }}
+.lg em {{ font-style:normal; font-weight:700; font-size:7.5px; letter-spacing:.06em; text-transform:uppercase; white-space:nowrap }}
+.lg.sm {{ height:40px }} .lg.sm em {{ font-size:6.5px }}
 .bottom {{ align-self:stretch }}
 </style></head><body><div class="p">
 <img class="rcmi" src="../logos/rcmi.png" alt="RCMI">
@@ -51,18 +53,18 @@ html,body {{ margin:0; }}
 <p class="photo">for the photo “[Photo title]”</p></div>
 <p class="msg">RCMI Photo Contest {YEAR} · Your best shot of a 1:64 model car<br>{DATE} · rcmi-website.web.app</p>
 <div class="bottom">
-<div class="div"><span>Jury</span></div>
-<div class="row">{row(JURY)}</div>
 <div class="div"><span>Sponsored by</span></div>
 <div class="row">{row(SPONSORS)}</div>
+<div class="div"><span>Jury</span></div>
+<div class="row">{row(JURY, .62)}</div>
 </div>
 </div></body></html>'''
 
 def certificate(n):
     ordn, title = PLACES[n]
     medal = {1: ("#E2B33C", "#B8860B", "#FFF3C4"), 2: ("#C9CDD4", "#8E949C", "#F4F5F7"), 3: ("#CD8B52", "#9A5B2A", "#F6E1CC"), 4: ("#E2546A", "#A50E24", "#FFD9DF"), 5: ("#E2546A", "#A50E24", "#FFD9DF")}[n]
-    sp = "".join(f'<span class="lg"><img src="../../../public/img/sponsors/{f}" alt="{a}"></span>' for f, a in [("toko-kuning.jpg","Toko Kuning"),("kepopic-studio.jpg","Kepopic Studio"),("hellios-studio.png","Hellios Studio"),("arsaka-toys.jpg","Arsaka Toys"),("bebetoys.jpg","bebetoys"),("kourin-labs.jpg","Kourin Labs")])
-    jy = "".join(f'<span class="lg"><img src="../../../public/img/jury/{f}" alt="{a}"></span>' for f, a in [("jury-chevron.png","Diecast & Diorama"),("setsudou.png","setsudou"),("ricky.png","Ricky Robertus")])
+    sp = "".join(f'<span class="lg"><img src="../../../public/img/sponsors/{f}" alt="{a}"><em>{a}</em></span>' for f, a in [("toko-kuning.jpg","Toko Kuning"),("kepopic-studio.jpg","Kepopic Studio"),("hellios-studio.png","Hellios Studio"),("arsaka-toys.jpg","Arsaka Toys"),("bebetoys.jpg","bebetoys"),("kourin-labs.jpg","Kourin Labs")])
+    jy = "".join(f'<span class="lg sm"><img src="../../../public/img/jury/{f}" alt="{a}"><em>{a}</em></span>' for f, a in [("jury-chevron.png","Diecast & Diorama"),("setsudou.png","setsudou"),("ricky.png","Ricky Robertus")])
     return f'''<!doctype html><html><head><meta charset="utf-8"><title>RCMI Photo Contest certificate — {ordn} place</title>{FONTS}
 <style>
 @page {{ size: 297mm 210mm; margin: 0 }}
@@ -95,9 +97,11 @@ h1 span {{ color:#D6102B }}
 .meta {{ font-size:11px; color:#5B5F6B; line-height:1.5; text-align:right }}
 .logos {{ margin-top:5mm; display:flex; flex-direction:column; align-items:center; gap:3mm; padding-top:3mm; border-top:.6px solid #C9CBD3 }}
 .logos small {{ font-weight:800; letter-spacing:.16em; text-transform:uppercase; font-size:9px; color:#5B5F6B; writing-mode:horizontal-tb; white-space:nowrap }}
-.lg {{ height:10mm; width:20mm; display:flex; align-items:center; justify-content:center }}
+.lg {{ width:21mm; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; gap:1mm }}
 .lg img {{ max-height:10mm; max-width:20mm; width:auto; border-radius:3px; display:block }}
-.grp {{ display:flex; align-items:center; gap:3mm }}
+.lg em {{ font-style:normal; font-weight:700; font-size:8px; letter-spacing:.04em; text-transform:uppercase; white-space:nowrap; color:#3C3F48 }}
+.lg.sm {{ width:17mm }} .lg.sm img {{ max-height:6.5mm; max-width:15mm }} .lg.sm em {{ font-size:7px }}
+.grp {{ display:flex; align-items:flex-end; gap:2mm }}
 .grp small {{ width:24mm; text-align:right }}
 </style></head><body><div class="p">
 <aside class="side">
@@ -117,8 +121,8 @@ h1 span {{ color:#D6102B }}
 <div class="meta">Registration no. [0000000]<br>{DATE}<br>rcmi-website.web.app</div>
 </div>
 <div class="logos">
-<div class="grp"><small>Jury</small>{jy}</div>
 <div class="grp"><small>Sponsored by</small>{sp}</div>
+<div class="grp"><small>Jury</small>{jy}</div>
 </div>
 </main>
 </div></body></html>'''
