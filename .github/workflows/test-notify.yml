@@ -1,0 +1,28 @@
+name: Test notifications
+# Runs functions/test against the Firestore emulator with a fake mail sender.
+on:
+  push:
+    paths: ["functions/**", ".github/workflows/test-notify.yml"]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with: { node-version: 22 }
+      - uses: actions/setup-java@v5
+        with: { distribution: temurin, java-version: 21 }
+      - run: cd functions && npm install --no-audit --no-fund --silent && npm i --no-save --no-audit --no-fund firebase-tools@14
+      - name: Test
+        run: |
+          set -o pipefail; mkdir -p fnlog
+          functions/node_modules/.bin/firebase emulators:exec --only firestore --project demo-rcmi "cd functions && node --test --test-concurrency=1 --test-reporter=spec test/" 2>&1 | tee fnlog/test.txt
+      - name: Save the log to the tool-fnlog branch
+        if: always()
+        run: |
+          cd fnlog && git init -q -b tool-fntest && git add -A
+          git -c user.name=github-actions -c user.email=github-actions@users.noreply.github.com commit -qm "Notification test log"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" tool-fntest
