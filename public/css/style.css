@@ -1335,3 +1335,11 @@ span.rep-badge { cursor: default; }
 fieldset.role-sel { border: 1px solid var(--line); border-radius: 6px; padding: 4px 10px 6px; margin: 0; display: inline-flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; }
 fieldset.role-sel legend { font-size: .72rem; font-weight: 700; color: var(--muted); padding: 0 4px; text-transform: uppercase; letter-spacing: .06em; }
 fieldset.role-sel label { display: inline-flex; align-items: center; gap: 4px; font-size: .85rem; font-weight: 600; cursor: pointer; }
+/* Sponsor logos link to their Instagram; follow-the-sponsors list in the registration box. */
+.ct-sponsor-logos a.ct-sp { color: inherit; text-decoration: none; display: block; border-radius: 8px; }
+.ct-sponsor-logos a.ct-sp:hover figcaption, .ct-sponsor-logos a.ct-sp:focus-visible figcaption { color: var(--red); }
+.ct-sponsor-logos figcaption small { display: block; font-weight: 600; font-size: .68rem; color: var(--muted); margin-top: 1px; overflow-wrap: anywhere; }
+.ct-follow { margin: 0 0 12px; padding: 10px 12px; border-radius: var(--radius-m); background: var(--paper); box-shadow: 0 0 0 1px var(--line); }
+.ct-follow b { display: block; font-size: .9rem; margin-bottom: 6px; }
+.ct-follow div { display: flex; flex-wrap: wrap; gap: 6px; }
+.ct-follow a { padding: 4px 10px; border-radius: 999px; background: var(--surface); box-shadow: 0 0 0 1px var(--line); font-weight: 700; font-size: .85rem; color: var(--red); text-decoration: none; }
