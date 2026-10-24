@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792833629";
-import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792833629";
-import { GALLERY } from "./gallery-data.js?v=1792833629";
-import { SEED_EVENTS } from "./seed-events.js?v=1792833629";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792833629";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792833629";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792833689";
+import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792833689";
+import { GALLERY } from "./gallery-data.js?v=1792833689";
+import { SEED_EVENTS } from "./seed-events.js?v=1792833689";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792833689";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792833689";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -4271,7 +4271,7 @@ $("#btn-install-3")?.addEventListener("click", () => installApp());
    Flow: admin creates (draft) → publishes: registration open (account needed; register, then submit 1 photo)
    → voting (everyone signed in: 1 vote; jury scores blind on 4 criteria) → judging (jury only) → admin announces winners. */
 const CT_STEPS = ["open", "voting", "judging", "closed"];
-const POSTER_V = "1b4d9a46";   // changed by tools/posters/render.mjs so phones fetch the new poster instead of an old cached copy
+const POSTER_V = "ff1560e4";   // changed by tools/posters/render.mjs so phones fetch the new poster instead of an old cached copy
 const CT_POSTERS = ["r32", "f40", "guide"];
 // Contest sponsors in display order (logos in public/img/sponsors/) and jury (logos in public/img/jury/).
 const CT_SPONSORS = [{ name: "Toko Kuning", logo: "/img/sponsors/toko-kuning.jpg", round: true }, { name: "Kepopic Studio", logo: "/img/sponsors/kepopic-studio.jpg" }, { name: "Hellios Studio", logo: "/img/sponsors/hellios-studio.png" }, { name: "Arsaka Toys", logo: "/img/sponsors/arsaka-toys.jpg" }, { name: "bebetoys", logo: "/img/sponsors/bebetoys.jpg" }, { name: "Kourin Labs", logo: "/img/sponsors/kourin-labs.jpg" }];
