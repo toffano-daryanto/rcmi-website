@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792812126";
-import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792812126";
-import { GALLERY } from "./gallery-data.js?v=1792812126";
-import { SEED_EVENTS } from "./seed-events.js?v=1792812126";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792812126";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792812126";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792819513";
+import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792819513";
+import { GALLERY } from "./gallery-data.js?v=1792819513";
+import { SEED_EVENTS } from "./seed-events.js?v=1792819513";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792819513";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792819513";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -4275,7 +4275,7 @@ const POSTER_V = "6dc6235f";   // changed by tools/posters/render.mjs so phones 
 const CT_POSTERS = ["r32", "f40", "guide"];
 // Contest sponsors in display order (logos in public/img/sponsors/) and jury (logos in public/img/jury/).
 const CT_SPONSORS = [{ name: "Toko Kuning", logo: "/img/sponsors/toko-kuning.jpg", round: true }, { name: "Kepopic Studio", logo: "/img/sponsors/kepopic-studio.jpg" }, { name: "Hellios Studio", logo: "/img/sponsors/hellios-studio.png" }, { name: "Arsaka Toys", logo: "/img/sponsors/arsaka-toys.jpg" }, { name: "Kourin Labs", logo: "/img/sponsors/kourin-labs.jpg" }];
-const CT_JURY_LOGOS = [{ name: "Diecast & Diorama", logo: "/img/jury/jury-chevron.png" }, { name: "Setsudo", logo: "/img/jury/setsudou.png" }, { name: "Ricky Robertus", logo: "/img/jury/ricky.png" }];
+const CT_JURY_LOGOS = [{ name: "Diecast & Diorama", logo: "/img/jury/jury-chevron.png" }, { name: "setsudou", logo: "/img/jury/setsudou.png" }, { name: "Ricky Robertus", logo: "/img/jury/ricky.png" }];
 const sponsorsHTML = () => `<div class="ct-sponsors">
   ${CT_SPONSORS.length ? `<small>${t("ct_sponsored_by")}</small>
   <div class="ct-sponsor-logos">${CT_SPONSORS.map(sp => `<figure><img class="${sp.round ? "round" : ""}" src="${sp.logo}" alt="${esc(sp.name)}" loading="lazy"><figcaption>${esc(sp.name)}</figcaption></figure>`).join("")}</div>` : ""}
