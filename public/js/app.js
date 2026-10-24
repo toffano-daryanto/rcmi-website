@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792835417";
-import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792835417";
-import { GALLERY } from "./gallery-data.js?v=1792835417";
-import { SEED_EVENTS } from "./seed-events.js?v=1792835417";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792835417";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792835417";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792835813";
+import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792835813";
+import { GALLERY } from "./gallery-data.js?v=1792835813";
+import { SEED_EVENTS } from "./seed-events.js?v=1792835813";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792835813";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792835813";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -4296,7 +4296,7 @@ const CT_STEPS = ["open", "voting", "judging", "closed"];
 const POSTER_V = "ff1560e4";   // changed by tools/posters/render.mjs so phones fetch the new poster instead of an old cached copy
 const CT_POSTERS = ["r32", "f40", "guide"];
 // Contest sponsors in display order (logos in public/img/sponsors/) and jury (logos in public/img/jury/).
-const CT_SPONSORS = [{ name: "Toko Kuning", logo: "/img/sponsors/toko-kuning.jpg", round: true }, { name: "Kepopic Studio", logo: "/img/sponsors/kepopic-studio.jpg" }, { name: "Hellios Studio", logo: "/img/sponsors/hellios-studio.png" }, { name: "Arsaka Toys", logo: "/img/sponsors/arsaka-toys.jpg" }, { name: "bebetoys", logo: "/img/sponsors/bebetoys.jpg" }, { name: "Kourin Labs", logo: "/img/sponsors/kourin-labs.jpg" }];
+const CT_SPONSORS = [{ name: "Toko Kuning", logo: "/img/sponsors/toko-kuning.jpg", round: true }, { name: "Kepopic Studio", logo: "/img/sponsors/kepopic-studio.jpg" }, { name: "Hellios Studio", logo: "/img/sponsors/hellios-studio.png" }, { name: "Arsaka Toys", logo: "/img/sponsors/arsaka-toys.jpg", square: true }, { name: "bebetoys", logo: "/img/sponsors/bebetoys.jpg" }, { name: "Kourin Labs", logo: "/img/sponsors/kourin-labs.jpg" }];
 const CT_JURY_LOGOS = [{ name: "Diecast & Diorama", logo: "/img/jury/jury-chevron.png" }, { name: "setsudou", logo: "/img/jury/setsudou.png" }, { name: "Ricky Robertus", logo: "/img/jury/ricky.png" }];
 const sponsorsHTML = () => `<div class="ct-sponsors">
   ${CT_SPONSORS.length ? `<small>${t("ct_sponsored_by")}</small>
@@ -4791,7 +4791,7 @@ async function renderHomeContest() {
     box.innerHTML = `<a class="ct-home soon" href="#/contest">
       <span class="ct-home-ic poster"><img src="/img/contest/poster-r32.jpg?v=${POSTER_V}" alt=""></span>
       <span class="ct-home-t"><small>${t("ct_soon_badge")}</small><b>${t("ct_soon_t")}</b><span>${t("ct_soon_d")}</span>
-        ${CT_SPONSORS.length ? `<span class="ct-home-sp">${t("ct_sponsored_by")} ${CT_SPONSORS.map(sp => `<img class="${sp.round ? "round" : ""}" src="${sp.logo}" alt="${esc(sp.name)}">`).join("")}</span>` : ""}</span>
+        ${CT_SPONSORS.length ? `<span class="ct-home-sp"><small>${t("ct_sponsored_by")}</small><span class="ct-home-sp-logos">${CT_SPONSORS.map(sp => `<span><img class="${sp.round ? "round" : sp.square ? "square" : ""}" src="${sp.logo}" alt="${esc(sp.name)}" title="${esc(sp.name)}"></span>`).join("")}</span></span>` : ""}</span>
       <em>${t("ct_soon_badge")}</em></a>`;
     return;
   }
