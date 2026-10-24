@@ -19,7 +19,7 @@ jobs:
       - name: Test
         run: |
           set -o pipefail; mkdir -p fnlog
-          functions/node_modules/.bin/firebase emulators:exec --only firestore --project demo-rcmi "cd functions && node --test --test-concurrency=1 --test-reporter=spec test/" 2>&1 | tee fnlog/test.txt
+          functions/node_modules/.bin/firebase emulators:exec --only firestore --project demo-rcmi "cd functions && node --test --test-concurrency=1 --test-reporter=spec test/notify.test.js" 2>&1 | tee fnlog/test.txt
       - name: Save the log to the tool-fnlog branch
         if: always()
         run: |
