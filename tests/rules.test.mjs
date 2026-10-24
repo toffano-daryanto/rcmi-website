@@ -370,3 +370,9 @@ test("contest: up to 2 photos per person (second photo = uid_2, same number, no 
   await assertSucceeds(setDoc(doc(as(U.m1), "contests", "c1", "votes", U.m1), { entry: U.m2 + "_2", at: serverTimestamp() }));
   await assertFails(deleteDoc(doc(as(U.m1), "contests", "c1", "entries", U.m1 + "_2")));              // locked once voting starts
 });
+
+test("bell: people can mark their own bell items read (short list), not someone else's", async () => {
+  await assertSucceeds(updateDoc(doc(as(U.m1), "users", U.m1), { notifRead: ["n:abc", "m:xyz"] }));
+  await assertFails(updateDoc(doc(as(U.m1), "users", U.m1), { notifRead: Array.from({ length: 201 }, (_, i) => "k" + i) }));
+  await assertFails(updateDoc(doc(as(U.m1), "users", U.m2), { notifRead: ["n:abc"] }));
+});

@@ -41,6 +41,10 @@ for (const g of got) ok(notices.some(x => x.uid === g.uid && x.kind === "contest
 const others = [...new Set(entries.filter(e => e.photo).map(e => e.uid))].filter(u => !got.some(g => g.uid === u));
 for (const u of others) ok(notices.some(x => x.uid === u && x.kind === "contest_result"), `${u} (not a winner) got a "results are out" notification`);
 ok(notices.filter(x => x.kind === "contest_voting").length === 4, `${notices.filter(x => x.kind === "contest_voting").length} "voting started" notifications (expected 4 people with photos, once each)`);
+const [bb, ba] = readFileSync("e2e-out/bell.txt", "utf8").trim().split(" ").map(Number);
+ok(ba === bb - 1, `tapping a notification in the bell marks it read (unread ${bb} → ${ba})`);
+const tapped = notices.filter(x => x.uid === "m3").sort((a, b) => b.at.toMillis() - a.at.toMillis())[0];
+ok(tapped?.read === true, `the tapped notification is saved as read in the database`);
 writeFileSync("e2e-out/report.txt", out.join("\n"));
 console.log(out.join("\n"));
 if (out.some(l => l.startsWith("❌"))) process.exitCode = 1;

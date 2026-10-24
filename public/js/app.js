@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792833744";
-import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792833744";
-import { GALLERY } from "./gallery-data.js?v=1792833744";
-import { SEED_EVENTS } from "./seed-events.js?v=1792833744";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792833744";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792833744";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792835417";
+import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792835417";
+import { GALLERY } from "./gallery-data.js?v=1792835417";
+import { SEED_EVENTS } from "./seed-events.js?v=1792835417";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792835417";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792835417";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -338,7 +338,8 @@ function startNotifs() {
   const on = (q, fn) => notif.unsubs.push(onSnapshot(q, fn, () => {}));
   notif.pending = []; notif.messages = []; notif.delReqs = []; notif.recent = []; notif.proofs = {}; notif.notices = [];
   // Everyone: notices from the admins (post hidden / removed / visible again).
-  on(query(collection(db, "notices"), where("uid", "==", state.user.uid)), s => { notif.notices = s.docs.map(d => ({ id: d.id, ...d.data() })); renderBell(); if (state.tab === "activity") renderActivity(); });
+  on(query(collection(db, "notices"), where("uid", "==", state.user.uid)), s => { notif.notices = s.docs.map(d => ({ id: d.id, ...d.data() })); renderBell(); if (state.tab === "activity") renderActivity();
+    if (pendingNr.length) { const ids = pendingNr; pendingNr = []; markNoticesRead(ids); } });
   if (!isStaff()) return;
   on(query(collection(db, "users"), where("status", "==", "pending")), s => { notif.pending = s.docs.map(d => ({ id: d.id, ...d.data() })).filter(u => isAdmin() || u.accountType === "general"); renderBell(); });
   on(query(collection(db, "listings"), where("delReq", "==", true)), s => { notif.delReqs = s.docs.map(d => ({ id: d.id, ...d.data() })); renderBell(); if (state.tab === "admin" && !$("#app").hidden) loadDelRequests(); });
@@ -348,8 +349,17 @@ function startNotifs() {
   on(collection(db, "joinPayments"), s => { notif.proofs = Object.fromEntries(s.docs.map(d => [d.id, d.data()])); renderBell(); });
 }
 const ms = (ts) => toDate(ts)?.getTime() || 0;
+// Admin bell items (sign-ups, messages, delete requests, new members) are marked read one by one when tapped:
+// their keys are kept on the person's own profile (notifRead, last 200).
+const bellRead = () => new Set(state.profile?.notifRead || []);
+function markBellRead(keys) {
+  keys = keys.filter(Boolean); if (!keys.length || !state.user || !state.profile) return;
+  const list = [...new Set([...(state.profile.notifRead || []), ...keys])].slice(-200);
+  state.profile.notifRead = list; renderBell();
+  updateDoc(doc(db, "users", state.user.uid), { notifRead: list }).catch(() => {});
+}
 function bellItems() {
-  const seen = ms(state.profile?.notifSeenAt);
+  const seen = ms(state.profile?.notifSeenAt), rd = bellRead();
   const items = [];
   for (const n of notif.notices) items.push(String(n.kind).startsWith("contest_")
     ? { at: ms(n.at), unread: !n.read, notice: n.id, href: `#/contest/${encodeURIComponent(n.postId)}`, text: contestNoticeText(n) }
@@ -359,13 +369,13 @@ function bellItems() {
     : { at: ms(n.at), unread: !n.read, href: "#", notice: n.id,
         text: t(NT_TEXT[n.kind] || "nt_hidden", { title: esc(n.title), where: t(n.target === "market" ? "nav_market" : "nav_feed") })
           + (n.note ? `<em class="bell-note">${t("mod_reason")}: ${esc(n.note)}</em>` : "") });
-  for (const u of notif.pending) items.push({ at: ms(notif.proofs[u.id]?.createdAt) || ms(u.createdAt), unread: true, href: "#/admin",
+  for (const u of notif.pending) items.push({ key: "p:" + u.id, at: ms(notif.proofs[u.id]?.createdAt) || ms(u.createdAt), unread: !rd.has("p:" + u.id), href: "#/admin",
     text: t(u.accountType === "general" ? "notif_pending_general" : notif.proofs[u.id] ? "notif_pending_paid" : "notif_pending_member", { name: esc(u.displayName) }) });
-  for (const x of notif.delReqs || []) items.push({ at: ms(x.delReqAt), unread: true, href: "#/admin",
+  for (const x of notif.delReqs || []) items.push({ key: "d:" + x.id, at: ms(x.delReqAt), unread: !rd.has("d:" + x.id), href: "#/admin",
     text: t("notif_delreq", { name: esc(x.ownerName || ""), title: esc(x.title || "") }) + `<em class="bell-note">${t("del_reason")}: ${esc(x.delReason || "")}</em>` });
-  for (const m of notif.messages) items.push({ at: ms(m.createdAt), unread: true, href: "#/admin",
+  for (const m of notif.messages) items.push({ key: "m:" + m.id, at: ms(m.createdAt), unread: !rd.has("m:" + m.id), href: "#/admin",
     text: t("notif_message", { name: esc(m.name), msg: esc(String(m.message).slice(0, 80)) }) });
-  for (const u of notif.recent) items.push({ at: ms(u.approvedAt || u.createdAt), unread: ms(u.createdAt) > seen, href: u.accountType === "general" ? "#/admin" : `#/members/${encodeURIComponent(u.rosterId || "")}`,
+  for (const u of notif.recent) items.push({ key: "n:" + u.id, at: ms(u.approvedAt || u.createdAt), unread: ms(u.createdAt) > seen && !rd.has("n:" + u.id), href: u.accountType === "general" ? "#/admin" : `#/members/${encodeURIComponent(u.rosterId || "")}`,
     text: t(u.accountType === "general" ? "notif_new_general" : "notif_new_member", { name: esc(u.displayName), no: u.memberNo ? memberNo(u.memberNo) : "" }) });
   return items.sort((a, b) => b.at - a.at);
 }
@@ -375,7 +385,7 @@ function renderBell() {
   const c = $("#bell-count"); c.hidden = !n; c.textContent = n > 99 ? "99+" : String(n);
   $("#btn-bell").setAttribute("aria-label", t("notif_title") + (n ? ` (${n})` : ""));
   $("#bell-list").innerHTML = items.length ? items.slice(0, 30).map(i => `
-    <a class="bell-item ${i.unread ? "unread" : ""}" href="${i.href}"${i.notice ? ` data-notice="${esc(i.notice)}"` : ""}>
+    <a class="bell-item ${i.unread ? "unread" : ""}" href="${i.href}"${i.notice ? ` data-notice="${esc(i.notice)}"` : ""}${i.key ? ` data-rk="${esc(i.key)}"` : ""}>
       <span>${i.text}</span><small>${i.at ? new Date(i.at).toLocaleString(locale(), { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : ""}</small>
     </a>`).join("") : `<p class="muted bell-empty">${t("notif_empty")}</p>`;
   // Pop a toast only for things that arrive while the admin has the site open (not the first load).
@@ -390,12 +400,23 @@ $("#btn-bell").addEventListener("click", (e) => { e.stopPropagation(); toggleBel
 $("#bell-panel").addEventListener("click", (e) => {
   const nt = e.target.closest("[data-notice]");
   if (nt) { e.preventDefault(); openNotice(nt.dataset.notice); }
+  const rk = e.target.closest("[data-rk]");
+  if (rk) markBellRead([rk.dataset.rk]);
   if (e.target.closest("a")) toggleBell(false);
 });
+// Mark notices read: shown right away, saved in the background.
+function markNoticesRead(ids) {
+  let changed = false;
+  for (const n of notif.notices) if (ids.includes(n.id) && !n.read) { n.read = true; changed = true; updateDoc(doc(db, "notices", n.id), { read: true }).catch(() => {}); }
+  if (changed) renderBell();
+}
+// Opened from a phone notification (link …?nr=<notice ids>#/…): those notices count as read.
+let pendingNr = (() => { try { const v = new URLSearchParams(location.search).get("nr"); return v ? v.split(",").filter(Boolean).slice(0, 30) : []; } catch (e) { return []; } })();
+if (pendingNr.length) { try { const u = new URL(location.href); u.searchParams.delete("nr"); history.replaceState(null, "", u.pathname + u.search + u.hash); } catch (e) {} }
 const NT_TEXT = { hidden: "nt_hidden", deleted: "nt_deleted", unhidden: "nt_unhidden", delapproved: "nt_delapproved", delrejected: "nt_delrejected" };
 function openNotice(id) {
   const n = notif.notices.find(x => x.id === id); if (!n) return;
-  if (!n.read) updateDoc(doc(db, "notices", id), { read: true }).catch(() => {});
+  markNoticesRead([id]);
   if (String(n.kind).startsWith("contest_")) { location.hash = `#/contest/${encodeURIComponent(n.postId)}`; return; }
   if (n.kind === "rate") { openRate(n.postId); return; }
   if (n.kind === "review") { openReviews(state.user.uid); return; }
@@ -423,7 +444,8 @@ document.addEventListener("keydown", (e) => { if (e.key === "Escape") toggleBell
 $("#bell-seen").addEventListener("click", async (e) => {
   e.stopPropagation();
   try {
-    notif.notices.filter(n => !n.read).forEach(n => updateDoc(doc(db, "notices", n.id), { read: true }).catch(() => {}));
+    markNoticesRead(notif.notices.filter(n => !n.read).map(n => n.id));
+    markBellRead(bellItems().filter(i => i.key && i.unread).map(i => i.key));
     if (isAdmin()) await updateDoc(doc(db, "users", state.user.uid), { notifSeenAt: serverTimestamp() });
   } catch (err) { fail(err); }
 });

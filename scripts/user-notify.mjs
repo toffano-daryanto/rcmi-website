@@ -52,13 +52,14 @@ const [noticeSnap, chatSnap] = await Promise.all([
   db.collection("notices").where("at", ">", since).where("at", "<=", now).get(),
   db.collection("chats").where("lastAt", ">", since).where("lastAt", "<=", now).get()
 ]);
+const withRead = (path, items) => { const ids = items.map(i => i.nid).filter(Boolean).slice(0, 30); if (!ids.length) return path; const [p, h = ""] = path.split("#"); return `${p || "/"}?nr=${ids.join(",")}${h ? "#" + h : ""}`; };
 const per = new Map();   // uid → [{ at, html, href }]
 const add = (uid, item) => { if (!uid) return; if (!per.has(uid)) per.set(uid, []); per.get(uid).push(item); };
 for (const d of noticeSnap.docs) {
   const n = d.data();
   if (n.read || !TEXT[n.kind]) continue;
   const note = n.note && !["comment", "reply", "claim", "review", "contest_win"].includes(n.kind) ? `<br><span style="color:#555">Reason: ${esc(n.note)}</span>` : "";
-  add(n.uid, { at: ms(n.at), html: TEXT[n.kind](n) + note, href: ["delapproved", "deleted"].includes(n.kind) ? `${SITE}/#/activity` : link(n) });
+  add(n.uid, { nid: d.id, at: ms(n.at), html: TEXT[n.kind](n) + note, href: ["delapproved", "deleted"].includes(n.kind) ? `${SITE}/#/activity` : link(n) });
 }
 for (const d of chatSnap.docs) {
   const c = d.data();
@@ -82,7 +83,8 @@ for (const u of users) {
     const r = await pushTo(db, [u.id], {
       title: items.length === 1 ? "RCMI" : `RCMI · ${items.length} new`,
       body: items.length === 1 ? first : `${first} (+${items.length - 1} more)`,
-      link: items.length === 1 ? items[0].href.replace(SITE, "") : "/#/activity", tag: "rcmi-activity"
+      // ?nr=<notice ids>: opening the notification marks those as read on the site.
+      link: withRead(items.length === 1 ? items[0].href.replace(SITE, "") : "/#/activity", items), tag: "rcmi-activity"
     });
     pushed += r.sent;
   } catch (e) { console.log(`::warning::Push failed (${e.code || "error"}).`); }

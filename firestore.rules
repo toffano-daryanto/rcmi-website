@@ -98,8 +98,10 @@ service cloud.firestore {
       // Members can edit their own profile details, never their status, role or number.
       allow update: if founderSafe() && ((signedIn() && request.auth.uid == uid
           && request.resource.data.diff(resource.data).affectedKeys()
-               .hasOnly(['displayName','city','instagram','whatsapp','bio','photoURL','updatedAt','emailOff','generalNo'])
+               .hasOnly(['displayName','city','instagram','whatsapp','bio','photoURL','updatedAt','emailOff','generalNo','notifRead'])
           && str(request.resource.data.displayName, 80)
+          // Which bell items they've tapped (kept short).
+          && (!('notifRead' in request.resource.data) || (request.resource.data.notifRead is list && request.resource.data.notifRead.size() <= 200))
           // General users take their registration number once, in the same transaction that moves counters/general on by one.
           && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['generalNo'])
               || (resource.data.get('accountType', 'member') == 'general' && !('generalNo' in resource.data)

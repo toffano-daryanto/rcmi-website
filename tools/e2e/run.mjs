@@ -143,6 +143,11 @@ try {
   const w = await as("m3"); await w.reload(); await w.waitForTimeout(3000);
   await w.click("#btn-bell").catch(() => log("   (bell button not found)"));
   await w.waitForTimeout(1200); await shot(w, "winner-bell");
+  const before = Number((await w.locator("#bell-count").textContent()) || 0);
+  await w.locator("#bell-list .bell-item.unread").first().click(); await w.waitForTimeout(2500);
+  const after = Number((await w.locator("#bell-count").isHidden()) ? 0 : (await w.locator("#bell-count").textContent()) || 0);
+  log(`   unread before tapping: ${before}, after tapping one: ${after}`);
+  writeFileSync(`${OUT}/bell.txt`, `${before} ${after}`);
   writeFileSync(`${OUT}/contest-id.txt`, cid);
 } catch (e) {
   log("\n❌ STOPPED: " + (e.stack || e));
