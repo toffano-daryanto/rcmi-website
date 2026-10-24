@@ -62,7 +62,7 @@ html,body {{ margin:0; }}
 
 COLOR_LOGO = {"toko-kuning": ("sponsors/toko-kuning.jpg", 50, "50%"), "kepopic": ("sponsors/kepopic-studio.jpg", 30, "4px"), "hellios": ("sponsors/hellios-studio.png", 42, "0"),
               "arsaka": ("sponsors/arsaka-toys.jpg", 46, "6px"), "bebetoys": ("sponsors/bebetoys.jpg", 30, "5px"), "kourin": ("sponsors/kourin-labs.jpg", 28, "4px"),
-              "diecast-diorama": ("jury/jury-chevron.png", 30, "4px"), "setsudou": ("jury/setsudou.png", 30, "4px"), "ricky": ("jury/ricky.png", 30, "4px")}
+              "diecast-diorama": ("jury/jury-chevron.png", 42, "4px"), "setsudou": ("jury/setsudou.png", 42, "4px"), "ricky": ("jury/ricky.png", 42, "4px")}
 def plaque_color(n):
     # Full-colour version of the plaque (UV print): dark RCMI style, colour logos, yellow place, red accents.
     import re
