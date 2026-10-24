@@ -1,0 +1,22 @@
+name: Render contest plaques & certificates
+# Turns tools/plakat/out/*.html into print PDFs + PNG previews and saves them on the tool-plakat branch.
+on:
+  workflow_dispatch:
+  push:
+    paths: ["tools/plakat/**"]
+permissions:
+  contents: write
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with: { node-version: 22 }
+      - run: npm i --no-save --no-audit --no-fund playwright@1.48.2 && npx playwright install --with-deps chromium
+      - run: node tools/plakat/render.mjs
+      - name: Save to the tool-plakat branch
+        run: |
+          cd plakat-out && git init -q -b tool-plakat && git add -A
+          git -c user.name=github-actions -c user.email=github-actions@users.noreply.github.com commit -qm "Plaques & certificates"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" tool-plakat
