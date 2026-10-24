@@ -4273,11 +4273,16 @@ $("#btn-install-3")?.addEventListener("click", () => installApp());
 const CT_STEPS = ["open", "voting", "judging", "closed"];
 const POSTER_V = "c1514275";   // changed by tools/posters/render.mjs so phones fetch the new poster instead of an old cached copy
 const CT_POSTERS = ["r32", "f40"];
-// Contest sponsors (logos in public/img/sponsors/).
-const CT_SPONSORS = [{ name: "Kourin Labs", logo: "/img/sponsors/kourin-labs.jpg" }];
-const sponsorsHTML = () => CT_SPONSORS.length ? `<div class="ct-sponsors"><small>${t("ct_sponsored_by")}</small>
-  <div class="ct-sponsor-logos">${CT_SPONSORS.map(sp => `<figure><img src="${sp.logo}" alt="${esc(sp.name)}" loading="lazy"><figcaption>${esc(sp.name)}</figcaption></figure>`).join("")}</div>
-  <small class="muted">${t("ct_more_sponsors")}</small></div>` : "";   // public/img/contest/poster-*.jpg (rendered from tools/posters)
+// Contest sponsors in display order (logos in public/img/sponsors/) and jury (logos in public/img/jury/).
+const CT_SPONSORS = [{ name: "Toko Kuning", logo: "/img/sponsors/toko-kuning.jpg", round: true }, { name: "Kourin Labs", logo: "/img/sponsors/kourin-labs.jpg" }];
+const CT_JURY_LOGOS = [{ name: "Jury", logo: "/img/jury/jury-chevron.png" }, { name: "Setsudou", logo: "/img/jury/setsudou.png" }, { name: "Ricky", logo: "/img/jury/ricky.png" }];
+const sponsorsHTML = () => `<div class="ct-sponsors">
+  ${CT_SPONSORS.length ? `<small>${t("ct_sponsored_by")}</small>
+  <div class="ct-sponsor-logos">${CT_SPONSORS.map(sp => `<figure><img class="${sp.round ? "round" : ""}" src="${sp.logo}" alt="${esc(sp.name)}" loading="lazy"><figcaption>${esc(sp.name)}</figcaption></figure>`).join("")}</div>` : ""}
+  <small class="muted">${t("ct_more_sponsors")}</small>
+  ${CT_JURY_LOGOS.length ? `<small class="ct-jury-h">${t("ct_jury_logos")}</small>
+  <div class="ct-jury-logos">${CT_JURY_LOGOS.map(j => `<img src="${j.logo}" alt="${esc(j.name)}" loading="lazy">`).join("")}</div>` : ""}
+</div>`;   // public/img/contest/poster-*.jpg (rendered from tools/posters)
 function openPoster(p) {
   openModal(`<img class="ct-big" src="/img/contest/poster-${p}.jpg?v=${POSTER_V}" alt="${esc(t("ct_poster_alt"))}">
     <div class="form-actions"><a class="btn btn-mat" href="/img/contest/poster-${p}.jpg?v=${POSTER_V}" download="RCMI-Photo-Contest-${p}.jpg">${t("ct_poster_dl")}</a><button type="button" class="btn btn-ghost" data-act="close">${t("close")}</button></div>`);
@@ -4763,7 +4768,7 @@ async function renderHomeContest() {
     box.innerHTML = `<a class="ct-home soon" href="#/contest">
       <span class="ct-home-ic poster"><img src="/img/contest/poster-r32.jpg?v=${POSTER_V}" alt=""></span>
       <span class="ct-home-t"><small>${t("ct_soon_badge")}</small><b>${t("ct_soon_t")}</b><span>${t("ct_soon_d")}</span>
-        ${CT_SPONSORS.length ? `<span class="ct-home-sp">${t("ct_sponsored_by")} <img src="${CT_SPONSORS[0].logo}" alt="${esc(CT_SPONSORS[0].name)}"></span>` : ""}</span>
+        ${CT_SPONSORS.length ? `<span class="ct-home-sp">${t("ct_sponsored_by")} ${CT_SPONSORS.map(sp => `<img class="${sp.round ? "round" : ""}" src="${sp.logo}" alt="${esc(sp.name)}">`).join("")}</span>` : ""}</span>
       <em>${t("ct_soon_badge")}</em></a>`;
     return;
   }
