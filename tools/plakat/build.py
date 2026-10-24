@@ -3,7 +3,7 @@
 import os
 D = os.path.dirname(os.path.abspath(__file__)); OUT = os.path.join(D, "out"); os.makedirs(OUT, exist_ok=True)
 FONTS = '<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;1,700;1,800&family=Barlow:wght@400;500;600;700&family=Permanent+Marker&family=Great+Vibes&display=swap" rel="stylesheet">'
-PLACES = {1: ("1st", "Champion"), 2: ("2nd", "Runner-up"), 3: ("3rd", "Second runner-up")}
+PLACES = {1: ("1st", "Champion"), 2: ("2nd", "Runner-up"), 3: ("3rd", "Second runner-up"), 4: ("4th", "Third runner-up"), 5: ("5th", "Fourth runner-up")}
 JURY = [("diecast-diorama", "Diecast &amp; Diorama"), ("setsudou", "setsudou"), ("ricky", "Ricky Robertus")]
 SPONSORS = [("toko-kuning", "Toko Kuning"), ("kepopic", "Kepopic Studio"), ("hellios", "Hellios Studio"), ("arsaka", "Arsaka Toys"), ("bebetoys", "bebetoys"), ("kourin", "Kourin Labs")]
 YEAR = "2026"; DATE = "[DATE] 2026"
@@ -17,7 +17,8 @@ def plaque(n):
 <style>
 @page {{ size: 148mm 210mm; margin: 0 }}
 html,body {{ margin:0; }}
-.p {{ position:relative; width:148mm; height:210mm; overflow:hidden; background:#fff; color:#000; font-family:Barlow,sans-serif; box-sizing:border-box; padding:14mm 9mm 9mm; text-align:center }}
+.p {{ position:relative; width:148mm; height:210mm; overflow:hidden; background:#fff; color:#000; font-family:Barlow,sans-serif; box-sizing:border-box; padding:13mm 9mm 8mm; text-align:center; display:flex; flex-direction:column; justify-content:space-between }}
+.blk {{ display:flex; flex-direction:column; align-items:center }}
 .c {{ font-family:'Barlow Condensed',sans-serif }}
 .rcmi {{ position:absolute; left:7mm; top:6mm; height:13mm }}
 .k {{ font-weight:800; font-style:italic; text-transform:uppercase; letter-spacing:.02em; font-size:15px; margin:0 }}
@@ -25,29 +26,29 @@ html,body {{ margin:0; }}
 .flag {{ position:absolute; right:-6px; top:-16px; display:grid; grid-template-columns:repeat(6,8px); grid-template-rows:repeat(2,6px); transform:skewX(-20deg) }}
 .flag i {{ background:#000 }} .flag i:nth-child(even) {{ background:transparent }} .flag i:nth-child(n+7):nth-child(odd) {{ background:transparent }} .flag i:nth-child(n+7):nth-child(even) {{ background:#000 }}
 .by {{ margin-top:6px; font-size:11px; font-weight:700; letter-spacing:.18em; text-transform:uppercase }}
-.pre {{ margin:16px 0 0; font-size:13px; font-weight:600 }}
-.place {{ margin:12px 0 0; font-weight:800; font-style:italic; text-transform:uppercase; font-size:78px; line-height:.85 }}
+.pre {{ margin:0; font-size:13px; font-weight:600 }}
+.place {{ margin:0; font-weight:800; font-style:italic; text-transform:uppercase; font-size:86px; line-height:.85 }}
 .place sup {{ font-size:.42em; vertical-align:.95em; margin-left:1px }}
 .ttl {{ margin:2px 0 0; font-weight:800; font-style:italic; text-transform:uppercase; letter-spacing:.24em; font-size:15px }}
-.name {{ margin:18px 0 0; font-family:'Permanent Marker',cursive; font-size:34px; line-height:1.05 }}
+.name {{ margin:4px 0 0; font-family:'Permanent Marker',cursive; font-size:36px; line-height:1.05 }}
 .photo {{ margin:6px 0 0; font-size:13px; font-style:italic; font-weight:600 }}
-.msg {{ margin:14px 0 0; font-size:11.5px; line-height:1.45; font-weight:500 }}
+.msg {{ margin:0; font-size:11.5px; line-height:1.45; font-weight:500 }}
 .div {{ display:flex; align-items:center; gap:8px; margin:12px 0 7px }}
 .div::before,.div::after {{ content:""; flex:1; height:1.4px; background:#000 }}
 .div span {{ font-weight:800; font-size:9px; letter-spacing:.12em; text-transform:uppercase }}
 .row {{ display:flex; justify-content:center; align-items:center; gap:14px; flex-wrap:wrap }}
 .lg {{ display:flex; align-items:center; justify-content:center; height:52px }}
-.bottom {{ position:absolute; left:9mm; right:9mm; bottom:8mm }}
+.bottom {{ align-self:stretch }}
 </style></head><body><div class="p">
 <img class="rcmi" src="../logos/rcmi.png" alt="RCMI">
-<p class="k c">RCMI presents</p>
+<div class="blk"><p class="k c">RCMI presents</p>
 <div class="t c">Photo<br>Contest<span class="flag">{"<i></i>"*12}</span></div>
-<div class="by">by Resin Car Model Indonesia · {YEAR}</div>
-<p class="pre">Presented to</p>
+<div class="by">by Resin Car Model Indonesia · {YEAR}</div></div>
+<div class="blk"><div class="place c">{n}<sup>{ordn[1:].upper()}</sup> Place</div>
+<div class="ttl c">{title}</div></div>
+<div class="blk"><p class="pre">Presented to</p>
 <p class="name">[Winner Name]</p>
-<p class="photo">for the photo “[Photo title]”</p>
-<div class="place c">{n}<sup>{ordn[1:].upper()}</sup> Place</div>
-<div class="ttl c">{title}</div>
+<p class="photo">for the photo “[Photo title]”</p></div>
 <p class="msg">RCMI Photo Contest {YEAR} · Your best shot of a 1:64 model car<br>{DATE} · rcmi-website.web.app</p>
 <div class="bottom">
 <div class="div"><span>Jury</span></div>
@@ -59,7 +60,7 @@ html,body {{ margin:0; }}
 
 def certificate(n):
     ordn, title = PLACES[n]
-    medal = {1: ("#E2B33C", "#B8860B", "#FFF3C4"), 2: ("#C9CDD4", "#8E949C", "#F4F5F7"), 3: ("#CD8B52", "#9A5B2A", "#F6E1CC")}[n]
+    medal = {1: ("#E2B33C", "#B8860B", "#FFF3C4"), 2: ("#C9CDD4", "#8E949C", "#F4F5F7"), 3: ("#CD8B52", "#9A5B2A", "#F6E1CC"), 4: ("#E2546A", "#A50E24", "#FFD9DF"), 5: ("#E2546A", "#A50E24", "#FFD9DF")}[n]
     sp = "".join(f'<span class="lg"><img src="../../../public/img/sponsors/{f}" alt="{a}"></span>' for f, a in [("toko-kuning.jpg","Toko Kuning"),("kepopic-studio.jpg","Kepopic Studio"),("hellios-studio.png","Hellios Studio"),("arsaka-toys.jpg","Arsaka Toys"),("bebetoys.jpg","bebetoys"),("kourin-labs.jpg","Kourin Labs")])
     jy = "".join(f'<span class="lg"><img src="../../../public/img/jury/{f}" alt="{a}"></span>' for f, a in [("jury-chevron.png","Diecast & Diorama"),("setsudou.png","setsudou"),("ricky.png","Ricky Robertus")])
     return f'''<!doctype html><html><head><meta charset="utf-8"><title>RCMI Photo Contest certificate — {ordn} place</title>{FONTS}
@@ -84,19 +85,20 @@ html,body {{ margin:0 }}
 h1 {{ margin:2px 0 0; font-family:'Barlow Condensed',sans-serif; font-style:italic; font-weight:800; text-transform:uppercase; font-size:60px; line-height:.92 }}
 h1 span {{ color:#D6102B }}
 .to {{ margin:9mm 0 0; font-size:15px; font-weight:600; color:#3C3F48 }}
-.name {{ margin:2mm 0 0; font-family:'Great Vibes',cursive; font-size:64px; line-height:1.05; border-bottom:1.5px solid #12141C; padding-bottom:2mm; max-width:170mm }}
-.why {{ margin:5mm 0 0; font-size:16px; line-height:1.5; max-width:175mm }}
+.name {{ margin:3mm 0 0; font-family:'Great Vibes',cursive; font-size:70px; line-height:1.05; border-bottom:1.5px solid #12141C; padding-bottom:2mm; max-width:170mm }}
+.why {{ margin:7mm 0 0; font-size:16px; line-height:1.5; max-width:175mm }}
 .why b {{ font-weight:700 }}
 .foot {{ margin-top:auto; display:flex; align-items:flex-end; justify-content:space-between; gap:10mm }}
 .sig {{ width:55mm; text-align:center; font-size:12px }}
 .sig i {{ display:block; height:14mm }}
 .sig b {{ display:block; border-top:1.2px solid #12141C; padding-top:2mm; font-weight:700; font-size:13px }}
 .meta {{ font-size:11px; color:#5B5F6B; line-height:1.5; text-align:right }}
-.logos {{ margin-top:5mm; display:flex; align-items:center; gap:7mm }}
+.logos {{ margin-top:5mm; display:flex; flex-direction:column; align-items:center; gap:3mm; padding-top:3mm; border-top:.6px solid #C9CBD3 }}
 .logos small {{ font-weight:800; letter-spacing:.16em; text-transform:uppercase; font-size:9px; color:#5B5F6B; writing-mode:horizontal-tb; white-space:nowrap }}
-.lg {{ height:11mm; display:flex; align-items:center }}
-.lg img {{ max-height:11mm; max-width:22mm; width:auto; border-radius:3px; display:block }}
+.lg {{ height:10mm; width:20mm; display:flex; align-items:center; justify-content:center }}
+.lg img {{ max-height:10mm; max-width:20mm; width:auto; border-radius:3px; display:block }}
 .grp {{ display:flex; align-items:center; gap:3mm }}
+.grp small {{ width:24mm; text-align:right }}
 </style></head><body><div class="p">
 <aside class="side">
 <img class="logo" src="../../../public/img/logo-white.png" alt="RCMI">
@@ -121,7 +123,7 @@ h1 span {{ color:#D6102B }}
 </main>
 </div></body></html>'''
 
-for n in (1, 2, 3):
+for n in (1, 2, 3, 4, 5):
     open(os.path.join(OUT, f"plaque-{n}.html"), "w").write(plaque(n))
     open(os.path.join(OUT, f"certificate-{n}.html"), "w").write(certificate(n))
 print("built", sorted(os.listdir(OUT)))
