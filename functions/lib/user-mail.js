@@ -15,6 +15,7 @@ const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<":
 const ms = (ts) => ts?.toMillis ? ts.toMillis() : 0;
 const where = (n) => n.target === "market" ? "Market" : "Collection";
 const link = (n) => n.target === "contest" ? `${SITE}/#/contest/${encodeURIComponent(n.postId || "")}` : n.target === "market" ? `${SITE}/#/market/${encodeURIComponent(n.postId || "")}` : `${SITE}/#/feed/p/${encodeURIComponent(n.postId || "")}`;
+const ID = (t) => `<br><span style="color:#5B5F6B">🇮🇩 ${t}</span>`;   // Bahasa Indonesia line under the English one
 const TEXT = {
   comment: (n) => `<b>${esc(n.fromName)}</b> commented on your post <b>${esc(n.title)}</b>: “${esc(n.note)}”`,
   reply: (n) => `<b>${esc(n.fromName)}</b> replied to your comment on <b>${esc(n.title)}</b>: “${esc(n.note)}”`,
@@ -27,10 +28,10 @@ const TEXT = {
   unhidden: (n) => `Your post <b>${esc(n.title)}</b> in ${where(n)} is visible again.`,
   delapproved: (n) => `Your request to delete <b>${esc(n.title)}</b> was approved.`,
   delrejected: (n) => `Your request to delete <b>${esc(n.title)}</b> was rejected by an admin.`,
-  contest_win: (n) => `🏆 Congratulations! You won <b>#${esc(n.note)}</b> in the photo contest <b>${esc(n.title)}</b>!`,
-  contest_result: (n) => `The results of the photo contest <b>${esc(n.title)}</b> are out.`,
-  contest_voting: (n) => `Voting is open for <b>${esc(n.title)}</b> — share your entry and get votes!`,
-  contest_disq: (n) => `Your entry in <b>${esc(n.title)}</b> was disqualified.`
+  contest_win: (n) => `🏆 Congratulations! You won <b>#${esc(n.note)}</b> in the photo contest <b>${esc(n.title)}</b>!` + ID(`🏆 Selamat! Kamu juara <b>#${esc(n.note)}</b> di lomba foto <b>${esc(n.title)}</b>!`),
+  contest_result: (n) => `The results of the photo contest <b>${esc(n.title)}</b> are out.` + ID(`Hasil lomba foto <b>${esc(n.title)}</b> sudah diumumkan.`),
+  contest_voting: (n) => `Voting is open for <b>${esc(n.title)}</b> — share your entry and get votes!` + ID(`Voting untuk <b>${esc(n.title)}</b> sudah dibuka — bagikan fotomu dan kumpulkan vote!`),
+  contest_disq: (n) => `Your entry in <b>${esc(n.title)}</b> was disqualified.` + ID(`Fotomu di lomba <b>${esc(n.title)}</b> didiskualifikasi.`)
 };
 
 // What happened since the last run.
@@ -45,7 +46,7 @@ const add = (uid, item) => { if (!uid) return; if (!per.has(uid)) per.set(uid, [
 for (const d of noticeSnap.docs) {
   const n = d.data();
   if (n.read || !TEXT[n.kind]) continue;
-  const note = n.note && !["comment", "reply", "claim", "review", "contest_win"].includes(n.kind) ? `<br><span style="color:#555">Reason: ${esc(n.note)}</span>` : "";
+  const note = n.note && !["comment", "reply", "claim", "review", "contest_win"].includes(n.kind) ? `<br><span style="color:#555">Reason · Alasan: ${esc(n.note)}</span>` : "";
   add(n.uid, { nid: d.id, at: ms(n.at), html: TEXT[n.kind](n) + note, href: ["delapproved", "deleted"].includes(n.kind) ? `${SITE}/#/activity` : link(n) });
 }
 for (const d of chatSnap.docs) {
@@ -75,14 +76,14 @@ for (const u of users) {
     pushed += r.sent;
   } catch (e) { console.warn("push failed", e.code || ""); }
   if (!mail || p.emailOff || !p.email) { skipped++; continue; }
-  const rows = items.map(i => `<div style="border:1px solid #ddd;border-left:4px solid #D6102B;border-radius:6px;padding:10px 14px;margin:0 0 8px">${i.html}<br><a href="${i.href}" style="color:#D6102B;font-weight:bold;text-decoration:none">Open →</a></div>`).join("");
+  const rows = items.map(i => `<div style="border:1px solid #ddd;border-left:4px solid #D6102B;border-radius:6px;padding:10px 14px;margin:0 0 8px">${i.html}<br><a href="${i.href}" style="color:#D6102B;font-weight:bold;text-decoration:none">Open · Buka →</a></div>`).join("");
   const html = `<div style="font-family:Arial,sans-serif;max-width:600px;color:#12141C">
     <h2 style="margin:0 0 4px">RCMI</h2>
-    <p style="margin:0 0 16px;color:#555">Hi ${esc(p.displayName || "")}, here's what's new for you.</p>
+    <p style="margin:0 0 16px;color:#555">Hi ${esc(p.displayName || "")}, here's what's new for you.<br>Halo ${esc(p.displayName || "")}, ini kabar terbaru untukmu.</p>
     ${rows}
-    <p style="margin-top:20px;color:#888;font-size:12px">You get these emails because you have an account on ${SITE}. To stop them, open Members area → My profile and untick "Email me my notifications".</p>
+    <p style="margin-top:20px;color:#888;font-size:12px">You get these emails because you have an account on ${SITE}. To stop them, open Members area → My profile and untick "Email me my notifications".<br>Kamu menerima email ini karena punya akun di ${SITE}. Untuk berhenti, buka Area anggota → Profilku dan hapus centang "Kirim notifikasi ke email saya".</p>
   </div>`;
-  const subject = items.length === 1 ? `RCMI: ${items[0].html.replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&lt;/g, "<").replace(/&gt;/g, ">").slice(0, 90)}` : `RCMI: ${items.length} new notifications`;
+  const subject = items.length === 1 ? `RCMI: ${items[0].html.split("<br><span style=\"color:#5B5F6B\">")[0].replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&lt;/g, "<").replace(/&gt;/g, ">").slice(0, 90)}` : `RCMI: ${items.length} new notifications · ${items.length} notifikasi baru`;
   try { await mail.sendMail({ from: `"RCMI" <${GMAIL_USER}>`, to: p.email, subject, html }); sent++; }
   catch (e) { failed++; }
 }

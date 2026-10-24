@@ -55,4 +55,15 @@ test("contest registration gets one confirmation email", async () => {
   const c = sent.filter(m => /registration confirmed/.test(m.subject));
   assert.equal(c.length, 1);
   assert.match(c[0].subject, /0000001/);
+  assert.match(c[0].html, /Nomor pendaftaran/, "Bahasa Indonesia included");
+});
+
+test("contest news is in English and Bahasa Indonesia", async () => {
+  sent.length = 0;
+  await db.collection("notices").add({ uid: "u1", kind: "contest_win", title: "Test Contest", note: "1", target: "contest", postId: "c1", at: Timestamp.now(), read: false });
+  await runAll(db, cfg, "t7");
+  const m = sent.find(x => x.to === "u1@example.com");
+  assert.ok(m, "email sent");
+  assert.match(m.html, /Congratulations/); assert.match(m.html, /Selamat/);
+  assert.doesNotMatch(m.subject, /Selamat/, "subject stays short (English)");
 });

@@ -7,31 +7,33 @@ export async function contestMail(db, mail, cfg) {
   if (!mail) return "email off";
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 const regNo = (n) => String(n || 0).padStart(7, "0");
-const when = (ts) => ts?.toDate ? ts.toDate().toLocaleString("en-GB", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" }) + " WIB" : "";
+const when = (ts, loc = "en-GB") => ts?.toDate ? ts.toDate().toLocaleString(loc, { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" }) + " WIB" : "";
+const id = (t) => `<span style="display:block;color:#5B5F6B;font-size:14px;margin-top:3px">🇮🇩 ${t}</span>`;   // Bahasa Indonesia line under the English one
 
+// Bilingual: English, with Bahasa Indonesia under each part.
 function page(c, e, kind) {
   const link = `${SITE}/#/contest/${encodeURIComponent(c.id)}`;
-  const deadline = c.submitEnd ? when(c.submitEnd) : "registration closes";
-  const head = "You're registered! ✅";
+  const dEn = c.submitEnd ? when(c.submitEnd) : "registration closes", dId = c.submitEnd ? when(c.submitEnd, "id-ID") : "pendaftaran ditutup";
   const next = e.photo
-    ? `<p>Your photo is already in. You can still change it until <b>${esc(deadline)}</b>.</p>`
-    : `<p><b>Next step:</b> submit your photo (up to 2 per person) on the contest page before <b>${esc(deadline)}</b>. Registrations without a photo aren't included in voting.</p>`;
+    ? `<p>Your photo is already in. You can still change it until <b>${esc(dEn)}</b>.${id(`Fotomu sudah masuk. Kamu masih bisa menggantinya sampai <b>${esc(dId)}</b>.`)}</p>`
+    : `<p><b>Next step:</b> submit your photo (up to 2 per person) on the contest page before <b>${esc(dEn)}</b>. Registrations without a photo aren't included in voting.${id(`<b>Langkah berikutnya:</b> kirim fotomu (maksimal 2 per orang) di halaman lomba sebelum <b>${esc(dId)}</b>. Pendaftaran tanpa foto tidak ikut voting.`)}</p>`;
   return `<div style="font-family:Arial,sans-serif;max-width:600px;color:#12141C">
     <div style="background:#12141C;color:#fff;padding:18px 22px;border-bottom:4px solid #D6102B">
-      <div style="font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#FFC72C;font-weight:bold">RCMI Photo Contest</div>
+      <div style="font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#FFC72C;font-weight:bold">RCMI Photo Contest · Lomba Foto RCMI</div>
       <div style="font-size:22px;font-weight:bold;margin-top:4px">${esc(c.title)}</div>
     </div>
     <div style="padding:20px 22px;border:1px solid #ddd;border-top:0">
-      <h2 style="margin:0 0 10px;font-size:20px">${head}</h2>
-      <p style="margin:0 0 14px">Hi ${esc(e.name)},</p>
+      <h2 style="margin:0 0 10px;font-size:20px">You're registered! ✅${id("Kamu sudah terdaftar!")}</h2>
+      <p style="margin:0 0 14px">Hi ${esc(e.name)}, · Halo ${esc(e.name)},</p>
       <table role="presentation" style="border-collapse:collapse;margin:0 0 14px"><tr>
         <td style="padding:10px 16px;background:#F3F3F0;border-left:4px solid #D6102B">
-          <div style="font-size:12px;text-transform:uppercase;letter-spacing:1px;color:#5B5F6B">Registration number</div>
+          <div style="font-size:12px;text-transform:uppercase;letter-spacing:1px;color:#5B5F6B">Registration number · Nomor pendaftaran</div>
           <div style="font-size:28px;font-weight:bold;letter-spacing:3px;color:#D6102B">${regNo(e.regNo)}</div>
         </td></tr></table>
       ${next}
-      <p style="margin:18px 0"><a href="${link}" style="background:#D6102B;color:#fff;padding:10px 16px;border-radius:6px;text-decoration:none;font-weight:bold">Open the contest page</a></p>
-      <p style="color:#888;font-size:12px;margin:18px 0 0">Keep this email: your registration number identifies your entry. Questions? DM @resincarmodelindonesia on Instagram.</p>
+      <p style="margin:18px 0"><a href="${link}" style="background:#D6102B;color:#fff;padding:10px 16px;border-radius:6px;text-decoration:none;font-weight:bold">Open the contest page · Buka halaman lomba</a></p>
+      <p style="color:#888;font-size:12px;margin:18px 0 0">Keep this email: your registration number identifies your entry. Questions? DM @resincarmodelindonesia on Instagram.<br>
+      Simpan email ini: nomor pendaftaranmu adalah identitas karyamu. Ada pertanyaan? DM @resincarmodelindonesia di Instagram.</p>
     </div>
   </div>`;
 }
@@ -50,7 +52,7 @@ for (const c of contests) {
     const to = u.exists ? u.data().email : "";
     if (!to) continue;
     try {
-      await mail.sendMail({ from: `"RCMI" <${GMAIL_USER}>`, to, subject: `RCMI Photo Contest — registration confirmed (#${regNo(e.regNo)})`, html: page(c, { ...e, name: e.name || u.data().displayName }, kind) });
+      await mail.sendMail({ from: `"RCMI" <${GMAIL_USER}>`, to, subject: `RCMI Photo Contest — registration confirmed · pendaftaran berhasil (#${regNo(e.regNo)})`, html: page(c, { ...e, name: e.name || u.data().displayName }, kind) });
       await db.doc(`contests/${c.id}/mail/${d.id}`).set({ reg: true, at: FieldValue.serverTimestamp() }, { merge: true });
       sent++;
     } catch (err) { failed++; }
