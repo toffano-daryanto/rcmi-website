@@ -94,7 +94,7 @@ def plaque_color(n):
     h = h.replace('<div class="blk"><p class="pre">Presented to</p>', '<div class="shot"><span>Winning photo</span></div>\n<div class="blk"><p class="pre">Presented to</p>')
     h = h.replace("</style>", """.p { padding:11mm 9mm 7mm }
 .t { font-size:40px } .k { font-size:13px } .by { font-size:9.5px; margin-top:4px }
-.flag { top:-13px; transform:skewX(-20deg) scale(.8) }
+.flag { top:6px; right:-38px; transform:skewX(-20deg) scale(.8) }
 .place { font-size:54px } .ttl { font-size:12px }
 .pre { font-size:11px } .name { font-size:26px; margin-top:2px } .photo { font-size:11px; margin-top:3px }
 .msg { display:none }
