@@ -4275,13 +4275,13 @@ const POSTER_V = "72c7379d";   // changed by tools/posters/render.mjs so phones 
 const CT_POSTERS = ["r32", "f40"];
 // Contest sponsors in display order (logos in public/img/sponsors/) and jury (logos in public/img/jury/).
 const CT_SPONSORS = [{ name: "Toko Kuning", logo: "/img/sponsors/toko-kuning.jpg", round: true }, { name: "Kourin Labs", logo: "/img/sponsors/kourin-labs.jpg" }];
-const CT_JURY_LOGOS = [{ name: "Jury", logo: "/img/jury/jury-chevron.png" }, { name: "Setsudou", logo: "/img/jury/setsudou.png" }, { name: "Ricky", logo: "/img/jury/ricky.png" }];
+const CT_JURY_LOGOS = [{ name: "Diecast & Diorama", logo: "/img/jury/jury-chevron.png" }, { name: "Setsudo", logo: "/img/jury/setsudou.png" }, { name: "Ricky Robertus", logo: "/img/jury/ricky.png" }];
 const sponsorsHTML = () => `<div class="ct-sponsors">
   ${CT_SPONSORS.length ? `<small>${t("ct_sponsored_by")}</small>
   <div class="ct-sponsor-logos">${CT_SPONSORS.map(sp => `<figure><img class="${sp.round ? "round" : ""}" src="${sp.logo}" alt="${esc(sp.name)}" loading="lazy"><figcaption>${esc(sp.name)}</figcaption></figure>`).join("")}</div>` : ""}
   <small class="muted">${t("ct_more_sponsors")}</small>
   ${CT_JURY_LOGOS.length ? `<small class="ct-jury-h">${t("ct_jury_logos")}</small>
-  <div class="ct-jury-logos">${CT_JURY_LOGOS.map(j => `<img src="${j.logo}" alt="${esc(j.name)}" loading="lazy">`).join("")}</div>` : ""}
+  <div class="ct-sponsor-logos ct-jury-logos">${CT_JURY_LOGOS.map(j => `<figure><img src="${j.logo}" alt="${esc(j.name)}" loading="lazy"><figcaption>${esc(j.name)}</figcaption></figure>`).join("")}</div>` : ""}
 </div>`;   // public/img/contest/poster-*.jpg (rendered from tools/posters)
 function openPoster(p) {
   openModal(`<img class="ct-big" src="/img/contest/poster-${p}.jpg?v=${POSTER_V}" alt="${esc(t("ct_poster_alt"))}">
