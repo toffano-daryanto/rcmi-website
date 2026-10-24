@@ -1,0 +1,27 @@
+name: Check before deploying the function
+# Read-only: billing (Blaze), database location, needed Google services, deploy account roles. Changes nothing.
+on: workflow_dispatch
+permissions:
+  contents: write
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with: { node-version: 22 }
+      - name: Check
+        env:
+          SA_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          mkdir -p fnlog
+          printf '%s' "$SA_JSON" > "$RUNNER_TEMP/sa.json"
+          (cd functions && npm install --no-audit --no-fund --silent)
+          SA_JSON_PATH="$RUNNER_TEMP/sa.json" node functions/scripts/check.js | tee fnlog/check.txt
+          rm -f "$RUNNER_TEMP/sa.json"
+      - name: Save the result to the tool-fncheck branch
+        if: always()
+        run: |
+          cd fnlog && git init -q -b tool-fncheck && git add -A
+          git -c user.name=github-actions -c user.email=github-actions@users.noreply.github.com commit -qm "Function check"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" tool-fncheck
