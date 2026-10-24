@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792720802";
-import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792720802";
-import { GALLERY } from "./gallery-data.js?v=1792720802";
-import { SEED_EVENTS } from "./seed-events.js?v=1792720802";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792720802";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792720802";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792807720";
+import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792807720";
+import { GALLERY } from "./gallery-data.js?v=1792807720";
+import { SEED_EVENTS } from "./seed-events.js?v=1792807720";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792807720";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792807720";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -4271,7 +4271,7 @@ $("#btn-install-3")?.addEventListener("click", () => installApp());
    Flow: admin creates (draft) → publishes: registration open (account needed; register, then submit 1 photo)
    → voting (everyone signed in: 1 vote; jury scores blind on 4 criteria) → judging (jury only) → admin announces winners. */
 const CT_STEPS = ["open", "voting", "judging", "closed"];
-const POSTER_V = "0d5725f4";   // changed by tools/posters/render.mjs so phones fetch the new poster instead of an old cached copy
+const POSTER_V = "c1514275";   // changed by tools/posters/render.mjs so phones fetch the new poster instead of an old cached copy
 const CT_POSTERS = ["r32", "f40"];
 // Contest sponsors (logos in public/img/sponsors/).
 const CT_SPONSORS = [{ name: "Kourin Labs", logo: "/img/sponsors/kourin-labs.jpg" }];
