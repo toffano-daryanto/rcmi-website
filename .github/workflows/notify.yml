@@ -1,6 +1,6 @@
 name: Email notifications & phone sync
 
-# Every 10 minutes (free on GitHub Actions):
+# Every 30 minutes, as a backup (the Firebase function sends notifications instantly; it shares a lock with this job, so nothing is sent twice):
 #  1. Emails the admins about new sign-ups, joining-fee proofs, Contact messages, delete requests and reports,
 #     and emails every user about their own comments, replies, messages, likes, sales and admin notices.
 #  2. Writes members' changed phone numbers back to the "RCMI Member List" Google Sheet.
@@ -12,7 +12,7 @@ name: Email notifications & phone sync
 
 on:
   schedule:
-    - cron: "*/10 * * * *"
+    - cron: "*/30 * * * *"
   workflow_dispatch:
     inputs:
       test:
@@ -52,28 +52,15 @@ jobs:
         if: always()
         working-directory: scripts
         run: SA_JSON_PATH="$RUNNER_TEMP/sa.json" node phone-sync.mjs
-      - name: Email the admin about new activity
+      - name: Emails & phone notifications (backup; the Firebase function normally sends them instantly)
         if: always()
-        working-directory: scripts
         env:
           GMAIL_USER: ${{ secrets.GMAIL_USER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           NOTIFY_TO: ${{ secrets.NOTIFY_TO }}
-        run: SA_JSON_PATH="$RUNNER_TEMP/sa.json" node notify.mjs
-      - name: Email each user about their own notifications
-        if: always()
-        working-directory: scripts
-        env:
-          GMAIL_USER: ${{ secrets.GMAIL_USER }}
-          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
-        run: SA_JSON_PATH="$RUNNER_TEMP/sa.json" node user-notify.mjs
-      - name: Contest registration emails
-        if: always()
-        working-directory: scripts
-        env:
-          GMAIL_USER: ${{ secrets.GMAIL_USER }}
-          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
-        run: SA_JSON_PATH="$RUNNER_TEMP/sa.json" node contest-mail.mjs
+        run: |
+          (cd functions && npm install --no-audit --no-fund --silent)
+          SA_JSON_PATH="$RUNNER_TEMP/sa.json" node functions/cli.js
       - name: Clean up
         if: always()
         run: rm -f "$RUNNER_TEMP/sa.json"
