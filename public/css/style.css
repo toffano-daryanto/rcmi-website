@@ -1313,7 +1313,8 @@ span.rep-badge { cursor: default; }
 /* Contest sponsors */
 .ct-sponsors { display: grid; justify-items: center; gap: 8px; text-align: center; margin: 0 0 18px; padding: 16px; border-radius: var(--radius-m); background: var(--surface); box-shadow: 0 0 0 1px var(--line); }
 .ct-sponsors > small:not(.muted) { font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); font-size: .72rem; }
-.ct-sponsor-logos { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px 8px; width: 100%; max-width: 560px; }
+.ct-sponsor-logos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 8px; width: 100%; max-width: 420px; }
+@media (min-width: 640px) { .ct-sponsor-logos { grid-template-columns: repeat(6, minmax(0, 1fr)); max-width: 680px; } }
 .ct-sponsor-logos.ct-jury-logos { grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: 380px; }
 .ct-sponsor-logos figure { margin: 0; display: grid; grid-template-rows: 60px auto; justify-items: center; align-items: center; align-content: start; gap: 6px; }
 .ct-sponsor-logos figcaption { align-self: start; }

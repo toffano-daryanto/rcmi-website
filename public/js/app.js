@@ -4274,7 +4274,7 @@ const CT_STEPS = ["open", "voting", "judging", "closed"];
 const POSTER_V = "a03a212c";   // changed by tools/posters/render.mjs so phones fetch the new poster instead of an old cached copy
 const CT_POSTERS = ["r32", "f40", "guide"];
 // Contest sponsors in display order (logos in public/img/sponsors/) and jury (logos in public/img/jury/).
-const CT_SPONSORS = [{ name: "Toko Kuning", logo: "/img/sponsors/toko-kuning.jpg", round: true }, { name: "Kepopic Studio", logo: "/img/sponsors/kepopic-studio.jpg" }, { name: "Hellios Studio", logo: "/img/sponsors/hellios-studio.png" }, { name: "Arsaka Toys", logo: "/img/sponsors/arsaka-toys.jpg" }, { name: "Kourin Labs", logo: "/img/sponsors/kourin-labs.jpg" }];
+const CT_SPONSORS = [{ name: "Toko Kuning", logo: "/img/sponsors/toko-kuning.jpg", round: true }, { name: "Kepopic Studio", logo: "/img/sponsors/kepopic-studio.jpg" }, { name: "Hellios Studio", logo: "/img/sponsors/hellios-studio.png" }, { name: "Arsaka Toys", logo: "/img/sponsors/arsaka-toys.jpg" }, { name: "bebetoys", logo: "/img/sponsors/bebetoys.jpg" }, { name: "Kourin Labs", logo: "/img/sponsors/kourin-labs.jpg" }];
 const CT_JURY_LOGOS = [{ name: "Diecast & Diorama", logo: "/img/jury/jury-chevron.png" }, { name: "setsudou", logo: "/img/jury/setsudou.png" }, { name: "Ricky Robertus", logo: "/img/jury/ricky.png" }];
 const sponsorsHTML = () => `<div class="ct-sponsors">
   ${CT_SPONSORS.length ? `<small>${t("ct_sponsored_by")}</small>
