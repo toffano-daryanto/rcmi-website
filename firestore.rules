@@ -192,7 +192,12 @@ service cloud.firestore {
           && str(request.resource.data.title, 80) && str(request.resource.data.caption, 500)
           && str(request.resource.data.name, 80) && str(request.resource.data.avatar, 500)
           && request.resource.data.photo is string && request.resource.data.photo.size() < 900000; }
-        allow update: if admin() && onlyKeys(['status', 'disqReason', 'votes', 'jury', 'final', 'rank']);
+        allow update: if admin() && onlyKeys(['status', 'disqReason', 'disqBy', 'votes', 'jury', 'final', 'rank']);
+        // A judge on this contest's panel can disqualify an entry (with a reason) or reinstate it while voting / judging.
+        allow update: if jury() && request.auth.uid in c().get('judges', []) && c().status in ['voting', 'judging']
+          && onlyKeys(['status', 'disqReason', 'disqBy']) && request.resource.data.status in ['ok', 'disq']
+          && str(request.resource.data.get('disqReason', ''), 300)
+          && (request.resource.data.status == 'ok' || request.resource.data.get('disqBy', '') == request.auth.uid);
         allow delete: if (signedIn() && eid == request.auth.uid && c().status == 'open'
             && getAfter(/databases/$(database)/documents/contests/$(cid)).data.get('registered', 0) == c().get('registered', 0) - 1)
           || (second() && c().status == 'open') || admin();
@@ -425,7 +430,14 @@ service cloud.firestore {
     // Notices to a user from the admins (e.g. "your post was hidden", with the reason).
     match /notices/{id} {
       allow read: if (signedIn() && resource.data.uid == request.auth.uid) || admin();
-      allow create: if admin() || commentNotice()
+      // A contest judge tells a participant their entry was disqualified.
+      function juryDisqNotice() {
+        let d = request.resource.data;
+        return approved() && hasRole('jury') && d.kind == 'contest_disq' && d.target == 'contest'
+          && request.auth.uid in get(/databases/$(database)/documents/contests/$(d.postId)).data.get('judges', [])
+          && d.keys().hasOnly(['uid', 'kind', 'target', 'postId', 'title', 'note', 'at', 'read']) && d.read == false;
+      }
+      allow create: if admin() || commentNotice() || juryDisqNotice()
         || (mod() && request.resource.data.kind in ['deleted', 'delapproved', 'delrejected']);
       allow update: if (signedIn() && resource.data.uid == request.auth.uid
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read'])) || admin();

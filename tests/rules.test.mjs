@@ -376,3 +376,23 @@ test("bell: people can mark their own bell items read (short list), not someone 
   await assertFails(updateDoc(doc(as(U.m1), "users", U.m1), { notifRead: Array.from({ length: 201 }, (_, i) => "k" + i) }));
   await assertFails(updateDoc(doc(as(U.m1), "users", U.m2), { notifRead: ["n:abc"] }));
 });
+
+test("jury: a judge on the panel can disqualify / reinstate an entry and notify the participant", async () => {
+  await env.withSecurityRulesDisabled(async ctx => {
+    await updateDoc(doc(ctx.firestore(), "contests", "c1"), { status: "voting", judges: ["uJury1"] });
+    await setDoc(doc(ctx.firestore(), "contests", "c1", "entries", U.m1), { uid: U.m1, regNo: 1, name: "M1", avatar: "", title: "R34", caption: "", photo: "x", at: Timestamp.now() });
+  });
+  const ent = (uid) => doc(as(uid), "contests", "c1", "entries", U.m1);
+  await assertSucceeds(updateDoc(ent("uJury1"), { status: "disq", disqReason: "Not a 1:64 car", disqBy: "uJury1" }));
+  await assertFails(updateDoc(ent("uJury1"), { status: "disq", disqReason: "x", disqBy: "someoneElse" }));      // must sign as themselves
+  await assertFails(updateDoc(ent("uJury1"), { votes: 99 }));                                                     // can't touch results
+  await assertFails(updateDoc(ent(U.m2), { status: "disq", disqReason: "x", disqBy: U.m2 }));                    // members can't
+  await assertSucceeds(updateDoc(ent("uJury1"), { status: "ok", disqReason: "" }));                              // reinstate
+  const nt = { uid: U.m1, kind: "contest_disq", target: "contest", postId: "c1", title: "Contest", note: "Not a 1:64 car", at: serverTimestamp(), read: false };
+  await assertSucceeds(addDoc(collection(as("uJury1"), "notices"), nt));
+  await assertFails(addDoc(collection(as("uJury1"), "notices"), { ...nt, kind: "contest_win" }));                // only the disqualified notice
+  await assertFails(addDoc(collection(as(U.m2), "notices"), nt));
+  // not during registration
+  await env.withSecurityRulesDisabled(ctx => updateDoc(doc(ctx.firestore(), "contests", "c1"), { status: "open" }));
+  await assertFails(updateDoc(ent("uJury1"), { status: "disq", disqReason: "x", disqBy: "uJury1" }));
+});

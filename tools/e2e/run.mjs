@@ -16,7 +16,7 @@ async function as(key) {
   const p = PEOPLE.find(x => x.key === key);
   const ctx = await browser.newContext({ viewport: { width: 430, height: 900 }, serviceWorkers: "block", locale: "en-US" });
   const pg = await ctx.newPage();
-  pg.on("dialog", d => { log(`   [${key}] dialog: ${d.message()}`); d.accept(); });
+  pg.on("dialog", d => { log(`   [${key}] dialog: ${d.message()}`); d.type() === "prompt" ? d.accept("Test: not a 1:64 car") : d.accept(); });
   pg.on("pageerror", e => log(`   [${key}] PAGE ERROR: ${e.message}`));
   await pg.goto(BASE + "/#/");
   await pg.waitForFunction(() => window.__signIn);
@@ -118,6 +118,14 @@ try {
       log(`   ${jk} scored ${eid}: ${await toast(pg)}`);
     }
     if (jk === "j1") await shot(pg, "jury-scoring");
+    if (jk === "j2") {
+      step("Judge disqualifies an entry, then reinstates it");
+      await pg.click('[data-ct-disq="g2"]'); await pg.waitForTimeout(2500);
+      log(`   disqualify: ${await toast(pg)} | shown as disqualified: ${await pg.locator(".jury-row.disq").count()}`);
+      await shot(pg, "jury-disqualified");
+      await pg.click('[data-ct-reinstate="g2"]'); await pg.waitForTimeout(2500);
+      log(`   reinstate: ${await toast(pg)} | still disqualified: ${await pg.locator(".jury-row.disq").count()}`);
+    }
   }
 
   step("Admin closes voting (judging), then announces");

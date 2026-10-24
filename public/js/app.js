@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792846637";
-import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792846637";
-import { GALLERY } from "./gallery-data.js?v=1792846637";
-import { SEED_EVENTS } from "./seed-events.js?v=1792846637";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792846637";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792846637";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792846922";
+import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792846922";
+import { GALLERY } from "./gallery-data.js?v=1792846922";
+import { SEED_EVENTS } from "./seed-events.js?v=1792846922";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792846922";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792846922";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -4511,13 +4511,18 @@ function ctMainHTML(c) {
 }
 function juryHTML(c) {
   if (!["voting", "judging"].includes(c.status)) return `<h2>⚖️ ${t("ct_jury_t")}</h2><p class="muted">${t(c.status === "closed" ? "ct_jury_done" : "ct_jury_wait")}</p>`;
-  const list = ct.entries.filter(ctOk).sort((a, b) => a.id.localeCompare(b.id));
+  const all = ct.entries.filter(e => e.photo).sort((a, b) => a.id.localeCompare(b.id)), list = all.filter(ctOk);
   const done = list.filter(e => ct.myScores[e.id]).length;
   return `<h2>⚖️ ${t("ct_jury_t")}</h2>
     <p class="muted">${t("ct_jury_d")}</p>
     <p class="ct-progress"><b>${done}/${list.length}</b> ${t("ct_scored")}</p>
-    <div class="jury-list">${list.map((e, i) => {
+    <div class="jury-list">${all.map((e, i) => {
       const sc = ct.myScores[e.id];
+      if (e.status === "disq") return `<div class="jury-row disq">
+        <button type="button" class="ct-ph" data-ct-view="${esc(e.id)}"><img src="${photoSrc(e.photo)}" alt="" loading="lazy"></button>
+        <div class="jury-f"><b>${t("ct_entry_n", { n: i + 1 })} · ${esc(e.title)}</b>
+          <p class="mod-note">🚫 ${t("ct_disq")}${e.disqReason ? ` — ${esc(e.disqReason)}` : ""}</p>
+          <div class="jury-save"><span></span><button type="button" class="btn btn-sm btn-ghost" data-ct-reinstate="${esc(e.id)}">${t("ct_reinstate")}</button></div></div></div>`;
       return `<form class="jury-row ${sc ? "done" : ""}" data-score="${esc(e.id)}">
         <button type="button" class="ct-ph" data-ct-view="${esc(e.id)}"><img src="${photoSrc(e.photo)}" alt="" loading="lazy"></button>
         <div class="jury-f">
@@ -4527,7 +4532,7 @@ function juryHTML(c) {
             <output>${sc?.crit?.[k] || 5}</output>
             <input type="range" name="${k}" min="1" max="10" step="1" value="${sc?.crit?.[k] || 5}"></label>`).join("")}
           <input name="note" maxlength="500" placeholder="${esc(t("ct_note_ph"))}" value="${esc(sc?.note || "")}">
-          <div class="jury-save"><span class="ct-total">${sc ? `✓ ${Number(sc.total).toFixed(2)}` : ""}</span><button class="btn btn-sm btn-mat" type="submit">${t(sc ? "ct_update" : "save")}</button></div>
+          <div class="jury-save"><span class="ct-total">${sc ? `✓ ${Number(sc.total).toFixed(2)}` : ""}</span><button type="button" class="btn btn-sm btn-ghost" data-ct-disq="${esc(e.id)}">${t("ct_disqualify")}</button><button class="btn btn-sm btn-mat" type="submit">${t(sc ? "ct_update" : "save")}</button></div>
         </div>
       </form>`; }).join("") || `<p class="muted">${t("ct_no_entries")}</p>`}</div>`;
 }
@@ -4778,14 +4783,15 @@ $("#contest-root").addEventListener("click", async (e) => {
     return;
   }
   const ph = e.target.closest("[data-ct-phase]"); if (ph && isAdmin()) return setContestPhase(ph.dataset.ctPhase);
+  const canJudge = !!uid && (c?.judges || []).includes(uid) && isJury() && ["voting", "judging"].includes(c?.status);
   const dq = e.target.closest("[data-ct-disq]");
-  if (dq && isAdmin()) {
+  if (dq && (isAdmin() || canJudge)) {
     const reason = prompt(t("ct_disq_reason")); if (!reason || !reason.trim()) return;
-    try { await updateDoc(doc(db, "contests", c.id, "entries", dq.dataset.ctDisq), { status: "disq", disqReason: reason.trim().slice(0, 300) }); await noticeAll(c, [dq.dataset.ctDisq.replace(/_2$/, "")], "contest_disq", reason.trim()); toast(t("saved")); renderContestRoute(); } catch (err) { fail(err); }
+    try { await updateDoc(doc(db, "contests", c.id, "entries", dq.dataset.ctDisq), { status: "disq", disqReason: reason.trim().slice(0, 300), disqBy: uid }); await noticeAll(c, [dq.dataset.ctDisq.replace(/_2$/, "")], "contest_disq", reason.trim()); toast(t("saved")); renderContestRoute(); } catch (err) { fail(err); }
     return;
   }
   const rs = e.target.closest("[data-ct-reinstate]");
-  if (rs && isAdmin()) {
+  if (rs && (isAdmin() || canJudge)) {
     try { await updateDoc(doc(db, "contests", c.id, "entries", rs.dataset.ctReinstate), { status: "ok", disqReason: "" }); toast(t("saved")); renderContestRoute(); } catch (err) { fail(err); }
   }
 });

@@ -1228,6 +1228,7 @@ span.rep-badge { cursor: default; }
 .jury-list { display: grid; gap: 12px; }
 .jury-row { display: grid; grid-template-columns: 160px 1fr; gap: 14px; padding: 12px; border-radius: var(--radius-m); background: var(--paper); box-shadow: 0 0 0 1px var(--line); }
 .jury-row.done { box-shadow: 0 0 0 2px var(--good); }
+.jury-row.disq { opacity: .75; box-shadow: 0 0 0 2px var(--red); }
 .jury-row .ct-ph { border-radius: 6px; }
 .jury-f { display: grid; gap: 6px; align-content: start; }
 .jury-c { display: grid; grid-template-columns: 120px 1fr 28px; align-items: center; gap: 8px; font-size: .88rem; }
