@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792811592";
-import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792811592";
-import { GALLERY } from "./gallery-data.js?v=1792811592";
-import { SEED_EVENTS } from "./seed-events.js?v=1792811592";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792811592";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792811592";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792811831";
+import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792811831";
+import { GALLERY } from "./gallery-data.js?v=1792811831";
+import { SEED_EVENTS } from "./seed-events.js?v=1792811831";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792811831";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792811831";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -4271,8 +4271,8 @@ $("#btn-install-3")?.addEventListener("click", () => installApp());
    Flow: admin creates (draft) → publishes: registration open (account needed; register, then submit 1 photo)
    → voting (everyone signed in: 1 vote; jury scores blind on 4 criteria) → judging (jury only) → admin announces winners. */
 const CT_STEPS = ["open", "voting", "judging", "closed"];
-const POSTER_V = "019eb7e3";   // changed by tools/posters/render.mjs so phones fetch the new poster instead of an old cached copy
-const CT_POSTERS = ["r32", "f40"];
+const POSTER_V = "e7f2e4cb";   // changed by tools/posters/render.mjs so phones fetch the new poster instead of an old cached copy
+const CT_POSTERS = ["r32", "f40", "guide"];
 // Contest sponsors in display order (logos in public/img/sponsors/) and jury (logos in public/img/jury/).
 const CT_SPONSORS = [{ name: "Toko Kuning", logo: "/img/sponsors/toko-kuning.jpg", round: true }, { name: "Kepopic Studio", logo: "/img/sponsors/kepopic-studio.jpg" }, { name: "Hellios Studio", logo: "/img/sponsors/hellios-studio.png" }, { name: "Kourin Labs", logo: "/img/sponsors/kourin-labs.jpg" }];
 const CT_JURY_LOGOS = [{ name: "Diecast & Diorama", logo: "/img/jury/jury-chevron.png" }, { name: "Setsudo", logo: "/img/jury/setsudou.png" }, { name: "Ricky Robertus", logo: "/img/jury/ricky.png" }];
@@ -4409,6 +4409,7 @@ function paintContest() {
       ${c.prizes ? `<details open><summary>🏆 ${t("ct_prizes")}</summary><p>${br(c.prizes)}</p></details>` : ""}
       ${c.rules ? `<details><summary>📋 ${t("ct_rules")}</summary><p>${br(c.rules)}</p></details>` : ""}
       <details><summary>⚖️ ${t("ct_how")}</summary><p>${t("ct_how_d", { j: jw, v: 100 - jw })}</p></details>
+      <details><summary>📘 ${t("ct_guide")}</summary><button type="button" class="ct-guide" data-ct-poster="guide"><img src="/img/contest/poster-guide.jpg?v=${POSTER_V}" alt="${esc(t("ct_guide"))}" loading="lazy"></button></details>
     </div>
     ${sponsorsHTML()}
     <div id="ct-main">${ctMainHTML(c)}</div>

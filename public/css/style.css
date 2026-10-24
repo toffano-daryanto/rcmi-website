@@ -1275,6 +1275,10 @@ span.rep-badge { cursor: default; }
 .ct-posters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-bottom: 16px; }
 .ct-posters button { padding: 0; border: 0; background: none; cursor: zoom-in; border-radius: var(--radius-m); overflow: hidden; box-shadow: 0 0 0 1px var(--line), 0 14px 30px -18px rgba(0,0,0,.5); }
 .ct-posters img { display: block; width: 100%; aspect-ratio: 4 / 5; object-fit: cover; }
+@media (min-width: 640px) { .ct-posters { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 639px) { .ct-posters button:nth-child(3) { grid-column: 1 / -1; justify-self: center; width: 70%; } }
+.ct-guide { display: block; padding: 0; border: 0; background: none; cursor: zoom-in; margin: 8px 0 4px; width: min(100%, 420px); border-radius: var(--radius-m); overflow: hidden; }
+.ct-guide img { display: block; width: 100%; }
 .ct-home-ic.poster { width: 84px; height: 105px; border-radius: 8px; }
 /* "Why RCMI" boxes: same look as the Explore tiles */
 .usp { max-width: 1200px; margin: 0 auto; padding: clamp(24px, 4vw, 36px) 20px 0; list-style: none; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; background: none; border: 0; }
@@ -1309,16 +1313,17 @@ span.rep-badge { cursor: default; }
 /* Contest sponsors */
 .ct-sponsors { display: grid; justify-items: center; gap: 8px; text-align: center; margin: 0 0 18px; padding: 16px; border-radius: var(--radius-m); background: var(--surface); box-shadow: 0 0 0 1px var(--line); }
 .ct-sponsors > small:not(.muted) { font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); font-size: .72rem; }
-.ct-sponsor-logos { display: flex; flex-wrap: wrap; justify-content: center; gap: 16px; }
-.ct-sponsor-logos figure { margin: 0; display: grid; justify-items: center; gap: 4px; }
-.ct-sponsor-logos img { height: 64px; width: auto; border-radius: 6px; display: block; }
-.ct-sponsor-logos figcaption { font-size: .8rem; font-weight: 700; }
+.ct-sponsor-logos { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px 8px; width: 100%; max-width: 480px; }
+.ct-sponsor-logos.ct-jury-logos { grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: 380px; }
+.ct-sponsor-logos figure { margin: 0; display: grid; grid-template-rows: 60px auto; justify-items: center; align-items: center; align-content: start; gap: 6px; }
+.ct-sponsor-logos figcaption { align-self: start; }
+.ct-sponsor-logos img { height: 52px; width: auto; max-width: 100%; object-fit: contain; border-radius: 6px; display: block; }
+.ct-sponsor-logos figcaption { font-size: .78rem; font-weight: 700; text-align: center; line-height: 1.2; }
 .ct-home-sp { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: .78rem; text-transform: uppercase; letter-spacing: .08em; opacity: .85; }
 .ct-home-sp img { height: 26px; width: auto; border-radius: 3px; }
 .ct-home-sp img.round { height: 34px; border-radius: 50%; }
-.ct-sponsor-logos img.round { width: 64px; border-radius: 50%; }
+.ct-sponsor-logos img.round { height: 60px; width: 60px; max-width: 100%; object-fit: cover; border-radius: 50%; }
 .ct-sponsors small.ct-jury-h { margin-top: 10px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); font-size: .72rem; }
-.ct-jury-logos img { height: 52px; }
 fieldset.role-sel { border: 1px solid var(--line); border-radius: 6px; padding: 4px 10px 6px; margin: 0; display: inline-flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; }
 fieldset.role-sel legend { font-size: .72rem; font-weight: 700; color: var(--muted); padding: 0 4px; text-transform: uppercase; letter-spacing: .06em; }
 fieldset.role-sel label { display: inline-flex; align-items: center; gap: 4px; font-size: .85rem; font-weight: 600; cursor: pointer; }
