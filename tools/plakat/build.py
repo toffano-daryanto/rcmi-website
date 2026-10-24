@@ -156,7 +156,7 @@ h1 span {{ color:#D6102B }}
 .logo.square img {{ width:64mm; height:64mm; max-height:none }}
 .to {{ margin:6mm 0 0; font-size:15px; font-weight:600; color:#3C3F48 }}
 .name {{ margin:1mm 0 0; font-family:'Barlow Condensed',sans-serif; font-style:italic; font-weight:800; text-transform:uppercase; font-size:52px; line-height:1; padding:0 6mm 2mm 0; border-bottom:2px solid #12141C }}
-.why {{ margin:5mm 0 0; font-size:15.5px; line-height:1.55; max-width:150mm }}
+.why {{ margin:6mm 0 0; font-size:17px; line-height:1.55; max-width:150mm }}
 .badge {{ margin-top:0; display:inline-flex; transform:skewX(-10deg) }}
 .badge span {{ padding:5px 14px; font-family:'Barlow Condensed',sans-serif; font-style:italic; font-weight:800; text-transform:uppercase; font-size:20px; letter-spacing:.04em }}
 .badge .a {{ background:#12141C; color:#fff }} .badge .b {{ background:#FFC72C }}
@@ -180,7 +180,6 @@ h1 span {{ color:#D6102B }}
 <p class="to">Proudly presented to</p>
 <p class="name">{name}</p>
 <p class="why">for your valued support as an <b>official sponsor</b> of the <b>RCMI Photo Contest {YEAR}</b>, helping our community celebrate the art of 1:64 model car photography. Thank you for being part of our journey.</p>
-<div class="sigs"><div class="sig"><i></i><b>[Name]</b>Founder, RCMI</div><div class="sig"><i></i><b>[Name]</b>Contest committee</div></div>
 </div></div>
 <footer class="foot"><b>Resin Car Model Indonesia</b><span>{DATE} · rcmi-website.web.app · @resincarmodelindonesia</span></footer>
 </div></body></html>'''
