@@ -130,24 +130,54 @@ h1 span {{ color:#D6102B }}
 SPONSOR_FILES = [("toko-kuning.jpg", "Toko Kuning", "round"), ("kepopic-studio.jpg", "Kepopic Studio", ""), ("hellios-studio.png", "Hellios Studio", ""),
                  ("arsaka-toys.jpg", "Arsaka Toys", "square"), ("bebetoys.jpg", "bebetoys", ""), ("kourin-labs.jpg", "Kourin Labs", "")]
 def sponsor_certificate(f, name, shape):
-    c = certificate(1)
-    # Side panel: the sponsor's logo instead of a medal.
-    c = c[:c.index('<div class="medal">')] + f'<div class="spl {shape}"><img src="../../../public/img/sponsors/{f}" alt="{name}"><small>Official sponsor</small></div>' + c[c.index('<div class="k">'):]
-    c = c.replace("<title>RCMI Photo Contest certificate — 1st place</title>", f"<title>RCMI Photo Contest — sponsor certificate — {name}</title>")
-    c = c.replace('<p class="eyebrow">Certificate of achievement</p>', '<p class="eyebrow">Certificate of appreciation</p>')
-    c = c.replace('<p class="to">This certificate is proudly presented to</p>', '<p class="to">Presented with appreciation to</p>')
-    c = c.replace('<p class="name">[Winner Name]</p>', f'<p class="name sp">{name}</p>')
-    a0 = c.index('<p class="why">'); a1 = c.index('</p>', a0) + 4
-    c = c[:a0] + f'<p class="why">For your valued support as an <b>official sponsor</b> of the <b>RCMI Photo Contest {YEAR}</b>, helping our community celebrate the art of 1:64 model car photography. Thank you for being part of our journey.</p>' + c[a1:]
-    c = c.replace('<div class="meta">Registration no. [0000000]<br>', '<div class="meta">')
-    c = c.replace("</style>", """.spl {{ align-self:center; display:flex; flex-direction:column; align-items:center; gap:5mm }}
-.spl img {{ display:block; max-width:52mm; max-height:40mm; width:auto; height:auto; border-radius:6px; background:#fff; padding:4mm; box-shadow:0 0 0 2px #FFC72C }}
-.spl.round img {{ width:46mm; height:46mm; max-height:none; border-radius:50%; padding:0 }}
-.spl.square img {{ width:44mm; height:44mm; max-height:none; padding:0 }}
-.spl small {{ font-weight:800; letter-spacing:.24em; text-transform:uppercase; font-size:12px; color:#FFC72C }}
-.name.sp {{ font-family:'Barlow Condensed',sans-serif; font-style:italic; font-weight:800; text-transform:uppercase; font-size:64px; line-height:1 }}
-</style>""".replace("{{", "{").replace("}}", "}"))
-    return c
+    # A4 portrait, centred: dark racing header, the sponsor's logo large, "Thank you", footer band.
+    return f'''<!doctype html><html><head><meta charset="utf-8"><title>RCMI Photo Contest — sponsor certificate — {name}</title>{FONTS}
+<style>
+@page {{ size: 210mm 297mm; margin: 0 }}
+html,body {{ margin:0 }}
+.p {{ position:relative; width:210mm; height:297mm; overflow:hidden; background:#FBFAF7; color:#12141C; font-family:Barlow,sans-serif; display:flex; flex-direction:column; align-items:center; text-align:center }}
+.c {{ font-family:'Barlow Condensed',sans-serif }}
+.head {{ position:relative; align-self:stretch; height:58mm; background:#0E0F13; color:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3mm; overflow:hidden }}
+.head img {{ width:58mm; height:auto }}
+.head .k {{ font-weight:700; letter-spacing:.34em; text-transform:uppercase; font-size:12px; color:#C9CBD3 }}
+.head::before {{ content:""; position:absolute; left:-10mm; right:-10mm; bottom:0; height:4mm; background:repeating-linear-gradient(90deg,#fff 0 4mm,#0E0F13 4mm 8mm); opacity:.9 }}
+.head::after {{ content:""; position:absolute; left:0; right:0; bottom:4mm; height:1.6mm; background:#D6102B }}
+.stripe {{ position:absolute; top:0; right:18mm; width:9mm; height:58mm; background:#D6102B; transform:skewX(-18deg) }}
+.stripe.y {{ right:31mm; width:4mm; background:#FFC72C }}
+.eyebrow {{ margin:13mm 0 0; font-weight:700; letter-spacing:.34em; text-transform:uppercase; font-size:13px; color:#5B5F6B }}
+h1 {{ margin:1mm 0 0; font-family:'Barlow Condensed',sans-serif; font-style:italic; font-weight:800; text-transform:uppercase; font-size:92px; line-height:.88 }}
+h1 span {{ color:#D6102B }}
+.logo {{ margin:10mm 0 0; height:52mm; display:flex; align-items:center; justify-content:center }}
+.logo img {{ max-height:46mm; max-width:120mm; width:auto; display:block; border-radius:8px }}
+.logo.round img {{ width:52mm; height:52mm; max-height:none; border-radius:50%; box-shadow:0 0 0 2.5mm #FFC72C }}
+.logo.square img {{ width:50mm; height:50mm; max-height:none }}
+.to {{ margin:9mm 0 0; font-size:15px; font-weight:600; color:#3C3F48 }}
+.name {{ margin:1mm 0 0; font-family:'Barlow Condensed',sans-serif; font-style:italic; font-weight:800; text-transform:uppercase; font-size:50px; line-height:1; padding:0 6mm 2mm; border-bottom:2px solid #12141C }}
+.why {{ margin:7mm 24mm 0; font-size:15.5px; line-height:1.55 }}
+.badge {{ margin-top:6mm; display:inline-flex; transform:skewX(-10deg) }}
+.badge span {{ padding:5px 14px; font-family:'Barlow Condensed',sans-serif; font-style:italic; font-weight:800; text-transform:uppercase; font-size:20px; letter-spacing:.04em }}
+.badge .a {{ background:#12141C; color:#fff }} .badge .b {{ background:#FFC72C }}
+.sigs {{ margin-top:auto; margin-bottom:9mm; display:flex; gap:24mm }}
+.sig {{ width:55mm; font-size:12px }}
+.sig i {{ display:block; height:14mm }}
+.sig b {{ display:block; border-top:1.2px solid #12141C; padding-top:2mm; font-size:13px }}
+.foot {{ align-self:stretch; height:20mm; background:#12141C; color:#fff; display:flex; align-items:center; justify-content:space-between; padding:0 14mm; border-top:2mm solid #D6102B; font-size:12px }}
+.foot b {{ font-family:'Barlow Condensed',sans-serif; font-style:italic; font-weight:800; font-size:20px; text-transform:uppercase; letter-spacing:.03em }}
+.foot span {{ color:#C9CBD3 }}
+</style></head><body><div class="p">
+<header class="head"><i class="stripe"></i><i class="stripe y"></i>
+<img src="../../../public/img/logo-white.png" alt="RCMI">
+<span class="k">RCMI Photo Contest {YEAR}</span></header>
+<p class="eyebrow">Certificate of appreciation</p>
+<h1>Thank <span>you</span></h1>
+<div class="logo {shape}"><img src="../../../public/img/sponsors/{f}" alt="{name}"></div>
+<p class="to">Proudly presented to</p>
+<p class="name">{name}</p>
+<p class="why">for your valued support as an <b>official sponsor</b> of the <b>RCMI Photo Contest {YEAR}</b>, helping our community celebrate the art of 1:64 model car photography. Thank you for being part of our journey.</p>
+<div class="badge"><span class="a">Official sponsor</span><span class="b">{YEAR}</span></div>
+<div class="sigs"><div class="sig"><i></i><b>[Name]</b>Founder, RCMI</div><div class="sig"><i></i><b>[Name]</b>Contest committee</div></div>
+<footer class="foot"><b>Resin Car Model Indonesia</b><span>{DATE} · rcmi-website.web.app · @resincarmodelindonesia</span></footer>
+</div></body></html>'''
 for i, (f, name, shape) in enumerate(SPONSOR_FILES, 1):
     open(os.path.join(OUT, f"sponsor-{i}.html"), "w").write(sponsor_certificate(f, name, shape))
 for n in (1, 2, 3, 4, 5):

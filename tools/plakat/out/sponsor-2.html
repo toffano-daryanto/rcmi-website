@@ -1,66 +1,47 @@
 <!doctype html><html><head><meta charset="utf-8"><title>RCMI Photo Contest — sponsor certificate — Kepopic Studio</title><link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;1,700;1,800&family=Barlow:wght@400;500;600;700&family=Permanent+Marker&family=Great+Vibes&display=swap" rel="stylesheet">
 <style>
-@page { size: 297mm 210mm; margin: 0 }
+@page { size: 210mm 297mm; margin: 0 }
 html,body { margin:0 }
-.p { position:relative; width:297mm; height:210mm; overflow:hidden; background:#FBFAF7; color:#12141C; font-family:Barlow,sans-serif; display:grid; grid-template-columns:78mm 1fr }
+.p { position:relative; width:210mm; height:297mm; overflow:hidden; background:#FBFAF7; color:#12141C; font-family:Barlow,sans-serif; display:flex; flex-direction:column; align-items:center; text-align:center }
 .c { font-family:'Barlow Condensed',sans-serif }
-.side { position:relative; background:#0E0F13; color:#fff; padding:14mm 10mm; display:flex; flex-direction:column; justify-content:space-between; overflow:hidden }
-.side::after { content:""; position:absolute; top:0; bottom:0; right:0; width:5px; background:#D6102B }
-.side img.logo { width:52mm; height:auto }
-.medal { align-self:center; width:52mm; height:52mm; border-radius:50%; display:grid; place-items:center; background:radial-gradient(circle at 35% 30%, #FFF3C4, #E2B33C 45%, #B8860B); box-shadow:0 0 0 5px #0E0F13, 0 0 0 7px #E2B33C; color:#12141C; text-align:center }
-.medal b { display:block; font-family:'Barlow Condensed',sans-serif; font-style:italic; font-weight:800; font-size:64px; line-height:.8 }
-.medal b sup { font-size:.4em; vertical-align:1em }
-.medal small { display:block; font-weight:800; letter-spacing:.2em; text-transform:uppercase; font-size:12px; margin-top:6px }
-.side .k { font-weight:700; letter-spacing:.3em; text-transform:uppercase; font-size:11px; color:#C9CBD3 }
-.side .k b { display:block; color:#FFC72C; font-size:22px; letter-spacing:.04em; font-style:italic; font-family:'Barlow Condensed',sans-serif; font-weight:800; margin-top:2px }
-.main { position:relative; padding:14mm 16mm 10mm 16mm; display:flex; flex-direction:column }
-.main::before { content:""; position:absolute; inset:7mm; border:1.5px solid #12141C; pointer-events:none }
-.main::after { content:""; position:absolute; inset:8.6mm; border:.6px solid #D6102B; pointer-events:none }
-.eyebrow { font-weight:700; letter-spacing:.34em; text-transform:uppercase; font-size:13px; color:#5B5F6B; margin:4mm 0 0 }
-h1 { margin:2px 0 0; font-family:'Barlow Condensed',sans-serif; font-style:italic; font-weight:800; text-transform:uppercase; font-size:60px; line-height:.92 }
+.head { position:relative; align-self:stretch; height:58mm; background:#0E0F13; color:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3mm; overflow:hidden }
+.head img { width:58mm; height:auto }
+.head .k { font-weight:700; letter-spacing:.34em; text-transform:uppercase; font-size:12px; color:#C9CBD3 }
+.head::before { content:""; position:absolute; left:-10mm; right:-10mm; bottom:0; height:4mm; background:repeating-linear-gradient(90deg,#fff 0 4mm,#0E0F13 4mm 8mm); opacity:.9 }
+.head::after { content:""; position:absolute; left:0; right:0; bottom:4mm; height:1.6mm; background:#D6102B }
+.stripe { position:absolute; top:0; right:18mm; width:9mm; height:58mm; background:#D6102B; transform:skewX(-18deg) }
+.stripe.y { right:31mm; width:4mm; background:#FFC72C }
+.eyebrow { margin:13mm 0 0; font-weight:700; letter-spacing:.34em; text-transform:uppercase; font-size:13px; color:#5B5F6B }
+h1 { margin:1mm 0 0; font-family:'Barlow Condensed',sans-serif; font-style:italic; font-weight:800; text-transform:uppercase; font-size:92px; line-height:.88 }
 h1 span { color:#D6102B }
+.logo { margin:10mm 0 0; height:52mm; display:flex; align-items:center; justify-content:center }
+.logo img { max-height:46mm; max-width:120mm; width:auto; display:block; border-radius:8px }
+.logo.round img { width:52mm; height:52mm; max-height:none; border-radius:50%; box-shadow:0 0 0 2.5mm #FFC72C }
+.logo.square img { width:50mm; height:50mm; max-height:none }
 .to { margin:9mm 0 0; font-size:15px; font-weight:600; color:#3C3F48 }
-.name { margin:3mm 0 0; font-family:'Great Vibes',cursive; font-size:70px; line-height:1.05; border-bottom:1.5px solid #12141C; padding-bottom:2mm; max-width:170mm }
-.why { margin:7mm 0 0; font-size:16px; line-height:1.5; max-width:175mm }
-.why b { font-weight:700 }
-.foot { margin-top:auto; display:flex; align-items:flex-end; justify-content:space-between; gap:10mm }
-.sig { width:55mm; text-align:center; font-size:12px }
+.name { margin:1mm 0 0; font-family:'Barlow Condensed',sans-serif; font-style:italic; font-weight:800; text-transform:uppercase; font-size:50px; line-height:1; padding:0 6mm 2mm; border-bottom:2px solid #12141C }
+.why { margin:7mm 24mm 0; font-size:15.5px; line-height:1.55 }
+.badge { margin-top:6mm; display:inline-flex; transform:skewX(-10deg) }
+.badge span { padding:5px 14px; font-family:'Barlow Condensed',sans-serif; font-style:italic; font-weight:800; text-transform:uppercase; font-size:20px; letter-spacing:.04em }
+.badge .a { background:#12141C; color:#fff } .badge .b { background:#FFC72C }
+.sigs { margin-top:auto; margin-bottom:9mm; display:flex; gap:24mm }
+.sig { width:55mm; font-size:12px }
 .sig i { display:block; height:14mm }
-.sig b { display:block; border-top:1.2px solid #12141C; padding-top:2mm; font-weight:700; font-size:13px }
-.meta { font-size:11px; color:#5B5F6B; line-height:1.5; text-align:right }
-.logos { margin-top:5mm; display:flex; flex-direction:column; align-items:center; gap:3mm; padding-top:3mm; border-top:.6px solid #C9CBD3 }
-.logos small { font-weight:800; letter-spacing:.16em; text-transform:uppercase; font-size:9px; color:#5B5F6B; writing-mode:horizontal-tb; white-space:nowrap }
-.lg { width:21mm; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; gap:1mm }
-.lg img { max-height:10mm; max-width:20mm; width:auto; border-radius:3px; display:block }
-.lg em { font-style:normal; font-weight:700; font-size:8px; letter-spacing:.04em; text-transform:uppercase; white-space:nowrap; color:#3C3F48 }
-.lg.sm { width:17mm } .lg.sm img { max-height:6.5mm; max-width:15mm } .lg.sm em { font-size:7px }
-.grp { display:flex; align-items:flex-end; gap:2mm }
-.grp small { width:24mm; text-align:right }
-.spl { align-self:center; display:flex; flex-direction:column; align-items:center; gap:5mm }
-.spl img { display:block; max-width:52mm; max-height:40mm; width:auto; height:auto; border-radius:6px; background:#fff; padding:4mm; box-shadow:0 0 0 2px #FFC72C }
-.spl.round img { width:46mm; height:46mm; max-height:none; border-radius:50%; padding:0 }
-.spl.square img { width:44mm; height:44mm; max-height:none; padding:0 }
-.spl small { font-weight:800; letter-spacing:.24em; text-transform:uppercase; font-size:12px; color:#FFC72C }
-.name.sp { font-family:'Barlow Condensed',sans-serif; font-style:italic; font-weight:800; text-transform:uppercase; font-size:64px; line-height:1 }
+.sig b { display:block; border-top:1.2px solid #12141C; padding-top:2mm; font-size:13px }
+.foot { align-self:stretch; height:20mm; background:#12141C; color:#fff; display:flex; align-items:center; justify-content:space-between; padding:0 14mm; border-top:2mm solid #D6102B; font-size:12px }
+.foot b { font-family:'Barlow Condensed',sans-serif; font-style:italic; font-weight:800; font-size:20px; text-transform:uppercase; letter-spacing:.03em }
+.foot span { color:#C9CBD3 }
 </style></head><body><div class="p">
-<aside class="side">
-<img class="logo" src="../../../public/img/logo-white.png" alt="RCMI">
-<div class="spl "><img src="../../../public/img/sponsors/kepopic-studio.jpg" alt="Kepopic Studio"><small>Official sponsor</small></div><div class="k">RCMI Photo Contest<b>2026</b></div>
-</aside>
-<main class="main">
+<header class="head"><i class="stripe"></i><i class="stripe y"></i>
+<img src="../../../public/img/logo-white.png" alt="RCMI">
+<span class="k">RCMI Photo Contest 2026</span></header>
 <p class="eyebrow">Certificate of appreciation</p>
-<h1>RCMI Photo <span>Contest 2026</span></h1>
-<p class="to">Presented with appreciation to</p>
-<p class="name sp">Kepopic Studio</p>
-<p class="why">For your valued support as an <b>official sponsor</b> of the <b>RCMI Photo Contest 2026</b>, helping our community celebrate the art of 1:64 model car photography. Thank you for being part of our journey.</p>
-<div class="foot">
-<div class="sig"><i></i><b>[Name]</b>Founder, RCMI</div>
-<div class="sig"><i></i><b>[Name]</b>Head of the jury</div>
-<div class="meta">[DATE] 2026<br>rcmi-website.web.app</div>
-</div>
-<div class="logos">
-<div class="grp"><small>Sponsored by</small><span class="lg"><img src="../../../public/img/sponsors/toko-kuning.jpg" alt="Toko Kuning"><em>Toko Kuning</em></span><span class="lg"><img src="../../../public/img/sponsors/kepopic-studio.jpg" alt="Kepopic Studio"><em>Kepopic Studio</em></span><span class="lg"><img src="../../../public/img/sponsors/hellios-studio.png" alt="Hellios Studio"><em>Hellios Studio</em></span><span class="lg"><img src="../../../public/img/sponsors/arsaka-toys.jpg" alt="Arsaka Toys"><em>Arsaka Toys</em></span><span class="lg"><img src="../../../public/img/sponsors/bebetoys.jpg" alt="bebetoys"><em>bebetoys</em></span><span class="lg"><img src="../../../public/img/sponsors/kourin-labs.jpg" alt="Kourin Labs"><em>Kourin Labs</em></span></div>
-<div class="grp"><small>Jury</small><span class="lg sm"><img src="../../../public/img/jury/jury-chevron.png" alt="Diecast & Diorama"><em>Diecast & Diorama</em></span><span class="lg sm"><img src="../../../public/img/jury/setsudou.png" alt="setsudou"><em>setsudou</em></span><span class="lg sm"><img src="../../../public/img/jury/ricky.png" alt="Ricky Robertus"><em>Ricky Robertus</em></span></div>
-</div>
-</main>
+<h1>Thank <span>you</span></h1>
+<div class="logo "><img src="../../../public/img/sponsors/kepopic-studio.jpg" alt="Kepopic Studio"></div>
+<p class="to">Proudly presented to</p>
+<p class="name">Kepopic Studio</p>
+<p class="why">for your valued support as an <b>official sponsor</b> of the <b>RCMI Photo Contest 2026</b>, helping our community celebrate the art of 1:64 model car photography. Thank you for being part of our journey.</p>
+<div class="badge"><span class="a">Official sponsor</span><span class="b">2026</span></div>
+<div class="sigs"><div class="sig"><i></i><b>[Name]</b>Founder, RCMI</div><div class="sig"><i></i><b>[Name]</b>Contest committee</div></div>
+<footer class="foot"><b>Resin Car Model Indonesia</b><span>[DATE] 2026 · rcmi-website.web.app · @resincarmodelindonesia</span></footer>
 </div></body></html>
