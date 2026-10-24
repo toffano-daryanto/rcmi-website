@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792854996";
-import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792854996";
-import { GALLERY } from "./gallery-data.js?v=1792854996";
-import { SEED_EVENTS } from "./seed-events.js?v=1792854996";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792854996";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792854996";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792855061";
+import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792855061";
+import { GALLERY } from "./gallery-data.js?v=1792855061";
+import { SEED_EVENTS } from "./seed-events.js?v=1792855061";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792855061";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792855061";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -4299,7 +4299,7 @@ const CT_POSTERS = ["r32", "f40", "guide"];
 const CT_SPONSORS = [{ name: "Toko Kuning", logo: "/img/sponsors/toko-kuning.jpg", ig: "toko_kuning_", round: true }, { name: "Kepopic Studio", logo: "/img/sponsors/kepopic-studio.jpg", ig: "kepopic.studio" }, { name: "Hellios Studio", logo: "/img/sponsors/hellios-studio.png", ig: "helliosstudio" }, { name: "Arsaka Toys", logo: "/img/sponsors/arsaka-toys.jpg", ig: "arsaka16", square: true }, { name: "bebetoys", logo: "/img/sponsors/bebetoys.jpg", ig: "bebet0ys" }, { name: "Kourin Labs", logo: "/img/sponsors/kourin-labs.jpg", ig: "kourinlabs" }];
 const igUrl = (h) => `https://www.instagram.com/${encodeURIComponent(h)}/`;
 // Follow-the-sponsors list (registration box and rules).
-const sponsorFollow = () => `<div class="ct-follow"><b>${t("ct_follow_t")}</b><div>${CT_SPONSORS.map(sp => `<a href="${igUrl(sp.ig)}" target="_blank" rel="noopener">@${esc(sp.ig)}</a>`).join("")}</div></div>`;
+const sponsorFollow = () => `<div class="ct-follow"><b>${t("ct_follow_t")}</b><div>${["resincarmodelindonesia", ...CT_SPONSORS.map(sp => sp.ig)].map(h => `<a href="${igUrl(h)}" target="_blank" rel="noopener">@${esc(h)}</a>`).join("")}</div></div>`;
 const CT_JURY_LOGOS = [{ name: "Diecast & Diorama", logo: "/img/jury/jury-chevron.png" }, { name: "setsudou", logo: "/img/jury/setsudou.png" }, { name: "Ricky Robertus", logo: "/img/jury/ricky.png" }];
 const sponsorsHTML = () => `<div class="ct-sponsors">
   ${CT_SPONSORS.length ? `<small>${t("ct_sponsored_by")}</small>
