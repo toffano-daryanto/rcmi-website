@@ -60,6 +60,38 @@ html,body {{ margin:0; }}
 </div>
 </div></body></html>'''
 
+COLOR_LOGO = {"toko-kuning": ("sponsors/toko-kuning.jpg", 50, "50%"), "kepopic": ("sponsors/kepopic-studio.jpg", 30, "4px"), "hellios": ("sponsors/hellios-studio.png", 42, "0"),
+              "arsaka": ("sponsors/arsaka-toys.jpg", 46, "6px"), "bebetoys": ("sponsors/bebetoys.jpg", 30, "5px"), "kourin": ("sponsors/kourin-labs.jpg", 28, "4px"),
+              "diecast-diorama": ("jury/jury-chevron.png", 30, "4px"), "setsudou": ("jury/setsudou.png", 30, "4px"), "ricky": ("jury/ricky.png", 30, "4px")}
+def plaque_color(n):
+    # Full-colour version of the plaque (UV print): dark RCMI style, colour logos, yellow place, red accents.
+    import re
+    h = plaque(n).replace("plaque — ", "plaque (colour) — ")
+    def swap(m):
+        f, height = m.group(1), int(m.group(2))
+        src, base, rad = COLOR_LOGO[f]
+        k = height / {"toko-kuning": 50, "arsaka": 48, "hellios": 42, "kepopic": 26, "bebetoys": 30, "kourin": 24, "diecast-diorama": 34, "setsudou": 22, "ricky": 26}[f]
+        return f'<img src="../../../public/img/{src}" style="height:{round(base * k)}px;width:auto;display:block;border-radius:{rad}">'
+    h = re.sub(r'<img src="\.\./logos/([a-z-]+)\.png" style="height:(\d+)px;width:auto;display:block">', swap, h)
+    h = h.replace('<img class="rcmi" src="../logos/rcmi.png" alt="RCMI">', '<img class="rcmi" src="../../../public/img/logo-white.png" alt="RCMI"><i class="st r"></i><i class="st y"></i>')
+    h = h.replace("background:#fff; color:#000;", "background:#0E0F13; color:#fff;")
+    h = h.replace(".flag i {{ background:#000 }}".replace("{{", "{").replace("}}", "}"), ".flag i { background:#fff }")
+    h = h.replace(".flag i:nth-child(n+7):nth-child(even) { background:#000 }", ".flag i:nth-child(n+7):nth-child(even) { background:#fff }")
+    h = h.replace("height:1.4px; background:#000 }", "height:1.4px; background:rgba(255,255,255,.45) }")
+    h = h.replace("</style>", """.t span.r { color:#D6102B }
+.place { color:#FFC72C }
+.ttl { color:#fff }
+.name { color:#fff }
+.by, .msg, .photo, .pre { color:#DADCE3 }
+.div span { color:#C9CBD3 }
+.lg em { color:#fff }
+.st { position:absolute; top:0; height:30mm; transform:skewX(-18deg) }
+.st.r { right:12mm; width:7mm; background:#D6102B } .st.y { right:22mm; width:3mm; background:#FFC72C }
+.p::after { content:""; position:absolute; left:0; right:0; bottom:0; height:2.2mm; background:#D6102B }
+</style>""")
+    h = h.replace("Photo<br>Contest<span", 'Photo<br><span class="r">Contest</span><span')
+    return h
+
 def certificate(n):
     ordn, title = PLACES[n]
     medal = {1: ("#E2B33C", "#B8860B", "#FFF3C4"), 2: ("#C9CDD4", "#8E949C", "#F4F5F7"), 3: ("#CD8B52", "#9A5B2A", "#F6E1CC"), 4: ("#E2546A", "#A50E24", "#FFD9DF"), 5: ("#E2546A", "#A50E24", "#FFD9DF")}[n]
@@ -187,5 +219,6 @@ for i, (f, name, shape) in enumerate(SPONSOR_FILES, 1):
     open(os.path.join(OUT, f"sponsor-{i}.html"), "w").write(sponsor_certificate(f, name, shape))
 for n in (1, 2, 3, 4, 5):
     open(os.path.join(OUT, f"plaque-{n}.html"), "w").write(plaque(n))
+    open(os.path.join(OUT, f"plaque-color-{n}.html"), "w").write(plaque_color(n))
     open(os.path.join(OUT, f"certificate-{n}.html"), "w").write(certificate(n))
 print("built", sorted(os.listdir(OUT)))
