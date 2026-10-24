@@ -7,7 +7,7 @@ const dir = path.dirname(fileURLToPath(import.meta.url)), src = path.join(dir, "
 mkdirSync(out, { recursive: true });
 const b = await chromium.launch();
 for (const f of readdirSync(src).filter(f => f.endsWith(".html"))) {
-  const name = f.replace(".html", ""), cert = name.startsWith("certificate"), port = name.startsWith("sponsor");
+  const name = f.replace(".html", ""), cert = name.startsWith("certificate") || name.startsWith("sponsor"), port = false;
   const pg = await b.newPage({ viewport: cert ? { width: 1123, height: 794 } : port ? { width: 794, height: 1123 } : { width: 559, height: 794 }, deviceScaleFactor: 2 });
   await pg.goto("file://" + path.join(src, f), { waitUntil: "networkidle" });
   await pg.evaluate(() => document.fonts.ready); await pg.waitForTimeout(500);

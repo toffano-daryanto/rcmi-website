@@ -86,7 +86,7 @@ html,body {{ margin:0 }}
 .eyebrow {{ font-weight:700; letter-spacing:.34em; text-transform:uppercase; font-size:13px; color:#5B5F6B; margin:4mm 0 0 }}
 h1 {{ margin:2px 0 0; font-family:'Barlow Condensed',sans-serif; font-style:italic; font-weight:800; text-transform:uppercase; font-size:60px; line-height:.92 }}
 h1 span {{ color:#D6102B }}
-.to {{ margin:9mm 0 0; font-size:15px; font-weight:600; color:#3C3F48 }}
+.to {{ margin:6mm 0 0; font-size:15px; font-weight:600; color:#3C3F48 }}
 .name {{ margin:3mm 0 0; font-family:'Great Vibes',cursive; font-size:70px; line-height:1.05; border-bottom:1.5px solid #12141C; padding-bottom:2mm; max-width:170mm }}
 .why {{ margin:7mm 0 0; font-size:16px; line-height:1.5; max-width:175mm }}
 .why b {{ font-weight:700 }}
@@ -130,52 +130,58 @@ h1 span {{ color:#D6102B }}
 SPONSOR_FILES = [("toko-kuning.jpg", "Toko Kuning", "round"), ("kepopic-studio.jpg", "Kepopic Studio", ""), ("hellios-studio.png", "Hellios Studio", ""),
                  ("arsaka-toys.jpg", "Arsaka Toys", "square"), ("bebetoys.jpg", "bebetoys", ""), ("kourin-labs.jpg", "Kourin Labs", "")]
 def sponsor_certificate(f, name, shape):
-    # A4 portrait, centred: dark racing header, the sponsor's logo large, "Thank you", footer band.
+    # A4 landscape: dark racing header, the sponsor's logo large on the left, "Thank you" on the right, footer band.
     return f'''<!doctype html><html><head><meta charset="utf-8"><title>RCMI Photo Contest — sponsor certificate — {name}</title>{FONTS}
 <style>
-@page {{ size: 210mm 297mm; margin: 0 }}
+@page {{ size: 297mm 210mm; margin: 0 }}
 html,body {{ margin:0 }}
-.p {{ position:relative; width:210mm; height:297mm; overflow:hidden; background:#FBFAF7; color:#12141C; font-family:Barlow,sans-serif; display:flex; flex-direction:column; align-items:center; text-align:center }}
+.p {{ position:relative; width:297mm; height:210mm; overflow:hidden; background:#FBFAF7; color:#12141C; font-family:Barlow,sans-serif; display:flex; flex-direction:column }}
+.body {{ flex:1; display:grid; grid-template-columns:104mm 1fr; align-items:center; padding:0 16mm 0 12mm }}
+.left {{ display:flex; flex-direction:column; align-items:center; gap:6mm }}
+.right {{ display:flex; flex-direction:column; align-items:flex-start; text-align:left }}
 .c {{ font-family:'Barlow Condensed',sans-serif }}
-.head {{ position:relative; align-self:stretch; height:58mm; background:#0E0F13; color:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3mm; overflow:hidden }}
-.head img {{ width:58mm; height:auto }}
+.head {{ position:relative; height:34mm; background:#0E0F13; color:#fff; display:flex; align-items:center; gap:7mm; padding:0 16mm; overflow:hidden }}
+.head img {{ width:48mm; height:auto }}
 .head .k {{ font-weight:700; letter-spacing:.34em; text-transform:uppercase; font-size:12px; color:#C9CBD3 }}
 .head::before {{ content:""; position:absolute; left:-10mm; right:-10mm; bottom:0; height:4mm; background:repeating-linear-gradient(90deg,#fff 0 4mm,#0E0F13 4mm 8mm); opacity:.9 }}
 .head::after {{ content:""; position:absolute; left:0; right:0; bottom:4mm; height:1.6mm; background:#D6102B }}
-.stripe {{ position:absolute; top:0; right:18mm; width:9mm; height:58mm; background:#D6102B; transform:skewX(-18deg) }}
-.stripe.y {{ right:31mm; width:4mm; background:#FFC72C }}
-.eyebrow {{ margin:13mm 0 0; font-weight:700; letter-spacing:.34em; text-transform:uppercase; font-size:13px; color:#5B5F6B }}
-h1 {{ margin:1mm 0 0; font-family:'Barlow Condensed',sans-serif; font-style:italic; font-weight:800; text-transform:uppercase; font-size:92px; line-height:.88 }}
+.stripe {{ position:absolute; top:0; right:22mm; width:9mm; height:34mm; background:#D6102B; transform:skewX(-18deg) }}
+.stripe.y {{ right:35mm; width:4mm; background:#FFC72C }}
+.eyebrow {{ margin:0; font-weight:700; letter-spacing:.34em; text-transform:uppercase; font-size:13px; color:#5B5F6B }}
+h1 {{ margin:1mm 0 0; font-family:'Barlow Condensed',sans-serif; font-style:italic; font-weight:800; text-transform:uppercase; font-size:84px; line-height:.88 }}
 h1 span {{ color:#D6102B }}
-.logo {{ margin:10mm 0 0; height:52mm; display:flex; align-items:center; justify-content:center }}
-.logo img {{ max-height:46mm; max-width:120mm; width:auto; display:block; border-radius:8px }}
-.logo.round img {{ width:52mm; height:52mm; max-height:none; border-radius:50%; box-shadow:0 0 0 2.5mm #FFC72C }}
-.logo.square img {{ width:50mm; height:50mm; max-height:none }}
-.to {{ margin:9mm 0 0; font-size:15px; font-weight:600; color:#3C3F48 }}
-.name {{ margin:1mm 0 0; font-family:'Barlow Condensed',sans-serif; font-style:italic; font-weight:800; text-transform:uppercase; font-size:50px; line-height:1; padding:0 6mm 2mm; border-bottom:2px solid #12141C }}
-.why {{ margin:7mm 24mm 0; font-size:15.5px; line-height:1.55 }}
-.badge {{ margin-top:6mm; display:inline-flex; transform:skewX(-10deg) }}
+.logo {{ height:70mm; width:92mm; display:flex; align-items:center; justify-content:center }}
+.logo img {{ max-height:60mm; max-width:90mm; width:auto; display:block; border-radius:8px }}
+.logo.round img {{ width:64mm; height:64mm; max-height:none; border-radius:50%; box-shadow:0 0 0 2.5mm #FFC72C }}
+.logo.square img {{ width:64mm; height:64mm; max-height:none }}
+.to {{ margin:6mm 0 0; font-size:15px; font-weight:600; color:#3C3F48 }}
+.name {{ margin:1mm 0 0; font-family:'Barlow Condensed',sans-serif; font-style:italic; font-weight:800; text-transform:uppercase; font-size:52px; line-height:1; padding:0 6mm 2mm 0; border-bottom:2px solid #12141C }}
+.why {{ margin:5mm 0 0; font-size:15.5px; line-height:1.55; max-width:150mm }}
+.badge {{ margin-top:0; display:inline-flex; transform:skewX(-10deg) }}
 .badge span {{ padding:5px 14px; font-family:'Barlow Condensed',sans-serif; font-style:italic; font-weight:800; text-transform:uppercase; font-size:20px; letter-spacing:.04em }}
 .badge .a {{ background:#12141C; color:#fff }} .badge .b {{ background:#FFC72C }}
-.sigs {{ margin-top:auto; margin-bottom:9mm; display:flex; gap:24mm }}
-.sig {{ width:55mm; font-size:12px }}
+.sigs {{ margin-top:9mm; display:flex; gap:16mm }}
+.sig {{ width:55mm; font-size:12px; text-align:center }}
 .sig i {{ display:block; height:14mm }}
 .sig b {{ display:block; border-top:1.2px solid #12141C; padding-top:2mm; font-size:13px }}
-.foot {{ align-self:stretch; height:20mm; background:#12141C; color:#fff; display:flex; align-items:center; justify-content:space-between; padding:0 14mm; border-top:2mm solid #D6102B; font-size:12px }}
+.foot {{ height:16mm; background:#12141C; color:#fff; display:flex; align-items:center; justify-content:space-between; padding:0 14mm; border-top:2mm solid #D6102B; font-size:12px }}
 .foot b {{ font-family:'Barlow Condensed',sans-serif; font-style:italic; font-weight:800; font-size:20px; text-transform:uppercase; letter-spacing:.03em }}
 .foot span {{ color:#C9CBD3 }}
 </style></head><body><div class="p">
 <header class="head"><i class="stripe"></i><i class="stripe y"></i>
 <img src="../../../public/img/logo-white.png" alt="RCMI">
 <span class="k">RCMI Photo Contest {YEAR}</span></header>
+<div class="body">
+<div class="left"><div class="logo {shape}"><img src="../../../public/img/sponsors/{f}" alt="{name}"></div>
+<div class="badge"><span class="a">Official sponsor</span><span class="b">{YEAR}</span></div></div>
+<div class="right">
 <p class="eyebrow">Certificate of appreciation</p>
 <h1>Thank <span>you</span></h1>
-<div class="logo {shape}"><img src="../../../public/img/sponsors/{f}" alt="{name}"></div>
 <p class="to">Proudly presented to</p>
 <p class="name">{name}</p>
 <p class="why">for your valued support as an <b>official sponsor</b> of the <b>RCMI Photo Contest {YEAR}</b>, helping our community celebrate the art of 1:64 model car photography. Thank you for being part of our journey.</p>
-<div class="badge"><span class="a">Official sponsor</span><span class="b">{YEAR}</span></div>
 <div class="sigs"><div class="sig"><i></i><b>[Name]</b>Founder, RCMI</div><div class="sig"><i></i><b>[Name]</b>Contest committee</div></div>
+</div></div>
 <footer class="foot"><b>Resin Car Model Indonesia</b><span>{DATE} · rcmi-website.web.app · @resincarmodelindonesia</span></footer>
 </div></body></html>'''
 for i, (f, name, shape) in enumerate(SPONSOR_FILES, 1):
