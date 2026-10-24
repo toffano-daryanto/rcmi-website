@@ -1,0 +1,30 @@
+✅ contest status is "closed" (expected closed)
+✅ registered = 5 (expected 5: 4 with photos + 1 without)
+✅ registration numbers 0000001, 0000002, 0000003, 0000004, 0000005
+✅ Segy's 2nd photo kept his number (0000002) and took no extra spot
+✅ Gede (registered, no photo) is not in the ranking
+✅ 7 public votes stored (expected 7)
+✅ 10 jury scores stored (expected 2 judges × 5 photos = 10)
+
+Full ranking (each photo on its own):
+  1. Midnight NSX — Segy (member, 2 photos): jury 9.00, votes 3, final 93.0
+  2. NSX second angle — Segy (member, 2 photos): jury 8.00, votes 1, final 66.0
+  3. Tokyo AE86 — Budi (associate): jury 7.50, votes 1, final 62.5
+  4. Neon R34 in the rain — Anjas (member): jury 6.00, votes 1, final 52.0
+  5. Wangan Supra — Rina (associate): jury 5.00, votes 1, final 45.0
+
+✅ 4 winners announced (up to 5, one per person; 4 people had photos)
+✅ 🥇 expected Segy (member, 2 photos) "Midnight NSX" (93.0) — site announced Segy (member, 2 photos) "Midnight NSX" (93)
+✅ 🥈 expected Budi (associate) "Tokyo AE86" (62.5) — site announced Budi (associate) "Tokyo AE86" (62.5)
+✅ 🥉 expected Anjas (member) "Neon R34 in the rain" (52.0) — site announced Anjas (member) "Neon R34 in the rain" (52)
+✅ 4th expected Rina (associate) "Wangan Supra" (45.0) — site announced Rina (associate) "Wangan Supra" (45)
+✅ no one won twice (one prize per person)
+✅ Segy (member, 2 photos) got a "you won #1" notification
+✅ Budi (associate) got a "you won #2" notification
+✅ Anjas (member) got a "you won #3" notification
+✅ Rina (associate) got a "you won #4" notification
+✅ 4 "voting started" notifications (expected 4 people with photos, once each)
+✅ a judge disqualified Rina's entry and she got the notice
+✅ the judge reinstated it, so it's back in the ranking
+✅ tapping a notification in the bell marks it read (unread 2 → 1)
+✅ the tapped notification is saved as read in the database

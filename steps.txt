@@ -1,0 +1,89 @@
+
+▶ Admin creates the contest
+   jury members offered in the form: 2
+   📷 e2e-out/01-admin-new-contest-form.png
+   contest id: brYaeKNpv4i5BYIeLlxb
+   📷 e2e-out/02-draft.png
+
+▶ Admin opens registration
+   [admin] dialog: Move the contest to: Registration open? Everyone will see the change.
+   status badge: Registration open
+
+▶ Jury member tries to register (should be refused)
+   jury sees: ⚖️ You're on the jury, so you can't enter this contest.
+   📷 e2e-out/03-jury-cannot-enter.png
+
+▶ Anjas (member) registers and sends a photo
+   toast: You're registered | reg no: 0000001
+   📷 e2e-out/04-registered-step2.png
+   toast: Your photo is submitted
+
+▶ Segy (member, 2 photos) registers and sends a photo
+   toast: You're registered | reg no: 0000002
+   toast: Your photo is submitted
+
+▶ Segy adds a 2nd photo
+   toast: Your photo is submitted | photos shown: 2
+   📷 e2e-out/05-two-photos-submitted.png
+
+▶ Budi (associate) registers and sends a photo
+   toast: You're registered | reg no: 0000003
+   toast: Your photo is submitted
+
+▶ Rina (associate) registers and sends a photo
+   toast: You're registered | reg no: 0000004
+   toast: Your photo is submitted
+
+▶ Gede (member, no photo) registers (no photo)
+   toast: You're registered | reg no: 0000005
+
+▶ Admin checks participants, then starts voting
+   Participants (5 registered, 5 photos)
+   📷 e2e-out/06-admin-after-registration.png
+   [admin] dialog: Move the contest to: Voting? Everyone will see the change.
+
+▶ Public voting
+   m2 → m3: Vote saved.
+   📷 e2e-out/07-voting-page.png
+   Segy's own photos have a vote button? no (correct)
+   m3 → g1: Vote saved.
+   g1 → m3_2: Vote saved.
+   g2 → m3: Vote saved.
+   m4 → g2: Vote saved.
+   v1 → m3: Vote saved.
+   admin → m2: Vote saved.
+
+▶ Jury scores every photo
+   j1 sees 5 photos to score
+   j1 scored g1: Score saved (7.00).
+   j1 scored g2: Score saved (5.00).
+   j1 scored m2: Score saved (6.00).
+   j1 scored m3: Score saved (9.00).
+   j1 scored m3_2: Score saved (8.00).
+   📷 e2e-out/08-jury-scoring.png
+   j2 sees 5 photos to score
+   j2 scored g1: Score saved (8.00).
+   j2 scored g2: Score saved (5.00).
+   j2 scored m2: Score saved (6.00).
+   j2 scored m3: Score saved (9.00).
+   j2 scored m3_2: Score saved (8.00).
+
+▶ Judge disqualifies an entry, then reinstates it
+   [j2] dialog: Reason for disqualifying (the participant will see it):
+   disqualify: Saved. | shown as disqualified: 1
+   📷 e2e-out/09-jury-disqualified.png
+   reinstate: Saved. | still disqualified: 0
+
+▶ Admin closes voting (judging), then announces
+   [admin] dialog: Move the contest to: Judging? Everyone will see the change.
+   📷 e2e-out/10-admin-live-results.png
+   📷 e2e-out/11-announce-preview.png
+   toast: Winners announced 🎉
+
+▶ Everyone sees the winners (signed-out visitor)
+   podium: Midnight NSXSegy (member, 2 photos)Score 93.0 | Tokyo AE86Budi (associate)Score 62.5 | Neon R34 in the rainAnjas (member)Score 52.0 | Wangan SupraRina (associate)Score 45.0
+   📷 e2e-out/12-winners-public.png
+
+▶ Winner's notification bell
+   📷 e2e-out/14-winner-bell.png
+   unread before tapping: 2, after tapping one: 1
