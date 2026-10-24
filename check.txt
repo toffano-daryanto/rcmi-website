@@ -1,0 +1,42 @@
+Billing (Blaze): ON ✅
+Database location: asia-southeast2
+Service cloudfunctions: on
+Service cloudbuild: on
+Service artifactregistry: on
+Service run: on
+Service eventarc: on
+Service pubsub: on
+Service cloudscheduler: on
+Service storage: on
+Deploy account roles: roles/artifactregistry.admin, roles/cloudbuild.editor, roles/cloudfunctions.admin, roles/cloudscheduler.admin, roles/firebase.admin, roles/firebase.sdkAdminServiceAgent, roles/firebaseauth.admin, roles/iam.serviceAccountTokenCreator, roles/iam.serviceAccountUser, roles/serviceusage.serviceUsageAdmin, roles/serviceusage.serviceUsageConsumer
+Now: 2026-10-24 12:44:10 UTC
+Last job run by: schedule | user check: 2026-10-24 12:44:02 UTC | admin check: 2026-10-24 12:44:02 UTC
+Latest notifications:
+Function logs (last 30 min, 200):
+  12:44:02 notifyevery5min  schedule → admin: nothing new | users: nothing new | contest: 0 sent, 0 failed
+
+  12:44:02 notifyevery5min INFO 200
+  12:39:01 notifyevery5min  schedule → busy: the running job will pick this up
+
+  12:39:00 notifyevery5min INFO 200
+  12:37:19 onlisting INFO 
+  12:37:18 ondeletelog INFO 
+  12:37:18 oncontestentry INFO 
+  12:37:18 onsignup INFO 
+  12:37:18 onmessage INFO 
+  12:37:18 onpaymentproof INFO 
+  12:37:17 onnotice INFO 
+  12:37:17 ondeletelog INFO 
+  12:37:17 ondeletelog INFO Default STARTUP TCP probe succeeded after 1 attempt for container "worker" on port 8080.
+  12:37:17 onlisting INFO 
+  12:37:17 onsignup INFO 
+  12:37:17 oncontestentry INFO 
+  12:37:17 onlisting INFO Default STARTUP TCP probe succeeded after 1 attempt for container "worker" on port 8080.
+  12:37:17 onsignup INFO Default STARTUP TCP probe succeeded after 1 attempt for container "worker" on port 8080.
+  12:37:16 oncontestentry INFO Default STARTUP TCP probe succeeded after 1 attempt for container "worker" on port 8080.
+  12:37:16 onmessage INFO 
+  12:37:16 onpaymentproof INFO 
+  12:37:16 onmessage INFO Default STARTUP TCP probe succeeded after 1 attempt for container "worker" on port 8080.
+  12:37:16 onpaymentproof INFO Default STARTUP TCP probe succeeded after 1 attempt for container "worker" on port 8080.
+  12:37:16 onnotice INFO 
+  12:37:16 onnotice INFO Default STARTUP TCP probe succeeded after 1 attempt for container "worker" on port 8080.
