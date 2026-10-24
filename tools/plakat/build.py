@@ -91,7 +91,7 @@ def plaque_color(n):
 </style>""")
     h = h.replace("Photo<br>Contest<span", 'Photo<br><span class="r">Contest</span><span')
     # Space for the winning photo (3:2), between the place and the winner's name; everything else a bit tighter.
-    h = h.replace('<div class="blk"><p class="pre">Presented to</p>', '<div class="shot"><span>Winning photo</span></div>\n<div class="blk"><p class="pre">Presented to</p>')
+    h = h.replace('<div class="blk"><p class="pre">Presented to</p>', '<div class="shot"><img src="../../../public/img/contest/photo-r32.jpg" alt="Sample winning photo"><span>Sample</span></div>\n<div class="blk"><p class="pre">Presented to</p>')
     h = h.replace("</style>", """.p { padding:11mm 9mm 7mm }
 .t { font-size:40px } .k { font-size:13px } .by { font-size:9.5px; margin-top:4px }
 .flag { top:6px; right:-38px; transform:skewX(-20deg) scale(.8) }
@@ -100,7 +100,9 @@ def plaque_color(n):
 .msg { display:none }
 .shot { align-self:center; width:112mm; height:74.5mm; border:2px solid #FFC72C; border-radius:3px; display:grid; place-items:center;
   background:repeating-linear-gradient(135deg, rgba(255,255,255,.04) 0 10px, rgba(255,255,255,.08) 10px 20px) }
-.shot span { font-weight:800; letter-spacing:.24em; text-transform:uppercase; font-size:11px; color:#C9CBD3 }
+.shot { position:relative; overflow:hidden }
+.shot img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover }
+.shot span { position:absolute; right:6px; top:6px; background:#D6102B; color:#fff; font-weight:800; letter-spacing:.18em; text-transform:uppercase; font-size:9px; padding:3px 8px; border-radius:2px }
 .lg { height:54px } .lg.sm { height:36px }
 .div { margin:7px 0 5px }
 </style>""")

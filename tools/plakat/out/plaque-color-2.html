@@ -44,7 +44,9 @@ html,body { margin:0; }
 .msg { display:none }
 .shot { align-self:center; width:112mm; height:74.5mm; border:2px solid #FFC72C; border-radius:3px; display:grid; place-items:center;
   background:repeating-linear-gradient(135deg, rgba(255,255,255,.04) 0 10px, rgba(255,255,255,.08) 10px 20px) }
-.shot span { font-weight:800; letter-spacing:.24em; text-transform:uppercase; font-size:11px; color:#C9CBD3 }
+.shot { position:relative; overflow:hidden }
+.shot img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover }
+.shot span { position:absolute; right:6px; top:6px; background:#D6102B; color:#fff; font-weight:800; letter-spacing:.18em; text-transform:uppercase; font-size:9px; padding:3px 8px; border-radius:2px }
 .lg { height:54px } .lg.sm { height:36px }
 .div { margin:7px 0 5px }
 </style></head><body><div class="p">
@@ -54,7 +56,7 @@ html,body { margin:0; }
 <div class="by">by Resin Car Model Indonesia · 2026</div></div>
 <div class="blk"><div class="place c">2<sup>ND</sup> Place</div>
 <div class="ttl c">Runner-up</div></div>
-<div class="shot"><span>Winning photo</span></div>
+<div class="shot"><img src="../../../public/img/contest/photo-r32.jpg" alt="Sample winning photo"><span>Sample</span></div>
 <div class="blk"><p class="pre">Presented to</p>
 <p class="name">[Winner Name]</p>
 <p class="photo">for the photo “[Photo title]”</p></div>
