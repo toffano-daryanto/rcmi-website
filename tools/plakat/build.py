@@ -127,6 +127,29 @@ h1 span {{ color:#D6102B }}
 </main>
 </div></body></html>'''
 
+SPONSOR_FILES = [("toko-kuning.jpg", "Toko Kuning", "round"), ("kepopic-studio.jpg", "Kepopic Studio", ""), ("hellios-studio.png", "Hellios Studio", ""),
+                 ("arsaka-toys.jpg", "Arsaka Toys", "square"), ("bebetoys.jpg", "bebetoys", ""), ("kourin-labs.jpg", "Kourin Labs", "")]
+def sponsor_certificate(f, name, shape):
+    c = certificate(1)
+    # Side panel: the sponsor's logo instead of a medal.
+    c = c[:c.index('<div class="medal">')] + f'<div class="spl {shape}"><img src="../../../public/img/sponsors/{f}" alt="{name}"><small>Official sponsor</small></div>' + c[c.index('<div class="k">'):]
+    c = c.replace("<title>RCMI Photo Contest certificate — 1st place</title>", f"<title>RCMI Photo Contest — sponsor certificate — {name}</title>")
+    c = c.replace('<p class="eyebrow">Certificate of achievement</p>', '<p class="eyebrow">Certificate of appreciation</p>')
+    c = c.replace('<p class="to">This certificate is proudly presented to</p>', '<p class="to">Presented with appreciation to</p>')
+    c = c.replace('<p class="name">[Winner Name]</p>', f'<p class="name sp">{name}</p>')
+    a0 = c.index('<p class="why">'); a1 = c.index('</p>', a0) + 4
+    c = c[:a0] + f'<p class="why">For your valued support as an <b>official sponsor</b> of the <b>RCMI Photo Contest {YEAR}</b>, helping our community celebrate the art of 1:64 model car photography. Thank you for being part of our journey.</p>' + c[a1:]
+    c = c.replace('<div class="meta">Registration no. [0000000]<br>', '<div class="meta">')
+    c = c.replace("</style>", """.spl {{ align-self:center; display:flex; flex-direction:column; align-items:center; gap:5mm }}
+.spl img {{ display:block; max-width:52mm; max-height:40mm; width:auto; height:auto; border-radius:6px; background:#fff; padding:4mm; box-shadow:0 0 0 2px #FFC72C }}
+.spl.round img {{ width:46mm; height:46mm; max-height:none; border-radius:50%; padding:0 }}
+.spl.square img {{ width:44mm; height:44mm; max-height:none; padding:0 }}
+.spl small {{ font-weight:800; letter-spacing:.24em; text-transform:uppercase; font-size:12px; color:#FFC72C }}
+.name.sp {{ font-family:'Barlow Condensed',sans-serif; font-style:italic; font-weight:800; text-transform:uppercase; font-size:64px; line-height:1 }}
+</style>""".replace("{{", "{").replace("}}", "}"))
+    return c
+for i, (f, name, shape) in enumerate(SPONSOR_FILES, 1):
+    open(os.path.join(OUT, f"sponsor-{i}.html"), "w").write(sponsor_certificate(f, name, shape))
 for n in (1, 2, 3, 4, 5):
     open(os.path.join(OUT, f"plaque-{n}.html"), "w").write(plaque(n))
     open(os.path.join(OUT, f"certificate-{n}.html"), "w").write(certificate(n))
