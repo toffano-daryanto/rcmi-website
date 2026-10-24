@@ -1,0 +1,46 @@
+name: Deploy notification function
+
+# Deploys functions/ (instant email + phone notifications) to Firebase. Needs the Blaze plan.
+# Gmail settings go into functions/.env from the repo secrets at deploy time (never committed).
+on:
+  push:
+    branches: [main]
+    paths: ["functions/**", ".github/workflows/deploy-functions.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with: { node-version: 22 }
+      - name: Deploy
+        env:
+          SA_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          NOTIFY_TO: ${{ secrets.NOTIFY_TO }}
+        run: |
+          set -o pipefail
+          mkdir -p fnlog
+          printf '%s' "$SA_JSON" > "$RUNNER_TEMP/sa.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json"
+          (cd functions && npm install --no-audit --no-fund --silent)
+          REGION=$(SA_JSON_PATH="$RUNNER_TEMP/sa.json" node functions/scripts/region.js)
+          echo "Region: $REGION" | tee fnlog/deploy.txt
+          { echo "GMAIL_USER=$GMAIL_USER"; echo "GMAIL_APP_PASSWORD=$GMAIL_APP_PASSWORD"; echo "NOTIFY_TO=$NOTIFY_TO"; echo "FN_REGION=$REGION"; } > functions/.env
+          npx --yes firebase-tools@latest deploy --only functions --force --non-interactive 2>&1 | sed -E 's/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/<email>/g' | tee -a fnlog/deploy.txt
+          npx --yes firebase-tools@latest functions:artifacts:setpolicy --location "$REGION" --days 1 --force --non-interactive 2>&1 | tail -3 | tee -a fnlog/deploy.txt || true
+          rm -f functions/.env "$RUNNER_TEMP/sa.json"
+      - name: Save the deploy log (no secrets) to the tool-fnlog branch
+        if: always()
+        run: |
+          rm -f functions/.env
+          cd fnlog 2>/dev/null || exit 0
+          git init -q -b tool-fnlog && git add -A
+          git -c user.name=github-actions -c user.email=github-actions@users.noreply.github.com commit -qm "Function deploy log"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" tool-fnlog
