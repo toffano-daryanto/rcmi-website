@@ -4274,7 +4274,7 @@ const CT_STEPS = ["open", "voting", "judging", "closed"];
 const POSTER_V = "bee8c450";   // changed by tools/posters/render.mjs so phones fetch the new poster instead of an old cached copy
 const CT_POSTERS = ["r32", "f40"];
 // Contest sponsors in display order (logos in public/img/sponsors/) and jury (logos in public/img/jury/).
-const CT_SPONSORS = [{ name: "Toko Kuning", logo: "/img/sponsors/toko-kuning.jpg", round: true }, { name: "Kourin Labs", logo: "/img/sponsors/kourin-labs.jpg" }];
+const CT_SPONSORS = [{ name: "Toko Kuning", logo: "/img/sponsors/toko-kuning.jpg", round: true }, { name: "Hellios Studio", logo: "/img/sponsors/hellios-studio.png" }, { name: "Kourin Labs", logo: "/img/sponsors/kourin-labs.jpg" }];
 const CT_JURY_LOGOS = [{ name: "Diecast & Diorama", logo: "/img/jury/jury-chevron.png" }, { name: "Setsudo", logo: "/img/jury/setsudou.png" }, { name: "Ricky Robertus", logo: "/img/jury/ricky.png" }];
 const sponsorsHTML = () => `<div class="ct-sponsors">
   ${CT_SPONSORS.length ? `<small>${t("ct_sponsored_by")}</small>
