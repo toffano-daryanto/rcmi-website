@@ -19,6 +19,7 @@ jobs:
           (cd functions && npm install --no-audit --no-fund --silent)
           SA_JSON_PATH="$RUNNER_TEMP/sa.json" node functions/scripts/check.js | tee fnlog/check.txt
           SA_JSON_PATH="$RUNNER_TEMP/sa.json" node functions/scripts/status.js | tee -a fnlog/check.txt || true
+          SA_JSON_PATH="$RUNNER_TEMP/sa.json" node functions/scripts/contests.js | tee -a fnlog/check.txt || true
           rm -f "$RUNNER_TEMP/sa.json"
       - name: Save the result to the tool-fncheck branch
         if: always()
