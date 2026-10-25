@@ -1,0 +1,19 @@
+name: Set up the photo contest (one-off)
+# Creates / updates "RCMI Photo Contest 2026" as a draft that opens by itself on 1 Nov 2026 00:00 WIB.
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with: { node-version: 22 }
+      - env:
+          SA_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          printf '%s' "$SA_JSON" > "$RUNNER_TEMP/sa.json"
+          (cd functions && npm install --no-audit --no-fund --silent)
+          SA_JSON_PATH="$RUNNER_TEMP/sa.json" node functions/scripts/create-contest.js
+          rm -f "$RUNNER_TEMP/sa.json"

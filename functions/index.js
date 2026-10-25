@@ -8,6 +8,7 @@ import { setGlobalOptions } from "firebase-functions/v2";
 import { onDocumentCreated, onDocumentWritten } from "firebase-functions/v2/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { runAll } from "./lib/run-all.js";
+import { autoPhases } from "./lib/phases.js";
 
 initializeApp();
 const db = getFirestore();
@@ -33,4 +34,8 @@ export const onChat = onDocumentWritten("chats/{id}", async (e) => {
 // Contest registration confirmation.
 export const onContestEntry = onDocumentCreated("contests/{cid}/entries/{eid}", run("contest entry"));
 // Backup: catches anything missed, and unread private messages (after 3 minutes).
-export const notifyEvery5min = onSchedule({ schedule: "every 5 minutes", timeZone: "Asia/Jakarta" }, run("schedule"));
+export const notifyEvery5min = onSchedule({ schedule: "every 5 minutes", timeZone: "Asia/Jakarta" }, async () => {
+  // Contest phases on their dates first (registration opens / closes, voting closes), then the notifications.
+  try { console.log("phases →", await autoPhases(db)); } catch (e) { console.error("phases failed", e.message); }
+  await run("schedule")();
+});

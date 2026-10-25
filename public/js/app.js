@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792855572";
-import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792855572";
-import { GALLERY } from "./gallery-data.js?v=1792855572";
-import { SEED_EVENTS } from "./seed-events.js?v=1792855572";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792855572";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792855572";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792913396";
+import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792913396";
+import { GALLERY } from "./gallery-data.js?v=1792913396";
+import { SEED_EVENTS } from "./seed-events.js?v=1792913396";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792913396";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792913396";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -4304,7 +4304,6 @@ const CT_JURY_LOGOS = [{ name: "Diecast & Diorama", logo: "/img/jury/jury-chevro
 const sponsorsHTML = () => `<div class="ct-sponsors">
   ${CT_SPONSORS.length ? `<small>${t("ct_sponsored_by")}</small>
   <div class="ct-sponsor-logos">${CT_SPONSORS.map(sp => `<a class="ct-sp" href="${igUrl(sp.ig)}" target="_blank" rel="noopener" title="@${esc(sp.ig)} on Instagram"><figure><img class="${sp.round ? "round" : ""}" src="${sp.logo}" alt="${esc(sp.name)}" loading="lazy"><figcaption>${esc(sp.name)}<small>@${esc(sp.ig)}</small></figcaption></figure></a>`).join("")}</div>` : ""}
-  <small class="muted">${t("ct_more_sponsors")}</small>
   ${CT_JURY_LOGOS.length ? `<small class="ct-jury-h">${t("ct_jury_logos")}</small>
   <div class="ct-sponsor-logos ct-jury-logos">${CT_JURY_LOGOS.map(j => `<figure><img src="${j.logo}" alt="${esc(j.name)}" loading="lazy"><figcaption>${esc(j.name)}</figcaption></figure>`).join("")}</div>` : ""}
 </div>`;   // public/img/contest/poster-*.jpg (rendered from tools/posters)
@@ -4443,7 +4442,7 @@ function paintContest() {
 }
 function ctMainHTML(c) {
   const uid = state.user?.uid, me = ct.myEntry, ok = ct.entries.filter(ctOk);
-  if (c.status === "draft") return `<p class="mod-note">📝 ${t("ct_draft_note")}</p>`;
+  if (c.status === "draft") return `<p class="mod-note">📝 ${t("ct_draft_note")}${c.autoPhases && c.opensAt ? `<br>⏰ ${t("ct_auto_note", { d: ctWhen(c.opensAt) })}` : ""}</p>`;
   if (c.status === "open") {
     let box;
     if (!uid) box = `<p>${t("ct_need_account")}</p><button type="button" class="btn btn-mat" data-ct="signin">${t("sign_in")}</button>`;
@@ -4597,6 +4596,10 @@ async function openContestForm(c = null) {
       <label><span>${t("ct_prizes")}</span><textarea name="prizes" rows="3" maxlength="1000" placeholder="1st: …&#10;2nd: …&#10;3rd: …">${esc(c?.prizes || "")}</textarea></label>
       <label><span>${t("ct_rules")}</span><textarea name="rules" rows="4" maxlength="3000">${esc(c?.rules || t("ct_rules_default"))}</textarea></label>
       <div class="row2">
+        <label><span>${t("ct_f_opens")}</span><input type="datetime-local" name="opensAt" value="${c ? tsInput(c.opensAt) : ""}"></label>
+        <label class="lay-check ct-auto"><input type="checkbox" name="autoPhases" ${c?.autoPhases ? "checked" : ""}> <span>${t("ct_f_auto")}</span></label>
+      </div>
+      <div class="row2">
         <label><span>${t("ct_f_submit_end")}</span><input type="datetime-local" name="submitEnd" value="${c ? tsInput(c.submitEnd) : d0(plan.submitEnd)}"></label>
         <label><span>${t("ct_f_vote_end")}</span><input type="datetime-local" name="voteEnd" value="${c ? tsInput(c.voteEnd) : d0(plan.voteEnd)}"></label>
       </div>
@@ -4618,6 +4621,7 @@ async function openContestForm(c = null) {
     const data = {
       title: f.title.value.trim(), theme: f.theme.value.trim(), desc: f.desc.value.trim(), prizes: f.prizes.value.trim(), rules: f.rules.value.trim(),
       submitEnd: toTs(f.submitEnd.value), voteEnd: toTs(f.voteEnd.value), announceAt: toTs(f.announceAt.value),
+      opensAt: toTs(f.opensAt.value), autoPhases: !!f.autoPhases.checked,
       juryWeight: Math.max(0, Math.min(100, Number(f.juryWeight.value) || 0)), maxEntries: Math.max(1, Math.min(1000, parseInt(f.maxEntries.value, 10) || 100)), judges: [...f.querySelectorAll("[name=judge]:checked")].map(x => x.value)
     };
     try {
