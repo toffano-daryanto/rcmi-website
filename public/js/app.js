@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792919027";
-import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792919027";
-import { GALLERY } from "./gallery-data.js?v=1792919027";
-import { SEED_EVENTS } from "./seed-events.js?v=1792919027";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792919027";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792919027";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792919227";
+import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792919227";
+import { GALLERY } from "./gallery-data.js?v=1792919227";
+import { SEED_EVENTS } from "./seed-events.js?v=1792919227";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792919227";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792919227";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -4655,6 +4655,7 @@ async function setContestPhase(to) {
   const c = ct.cur;
   if (to === "announce") return openAnnounce();
   if (to === "voting" && !(c.judges || []).length && !confirm(t("ct_no_judges_confirm"))) return;
+  if (to === "open" && c.autoPhases && ms(c.opensAt) > Date.now() && !confirm(t("ct_open_early_confirm", { d: ctWhen(c.opensAt) }))) return;
   if (!confirm(t("ct_phase_confirm", { p: t("ct_ph_" + to) }))) return;
   try {
     // Keep the standard schedule when the dates are missing or already past: opening gives 2 weeks, voting 1 week.
