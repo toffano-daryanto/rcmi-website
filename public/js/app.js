@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792917825";
-import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792917825";
-import { GALLERY } from "./gallery-data.js?v=1792917825";
-import { SEED_EVENTS } from "./seed-events.js?v=1792917825";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792917825";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792917825";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792918430";
+import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792918430";
+import { GALLERY } from "./gallery-data.js?v=1792918430";
+import { SEED_EVENTS } from "./seed-events.js?v=1792918430";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792918430";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792918430";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -4323,7 +4323,11 @@ const CT_WEIGHT = { theme: 1.5 };
 const ctWeight = (k) => CT_WEIGHT[k] || 1;
 const ct = { list: null, cur: null, entries: [], myEntry: null, myEntry2: null, myVote: null, myScores: {}, allScores: null, allVotes: null, jurors: null, tok: 0 };
 const br = (x) => esc(x).replace(/\n/g, "<br>");
-const ctWhen = (ts) => toDate(ts) ? `${fmtDate(ts, { day: "numeric", month: "short", year: "numeric" })}, ${toDate(ts).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" })}` : "";
+// Contest times are shown in WIB (Jakarta) for everyone, wherever they are.
+const WIB = { timeZone: "Asia/Jakarta" };
+const ctWhen = (ts) => toDate(ts) ? `${toDate(ts).toLocaleDateString(locale(), { day: "numeric", month: "short", year: "numeric", ...WIB })}, ${toDate(ts).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit", ...WIB })} WIB` : "";
+const ctDay = (ts, year = true) => toDate(ts) ? toDate(ts).toLocaleDateString(locale(), { day: "numeric", month: "short", ...(year ? { year: "numeric" } : {}), ...WIB }) : "";
+const ctRange = (a, b) => toDate(a) && toDate(b) ? `${ctDay(a, false)} – ${ctDay(b)}` : ctDay(b || a);
 const ctOk = (e) => !!e.photo && (e.status || "ok") === "ok";
 const regNo = (n) => n ? String(n).padStart(7, "0") : "";
 // Up to 2 photos per person: photo 1 is the registration doc (id = uid), photo 2 is a second doc (id = uid_2).
@@ -4421,9 +4425,12 @@ function paintContest() {
   const isJudge = !!uid && (c.judges || []).includes(uid) && isJury();
   const jw = c.juryWeight ?? 70;
   const si = CT_STEPS.indexOf(c.status);
+  // Each step shows its dates: registration 1 – 15 Nov, voting 16 – 22 Nov, then judging / winners.
+  const after = (ts) => toDate(ts) ? Timestamp.fromDate(new Date(toDate(ts).getTime() + 60000)) : null;
   const dateFor = (p) => {
-    const d = { open: c.submitEnd, voting: c.voteEnd, judging: c.announceAt, closed: c.announcedAt || c.announceAt }[p];
-    return d ? `<small>${ctWhen(d)}</small>` : "";
+    const d = { open: ctRange(c.opensAt || c.openAt, c.submitEnd), voting: ctRange(after(c.submitEnd), c.voteEnd),
+      judging: ctDay(c.announceAt), closed: ctDay(c.announcedAt || c.announceAt) }[p];
+    return d ? `<small>${d}</small>` : "";
   };
   root.innerHTML = `
     <a class="btn btn-ghost ct-back" href="#/contest">← ${t("ct_all")}</a>
