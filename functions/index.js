@@ -9,6 +9,7 @@ import { onDocumentCreated, onDocumentWritten } from "firebase-functions/v2/fire
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { runAll } from "./lib/run-all.js";
 import { autoPhases } from "./lib/phases.js";
+import { giveGeneralNo, giveMissingGeneralNos } from "./lib/numbers.js";
 
 initializeApp();
 const db = getFirestore();
@@ -20,6 +21,11 @@ const run = (why) => async () => { console.log(why, "→", await runAll(db, cfg(
 export const onNotice = onDocumentCreated("notices/{id}", run("notice"));
 // Admin alerts.
 export const onSignup = onDocumentCreated("users/{id}", run("signup"));
+// Associate Member number as soon as the account is active (at sign-up, or when an admin approves it).
+export const onUserNumber = onDocumentWritten("users/{id}", async (e) => {
+  const b = e.data?.after?.data();
+  if (b && b.accountType === "general" && b.status === "approved" && !b.generalNo) console.log("number →", await giveGeneralNo(db, e.params.id));
+});
 export const onMessage = onDocumentCreated("messages/{id}", run("message"));
 export const onPaymentProof = onDocumentWritten("joinPayments/{id}", run("payment"));
 export const onDeleteLog = onDocumentCreated("deleteLog/{id}", run("deletelog"));
@@ -37,5 +43,6 @@ export const onContestEntry = onDocumentCreated("contests/{cid}/entries/{eid}", 
 export const notifyEvery5min = onSchedule({ schedule: "every 5 minutes", timeZone: "Asia/Jakarta" }, async () => {
   // Contest phases on their dates first (registration opens / closes, voting closes), then the notifications.
   try { console.log("phases →", await autoPhases(db)); } catch (e) { console.error("phases failed", e.message); }
+  try { console.log("numbers →", await giveMissingGeneralNos(db)); } catch (e) { console.error("numbers failed", e.message); }
   await run("schedule")();
 });

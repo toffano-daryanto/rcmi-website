@@ -67,3 +67,19 @@ test("contest news is in English and Bahasa Indonesia", async () => {
   assert.match(m.html, /Congratulations/); assert.match(m.html, /Selamat/);
   assert.doesNotMatch(m.subject, /Selamat/, "subject stays short (English)");
 });
+
+test("associate members get a number automatically, once, in order", async () => {
+  const { giveGeneralNo, giveMissingGeneralNos } = await import("../lib/numbers.js");
+  await db.doc("counters/general").set({ seq: 7 });
+  await db.doc("users/g1").set({ displayName: "G1", accountType: "general", status: "approved", createdAt: Timestamp.now() });
+  await db.doc("users/g2").set({ displayName: "G2", accountType: "general", status: "pending", createdAt: Timestamp.now() });
+  await giveMissingGeneralNos(db);
+  assert.equal((await db.doc("users/g1").get()).data().generalNo, 8);
+  assert.equal((await db.doc("users/g2").get()).data().generalNo, undefined, "not before approval");
+  await Promise.all([giveGeneralNo(db, "g1"), giveGeneralNo(db, "g1")]);
+  assert.equal((await db.doc("users/g1").get()).data().generalNo, 8, "never a second number");
+  await db.doc("users/g2").update({ status: "approved" });
+  await giveGeneralNo(db, "g2");
+  assert.equal((await db.doc("users/g2").get()).data().generalNo, 9);
+  assert.equal((await db.doc("counters/general").get()).data().seq, 9);
+});
