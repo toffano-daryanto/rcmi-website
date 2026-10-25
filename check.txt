@@ -1,0 +1,62 @@
+Billing (Blaze): ON ✅
+Database location: asia-southeast2
+Service cloudfunctions: on
+Service cloudbuild: on
+Service artifactregistry: on
+Service run: on
+Service eventarc: on
+Service pubsub: on
+Service cloudscheduler: on
+Service storage: on
+Deploy account roles: roles/artifactregistry.admin, roles/cloudbuild.editor, roles/cloudfunctions.admin, roles/cloudscheduler.admin, roles/firebase.admin, roles/firebase.sdkAdminServiceAgent, roles/firebaseauth.admin, roles/iam.serviceAccountTokenCreator, roles/iam.serviceAccountUser, roles/serviceusage.serviceUsageAdmin, roles/serviceusage.serviceUsageConsumer
+Now: 2026-10-25 09:23:54 UTC
+Last job run by: signup | user check: 2026-10-25 09:21:05 UTC | admin check: 2026-10-25 09:21:02 UTC
+Latest notifications:
+Function logs (last 30 min, 200):
+  09:21:29 onusernumber INFO 200
+  09:21:20 onusernumber INFO 200
+  09:21:05 onsignup  signup → admin: 1 new sign-up | users: nothing new | contest: 0 sent, 0 failed
+
+  09:21:03 onusernumber INFO 200
+  09:21:02 onusernumber  number → 6
+
+  09:21:02 onusernumber INFO Default STARTUP TCP probe succeeded after 1 attempt for container "worker" on port 8080.
+  09:21:02 onsignup INFO Default STARTUP TCP probe succeeded after 1 attempt for container "worker" on port 8080.
+  09:21:00 onusernumber INFO Starting new instance. Reason: AUTOSCALING - Instance started due to configured scaling factors (e.g. CPU utilization, request throughput, etc.) or no existing 
+  09:21:00 onusernumber INFO 200
+  09:21:00 onsignup INFO Starting new instance. Reason: AUTOSCALING - Instance started due to configured scaling factors (e.g. CPU utilization, request throughput, etc.) or no existing 
+  09:21:00 onsignup INFO 200
+  09:19:01 notifyevery5min  schedule → admin: nothing new | users: nothing new | contest: 0 sent, 0 failed
+
+  09:19:01 notifyevery5min  numbers → 0 associate number(s) given
+
+  09:19:01 notifyevery5min  phases → no phase changes
+
+  09:19:01 notifyevery5min INFO 200
+  09:14:01 notifyevery5min  schedule → admin: nothing new | users: nothing new | contest: 0 sent, 0 failed
+
+  09:14:01 notifyevery5min  numbers → 0 associate number(s) given
+
+  09:14:01 notifyevery5min  phases → no phase changes
+
+  09:14:01 notifyevery5min INFO 200
+  09:09:02 notifyevery5min  schedule → admin: nothing new | users: nothing new | contest: 0 sent, 0 failed
+
+  09:09:01 notifyevery5min  numbers → 0 associate number(s) given
+
+  09:09:01 notifyevery5min  phases → no phase changes
+
+  09:09:01 notifyevery5min INFO 200
+  09:04:02 notifyevery5min  schedule → admin: nothing new | users: nothing new | contest: 0 sent, 0 failed
+
+  09:04:02 notifyevery5min  numbers → 0 associate number(s) given
+
+Contests: 1
+  prizes: "🥇 1st place: Certificate + Rp 500.000 cash + prizes from Kepopic Studio & Hellios Studio\n🥈 2nd place: Certificate + Rp 300.000 cash + prizes from Kepopic Studio & Hellios Studio\n🥉 3rd place: Certificate + Rp 200.000 cash + prizes from Kepopic Studio & Hellios Studio\n4th place: Certificate + a miniscale model\n5th place: Certificate + a miniscale model\n\n— Bahasa Indonesia —\n🥇 Juara 1: Sertifikat + uang tunai Rp 500.000 + hadiah dari Kepopic Studio & Hellios Studio\n🥈 Juara 2: Sertifikat + uang tunai Rp 300.000 + hadiah dari Kepopic Studio & Hellios Studio\n🥉 Juara 3: Sertifikat + uang tunai Rp 200.000 + hadiah dari Kepopic Studio & Hellios Studio\nJuara 4: Sertifikat + model miniscale\nJuara 5: Sertifikat + model miniscale"
+  openAt(phase): - | opensAt: 2026-10-31T17:00Z | autoPhases: true
+  jZ23AUkz7PJNjUQFMZUb | RCMI Photo Contest 2026 | draft | public: false | submitEnd 2026-11-15T16:59Z | voteEnd 2026-11-22T16:59Z | judges: 2 | registered: 0
+Jury accounts: 2
+  jury: Kourin Labs | approved
+  jury: Om DD | approved
+Associate members (active): 6 | with a number: 6 | numbers: A-0001, A-0002, A-0003, A-0004, A-0005, A-0006
+  No account named like Diecast & Diorama yet.
