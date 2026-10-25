@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792917515";
-import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792917515";
-import { GALLERY } from "./gallery-data.js?v=1792917515";
-import { SEED_EVENTS } from "./seed-events.js?v=1792917515";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792917515";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792917515";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792917778";
+import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792917778";
+import { GALLERY } from "./gallery-data.js?v=1792917778";
+import { SEED_EVENTS } from "./seed-events.js?v=1792917778";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792917778";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792917778";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -4294,7 +4294,11 @@ $("#btn-install-3")?.addEventListener("click", () => installApp());
    → voting (everyone signed in: 1 vote; jury scores blind on 4 criteria) → judging (jury only) → admin announces winners. */
 const CT_STEPS = ["open", "voting", "judging", "closed"];
 const POSTER_V = "b44587d4";   // changed by tools/posters/render.mjs so phones fetch the new poster instead of an old cached copy
-const CT_POSTERS = ["r32", "f40", "guide"];
+const CT_POSTERS = ["r32", "f40", "prizes", "guide"];
+// Prizes of the current contest (also on the "coming soon" card before it opens).
+const CT_PRIZES = [{ n: 1, cash: "Rp 500.000", sp: true }, { n: 2, cash: "Rp 300.000", sp: true }, { n: 3, cash: "Rp 200.000", sp: true }, { n: 4, mini: true }, { n: 5, mini: true }];
+const prizesHTML = () => `<div class="ct-prizes"><h3>🏆 ${t("ct_prizes")}</h3><ol>${CT_PRIZES.map(p => `<li class="pz${p.n}"><b>${["🥇", "🥈", "🥉", "4", "5"][p.n - 1]}</b>
+  <span>${p.cash ? `<strong>${p.cash} ${t("ct_pz_cash")}</strong>` : `<strong>${t("ct_pz_mini")}</strong>`}<small>${[t("ct_pz_cert"), ...(p.sp ? [t("ct_pz_from", { s: "Kepopic Studio" }), t("ct_pz_from", { s: "Hellios Studio" })] : [])].join(" · ")}</small></span></li>`).join("")}</ol></div>`;
 // Contest sponsors in display order (logos in public/img/sponsors/) and jury (logos in public/img/jury/).
 const CT_SPONSORS = [{ name: "Toko Kuning", logo: "/img/sponsors/toko-kuning.jpg", ig: "toko_kuning_", round: true }, { name: "Kepopic Studio", logo: "/img/sponsors/kepopic-studio.jpg", ig: "kepopic.studio" }, { name: "Hellios Studio", logo: "/img/sponsors/hellios-studio.png", ig: "helliosstudio" }, { name: "Arsaka Toys", logo: "/img/sponsors/arsaka-toys.jpg", ig: "arsaka16", square: true }, { name: "bebetoys", logo: "/img/sponsors/bebetoys.jpg", ig: "bebet0ys" }, { name: "Kourin Labs", logo: "/img/sponsors/kourin-labs.jpg", ig: "kourinlabs" }];
 const igUrl = (h) => `https://www.instagram.com/${encodeURIComponent(h)}/`;
@@ -4355,6 +4359,7 @@ async function renderContestRoute() {
     ${ct.list.some(c => c.status !== "draft") ? "" : `<div class="ct-soon">
       <span class="ct-badge ph-open">${t("ct_soon_badge")}</span>
       <h2>📸 ${t("ct_soon_t")}</h2><p>${t("ct_soon_d")}</p>
+      ${prizesHTML()}
       <dl><dt>${t("ct_step_open")}</dt><dd>${t("ct_sched_open")}</dd><dt>${t("ct_step_voting")}</dt><dd>${t("ct_sched_vote")}</dd><dt>${t("ct_step_closed")}</dt><dd>${t("ct_sched_closed")}</dd><dt>${t("ct_participants")}</dt><dd>${t("ct_max_n", { n: 100 })}</dd><dt>${t("ct_winners")}</dt><dd>🥇 🥈 🥉 4 5</dd></dl>
       ${state.user ? "" : `<button type="button" class="btn btn-mat" data-ct="signin">${t("ct_soon_cta")}</button>`}
     </div>
@@ -4817,7 +4822,7 @@ async function renderHomeContest() {
     box.hidden = false;
     box.innerHTML = `<a class="ct-home soon" href="#/contest">
       <span class="ct-home-ic poster"><img src="/img/contest/poster-r32.jpg?v=${POSTER_V}" alt=""></span>
-      <span class="ct-home-t"><small>${t("ct_soon_badge")}</small><b>${t("ct_soon_t")}</b><span>${t("ct_soon_d")}</span>
+      <span class="ct-home-t"><small>${t("ct_soon_badge")}</small><b>${t("ct_soon_t")}</b><span>${t("ct_soon_d")}</span><span class="ct-home-pz">🏆 ${t("ct_pz_line")}</span>
         ${CT_SPONSORS.length ? `<span class="ct-home-sp"><small>${t("ct_sponsored_by")}</small><span class="ct-home-sp-logos">${CT_SPONSORS.map(sp => `<span><img class="${sp.round ? "round" : sp.square ? "square" : ""}" src="${sp.logo}" alt="${esc(sp.name)}" title="${esc(sp.name)}"></span>`).join("")}</span></span>` : ""}</span>
       <em>${t("ct_soon_badge")}</em></a>`;
     return;

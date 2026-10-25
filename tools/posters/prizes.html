@@ -1,0 +1,107 @@
+<!doctype html>
+<!-- Prizes poster (rendered by .github/workflows/render-posters.yml to public/img/contest/poster-prizes.jpg). -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>RCMI Photo Contest — prizes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;1,700;1,800&amp;family=Barlow:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body { margin: 0; }
+.p { position: relative; width: 1080px; height: 1350px; overflow: hidden; background: #0E0F13; color: #fff; font-family: Barlow, system-ui, sans-serif; }
+.cond { font-family: 'Barlow Condensed', sans-serif; }
+.top { position: absolute; left: 64px; right: 64px; top: 52px; display: flex; justify-content: space-between; align-items: center; }
+.tag { background: #fff; color: #0E0F13; font-style: italic; font-weight: 800; font-size: 26px; letter-spacing: .08em; text-transform: uppercase; padding: 6px 16px; }
+.head { position: absolute; left: 64px; right: 64px; top: 140px; }
+.kick { margin: 0; font-weight: 700; font-size: 24px; letter-spacing: .32em; text-transform: uppercase; color: #C9CBD3; }
+h1 { margin: 2px 0 0; font-style: italic; font-weight: 800; font-size: 84px; line-height: .92; text-transform: uppercase; }
+h1 span { color: #D6102B; }
+.steps { position: absolute; left: 64px; right: 64px; top: 268px; display: flex; flex-direction: column; gap: 0; }
+.step { display: grid; grid-template-columns: 112px 1fr; gap: 22px; padding: 10px 12px 9px 0; border-top: 2px solid rgba(255,255,255,.16); }
+.num { font-style: italic; font-weight: 800; font-size: 88px; line-height: .82; color: #D6102B; text-align: right; }
+.step h2 { margin: 0 0 7px; font-style: italic; font-weight: 800; font-size: 42px; line-height: 1; text-transform: uppercase; }
+.step h2 small { font-size: 24px; color: #FFC72C; font-style: normal; letter-spacing: .06em; margin-left: 8px; }
+ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 5px; }
+li { position: relative; padding-left: 24px; font-size: 21px; line-height: 1.2; font-weight: 500; color: #E4E5EA; }
+li::before { content: ""; position: absolute; left: 0; top: 10px; width: 10px; height: 10px; background: #FFC72C; transform: skewX(-12deg); }
+li b { color: #fff; font-weight: 700; }
+.crit { display: flex; flex-wrap: wrap; gap: 8px; margin: 2px 0 4px; }
+.crit span { border: 2px solid rgba(255,255,255,.55); border-radius: 999px; padding: 3px 13px; font-size: 19px; font-weight: 700; }
+.crit span.x { border-color: #FFC72C; color: #FFC72C; }
+.score { display: inline-flex; align-items: stretch; transform: skewX(-8deg); margin-top: 6px; }
+.score span { padding: 6px 16px; font-family: 'Barlow Condensed', sans-serif; font-style: italic; font-weight: 800; font-size: 28px; text-transform: uppercase; }
+.score .a { background: #FFC72C; color: #0E0F13; } .score .b { background: #D6102B; }
+.foot { position: absolute; left: 0; right: 0; bottom: 0; height: 132px; background: #16181F; border-top: 4px solid #D6102B; box-sizing: border-box; padding: 0 64px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+.foot .k { font-weight: 700; font-size: 22px; letter-spacing: .18em; text-transform: uppercase; color: #FFC72C; }
+.foot .u { font-style: italic; font-weight: 800; font-size: 44px; line-height: 1; }
+.so { display: flex; flex-direction: column; gap: 8px; font-size: 23px; font-weight: 700; }
+.so span { display: flex; align-items: center; gap: 10px; }
+.prz { position: absolute; left: 64px; right: 64px; top: 272px; display: flex; flex-direction: column; }
+.pr { display: grid; grid-template-columns: 170px 1fr; gap: 24px; align-items: center; padding: 16px 0; border-top: 2px solid rgba(255,255,255,.16); }
+.pr.small { padding: 12px 0; }
+.rk { font-family: 'Barlow Condensed', sans-serif; font-style: italic; font-weight: 800; font-size: 96px; line-height: .8; text-align: right; }
+.rk sup { font-size: .42em; vertical-align: 1em; margin-left: 2px; }
+.small .rk { font-size: 64px; }
+.r1 { color: #F6C343; } .r2 { color: #D4D8DE; } .r3 { color: #D9955A; } .r4 { color: #D6102B; }
+.cash { font-family: 'Barlow Condensed', sans-serif; font-style: italic; font-weight: 800; font-size: 58px; line-height: .95; text-transform: uppercase; color: #FFC72C; }
+.cash small { font-size: 26px; color: #fff; margin-left: 8px; letter-spacing: .04em; }
+.small .cash { font-size: 40px; color: #fff; }
+.items { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; align-items: center; }
+.items span { display: inline-flex; align-items: center; gap: 8px; border: 2px solid rgba(255,255,255,.5); border-radius: 999px; padding: 4px 14px 4px 6px; font-size: 20px; font-weight: 700; }
+.items span.nb { padding-left: 14px; }
+.items img { height: 30px; width: auto; border-radius: 4px; display: block; background: #fff; }
+.items img.dark { background: none; }
+</style>
+</head>
+<body>
+<div class="p">
+  <div class="top">
+    <img src="../../public/img/logo-white.png" alt="RCMI — Resin Car Model Indonesia" style="width: 200px; height: auto; display: block">
+    <div class="tag cond">Opens 1 Nov</div>
+  </div>
+  <div class="head">
+    <p class="kick cond">RCMI Photo Contest</p>
+    <h1 class="cond">The <span>prizes</span></h1>
+  </div>
+
+  <div class="prz">
+    <div class="pr"><div class="rk r1">1<sup>ST</sup></div><div><div class="cash">Rp 500.000<small>cash</small></div><div class="items"><span class="nb">🏅 Certificate</span><span><img src="../../public/img/sponsors/kepopic-studio.jpg" alt="">Kepopic Studio prize</span><span><img class="dark" src="../../public/img/sponsors/hellios-studio.png" alt="">Hellios Studio prize</span></div></div></div>
+    <div class="pr"><div class="rk r2">2<sup>ND</sup></div><div><div class="cash">Rp 300.000<small>cash</small></div><div class="items"><span class="nb">🏅 Certificate</span><span><img src="../../public/img/sponsors/kepopic-studio.jpg" alt="">Kepopic Studio prize</span><span><img class="dark" src="../../public/img/sponsors/hellios-studio.png" alt="">Hellios Studio prize</span></div></div></div>
+    <div class="pr"><div class="rk r3">3<sup>RD</sup></div><div><div class="cash">Rp 200.000<small>cash</small></div><div class="items"><span class="nb">🏅 Certificate</span><span><img src="../../public/img/sponsors/kepopic-studio.jpg" alt="">Kepopic Studio prize</span><span><img class="dark" src="../../public/img/sponsors/hellios-studio.png" alt="">Hellios Studio prize</span></div></div></div>
+    <div class="pr small"><div class="rk r4">4<sup>TH</sup></div><div><div class="cash">Miniscale model</div><div class="items"><span class="nb">🏅 Certificate</span></div></div></div>
+    <div class="pr small"><div class="rk r4">5<sup>TH</sup></div><div><div class="cash">Miniscale model</div><div class="items"><span class="nb">🏅 Certificate</span></div></div></div>
+  </div>
+
+  <div style="position: absolute; left: 64px; right: 64px; top: 1048px; height: 158px; border-top: 2px solid rgba(255,255,255,.16); display: flex; align-items: center; justify-content: center">
+<div style="display: flex; align-items: stretch; gap: 26px">
+<div style="display: flex; flex-direction: column; gap: 8px">
+<span style="font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 17px; letter-spacing: 0.2em; text-transform: uppercase; color: #C9CBD3; line-height: 1">Sponsored by</span>
+<div style="display: flex; align-items: flex-end; gap: 12px">
+<span style="display: flex; flex-direction: column; align-items: center; gap: 5px"><span style="height: 72px; display: flex; align-items: center; justify-content: center"><img src="../../public/img/sponsors/toko-kuning.jpg" alt="Toko Kuning" style="width: 72px; height: 72px; border-radius: 50%; display: block"></span><span style="font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 13px; letter-spacing: 0.04em; text-transform: uppercase; color: #FFFFFF; line-height: 1; white-space: nowrap">Toko Kuning</span></span>
+<span style="display: flex; flex-direction: column; align-items: center; gap: 5px"><span style="height: 72px; display: flex; align-items: center; justify-content: center"><img src="../../public/img/sponsors/kepopic-studio.jpg" alt="Kepopic Studio" style="height: 40px; width: auto; display: block; border-radius: 4px"></span><span style="font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 13px; letter-spacing: 0.04em; text-transform: uppercase; color: #FFFFFF; line-height: 1; white-space: nowrap">Kepopic Studio</span></span>
+<span style="display: flex; flex-direction: column; align-items: center; gap: 5px"><span style="height: 72px; display: flex; align-items: center; justify-content: center"><img src="../../public/img/sponsors/hellios-studio.png" alt="Hellios Studio" style="height: 60px; width: auto; display: block"></span><span style="font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 13px; letter-spacing: 0.04em; text-transform: uppercase; color: #FFFFFF; line-height: 1; white-space: nowrap">Hellios Studio</span></span>
+<span style="display: flex; flex-direction: column; align-items: center; gap: 5px"><span style="height: 72px; display: flex; align-items: center; justify-content: center"><img src="../../public/img/sponsors/arsaka-toys.jpg" alt="Arsaka Toys" style="width: 72px; height: 72px; border-radius: 10px; display: block"></span><span style="font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 13px; letter-spacing: 0.04em; text-transform: uppercase; color: #FFFFFF; line-height: 1; white-space: nowrap">Arsaka Toys</span></span>
+<span style="display: flex; flex-direction: column; align-items: center; gap: 5px"><span style="height: 72px; display: flex; align-items: center; justify-content: center"><img src="../../public/img/sponsors/bebetoys.jpg" alt="bebetoys" style="height: 40px; width: auto; display: block; border-radius: 6px"></span><span style="font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 13px; letter-spacing: 0.04em; text-transform: uppercase; color: #FFFFFF; line-height: 1; white-space: nowrap">bebetoys</span></span>
+<span style="display: flex; flex-direction: column; align-items: center; gap: 5px"><span style="height: 72px; display: flex; align-items: center; justify-content: center"><img src="../../public/img/sponsors/kourin-labs.jpg" alt="Kourin Labs" style="height: 40px; width: auto; display: block; border-radius: 4px"></span><span style="font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 13px; letter-spacing: 0.04em; text-transform: uppercase; color: #FFFFFF; line-height: 1; white-space: nowrap">Kourin Labs</span></span>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px; padding-bottom: 25px; margin-left: 28px">
+<span style="font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 17px; letter-spacing: 0.2em; text-transform: uppercase; color: #C9CBD3; line-height: 1">Jury</span>
+<span style="display: flex; align-items: flex-end; gap: 12px; margin-top: auto"><span style="display: flex; flex-direction: column; align-items: center; gap: 5px"><span style="height: 72px; display: flex; align-items: center; justify-content: center"><img src="../../public/img/jury/jury-chevron.png" alt="Diecast &amp; Diorama" style="height: 40px; width: auto; display: block; border-radius: 6px"></span><span style="font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 13px; letter-spacing: 0.04em; text-transform: uppercase; color: #FFFFFF; line-height: 1; white-space: nowrap">Diecast &amp; Diorama</span></span><span style="display: flex; flex-direction: column; align-items: center; gap: 5px"><span style="height: 72px; display: flex; align-items: center; justify-content: center"><img src="../../public/img/jury/setsudou.png" alt="setsudou" style="height: 40px; width: auto; display: block; border-radius: 6px"></span><span style="font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 13px; letter-spacing: 0.04em; text-transform: uppercase; color: #FFFFFF; line-height: 1; white-space: nowrap">setsudou</span></span><span style="display: flex; flex-direction: column; align-items: center; gap: 5px"><span style="height: 72px; display: flex; align-items: center; justify-content: center"><img src="../../public/img/jury/ricky.png" alt="Ricky Robertus" style="height: 40px; width: auto; display: block; border-radius: 6px"></span><span style="font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 13px; letter-spacing: 0.04em; text-transform: uppercase; color: #FFFFFF; line-height: 1; white-space: nowrap">Ricky Robertus</span></span></span>
+</div>
+</div>
+  </div>
+
+  <div class="foot">
+    <div style="display: flex; flex-direction: column; gap: 4px">
+      <span class="k cond">Join at</span>
+      <span class="u cond">rcmi-website.web.app</span>
+    </div>
+    <div class="so">
+      <span><svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5" fill="none" stroke="#FFFFFF" stroke-width="2"></rect><circle cx="12" cy="12" r="4" fill="none" stroke="#FFFFFF" stroke-width="2"></circle><circle cx="17.5" cy="6.5" r="1.2" fill="#FFFFFF"></circle></svg>@resincarmodelindonesia</span>
+      <span><svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><path fill="#FFFFFF" d="M16.6 3c.3 2.3 1.7 3.8 4 4v3c-1.5.1-2.9-.3-4-1.1v6.4A5.8 5.8 0 1 1 10.8 9.6v3.1a2.8 2.8 0 1 0 2 2.7V3h3.8Z"></path></svg>@resincarmodelindonesia</span>
+    </div>
+  </div>
+</div>
+</body>
+</html>

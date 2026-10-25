@@ -1276,8 +1276,18 @@ span.rep-badge { cursor: default; }
 .ct-posters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-bottom: 16px; }
 .ct-posters button { padding: 0; border: 0; background: none; cursor: zoom-in; border-radius: var(--radius-m); overflow: hidden; box-shadow: 0 0 0 1px var(--line), 0 14px 30px -18px rgba(0,0,0,.5); }
 .ct-posters img { display: block; width: 100%; aspect-ratio: 4 / 5; object-fit: cover; }
-@media (min-width: 640px) { .ct-posters { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-@media (max-width: 639px) { .ct-posters button:nth-child(3) { grid-column: 1 / -1; justify-self: center; width: 70%; } }
+@media (min-width: 640px) { .ct-posters { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+/* Prize table (coming-soon card) */
+.ct-prizes { margin: 14px 0 6px; text-align: left; }
+.ct-prizes h3 { margin: 0 0 8px; font-size: 1.05rem; }
+.ct-prizes ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.ct-prizes li { display: grid; grid-template-columns: 34px 1fr; gap: 10px; align-items: center; padding: 8px 12px; border-radius: 8px; background: #fff; color: #12141C; box-shadow: 0 0 0 1px var(--line); }
+.ct-prizes li b { font-size: 1.4rem; text-align: center; font-family: var(--display); font-style: italic; color: var(--red); }
+.ct-prizes li span { display: grid; gap: 1px; }
+.ct-prizes li strong { font-size: 1.05rem; }
+.ct-prizes li small { color: #5B5F6B; font-size: .8rem; }
+.ct-prizes li.pz1 { box-shadow: 0 0 0 2px #F6C343; }
+.ct-home-pz { display: block; margin-top: 4px; color: var(--yellow); font-weight: 700; }
 .ct-guide { display: block; padding: 0; border: 0; background: none; cursor: zoom-in; margin: 8px 0 4px; width: min(100%, 420px); border-radius: var(--radius-m); overflow: hidden; }
 .ct-guide img { display: block; width: 100%; }
 .ct-home-ic.poster { width: 84px; height: 105px; border-radius: 8px; }
