@@ -11,3 +11,6 @@ cs.docs.forEach(d => { const c = d.data(); console.log("  prizes:", JSON.stringi
 const [a, b] = await Promise.all([db.collection("users").where("role", "==", "jury").get(), db.collection("users").where("roles", "array-contains", "jury").get()]);
 const j = new Map([...a.docs, ...b.docs].map(d => [d.id, d.data()]));
 console.log(`Jury accounts: ${j.size}`); [...j.values()].forEach(u => console.log("  jury:", u.displayName, "|", u.status));
+const gen = await db.collection("users").where("accountType", "==", "general").where("status", "==", "approved").get();
+const nos = gen.docs.map(d => d.data().generalNo).filter(Boolean).sort((a, b) => a - b);
+console.log(`Associate members (active): ${gen.size} | with a number: ${nos.length} | numbers: ${nos.map(n => "A-" + String(n).padStart(4, "0")).join(", ")}`);
