@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792918430";
-import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792918430";
-import { GALLERY } from "./gallery-data.js?v=1792918430";
-import { SEED_EVENTS } from "./seed-events.js?v=1792918430";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792918430";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792918430";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792918571";
+import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792918571";
+import { GALLERY } from "./gallery-data.js?v=1792918571";
+import { SEED_EVENTS } from "./seed-events.js?v=1792918571";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792918571";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792918571";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -4293,7 +4293,7 @@ $("#btn-install-3")?.addEventListener("click", () => installApp());
    Flow: admin creates (draft) → publishes: registration open (account needed; register, then submit 1 photo)
    → voting (everyone signed in: 1 vote; jury scores blind on 4 criteria) → judging (jury only) → admin announces winners. */
 const CT_STEPS = ["open", "voting", "judging", "closed"];
-const POSTER_V = "721e143a";   // changed by tools/posters/render.mjs so phones fetch the new poster instead of an old cached copy
+const POSTER_V = "5d107c81";   // changed by tools/posters/render.mjs so phones fetch the new poster instead of an old cached copy
 const CT_POSTERS = ["r32", "f40", "prizes", "guide"];
 // Prizes of the current contest (also on the "coming soon" card before it opens).
 const CT_PRIZES = [{ n: 1, cash: "Rp 500.000", sp: true }, { n: 2, cash: "Rp 300.000", sp: true }, { n: 3, cash: "Rp 200.000", sp: true }, { n: 4, mini: true }, { n: 5, mini: true }];
