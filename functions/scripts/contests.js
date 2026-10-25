@@ -14,3 +14,6 @@ console.log(`Jury accounts: ${j.size}`); [...j.values()].forEach(u => console.lo
 const gen = await db.collection("users").where("accountType", "==", "general").where("status", "==", "approved").get();
 const nos = gen.docs.map(d => d.data().generalNo).filter(Boolean).sort((a, b) => a - b);
 console.log(`Associate members (active): ${gen.size} | with a number: ${nos.length} | numbers: ${nos.map(n => "A-" + String(n).padStart(4, "0")).join(", ")}`);
+const dd = (await db.collection("users").get()).docs.filter(d => /diecast|diorama/i.test(d.data().displayName || ""));
+dd.forEach(d => { const u = d.data(); console.log("  Diecast & Diorama account:", u.displayName, "| status:", u.status, "| type:", u.accountType || "member", "| roles:", JSON.stringify(u.roles || [u.role])); });
+if (!dd.length) console.log("  No account named like Diecast & Diorama yet.");
