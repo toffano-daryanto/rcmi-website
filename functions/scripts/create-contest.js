@@ -31,7 +31,13 @@ const data = {
   autoPhases: true, juryWeight: 70, maxEntries: 100
 };
 const ex = (await db.collection("contests").where("title", "==", TITLE).get()).docs[0];
-if (ex && process.env.ONLY === "redraft") {
+if (ex && process.env.ONLY === "judges") {
+  // Jury panel = every active account with the Jury role (main role or one of several).
+  const [a, b] = await Promise.all([db.collection("users").where("role", "==", "jury").get(), db.collection("users").where("roles", "array-contains", "jury").get()]);
+  const ids = [...new Set([...a.docs, ...b.docs].filter(d => d.data().status === "approved").map(d => d.id))];
+  await ex.ref.update({ judges: ids }); console.log("Jury panel:", ids.length, "judge(s)");
+}
+else if (ex && process.env.ONLY === "redraft") {
   // Back to a hidden draft (only if nobody has registered yet); it opens by itself on opensAt.
   const c0 = ex.data();
   if ((c0.registered || 0) > 0) { console.log("Not changed: people have already registered."); process.exit(1); }
