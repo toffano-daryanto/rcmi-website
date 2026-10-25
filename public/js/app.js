@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1792918662";
-import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792918662";
-import { GALLERY } from "./gallery-data.js?v=1792918662";
-import { SEED_EVENTS } from "./seed-events.js?v=1792918662";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792918662";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792918662";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1792918939";
+import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1792918939";
+import { GALLERY } from "./gallery-data.js?v=1792918939";
+import { SEED_EVENTS } from "./seed-events.js?v=1792918939";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1792918939";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1792918939";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -4457,7 +4457,9 @@ function ctMainHTML(c) {
   if (c.status === "draft") return `<p class="mod-note">📝 ${t("ct_draft_note")}${c.autoPhases && c.opensAt ? `<br>⏰ ${t("ct_auto_note", { d: ctWhen(c.opensAt) })}` : ""}</p>`;
   if (c.status === "open") {
     let box;
-    if (!uid) box = `<p>${t("ct_need_account")}</p><button type="button" class="btn btn-mat" data-ct="signin">${t("sign_in")}</button>`;
+    const closed = toDate(c.submitEnd) && toDate(c.submitEnd).getTime() <= Date.now();   // deadline passed (the phase switches within minutes)
+    if (closed) box = `<h3>🔒 ${t("ct_reg_closed")}</h3><p class="muted">${t("ct_reg_closed_d")}</p>${me?.photo ? `<div class="ct-grid ${ct.myEntry2?.photo ? "two" : "one"}">${[me, ct.myEntry2].filter(e => e?.photo).map(e => entryCard(e)).join("")}</div>` : ""}`;
+    else if (!uid) box = `<p>${t("ct_need_account")}</p><button type="button" class="btn btn-mat" data-ct="signin">${t("sign_in")}</button>`;
     else if (state.profile?.status !== "approved") box = `<p>${t("ct_need_active")}</p>`;
     else if (isJury() || (c.judges || []).includes(uid)) box = `<p>⚖️ ${t("ct_jury_cant")}</p>`;
     else if (!me && (c.registered || 0) >= (c.maxEntries || 100)) box = `<h3>🚫 ${t("ct_full")}</h3><p class="muted">${t("ct_full_d")}</p>`;

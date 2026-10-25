@@ -162,7 +162,8 @@ service cloud.firestore {
               && request.resource.data.registered == resource.data.get('registered', 0) + 1
               && request.resource.data.registered <= resource.data.get('maxEntries', 100)
               && request.resource.data.regSeq == resource.data.get('regSeq', 0) + 1
-              && resource.data.status == 'open' && !exists(myEntry()) && existsAfter(myEntry())
+              && resource.data.status == 'open' && (resource.data.get('submitEnd', null) == null || request.time < resource.data.submitEnd)
+              && !exists(myEntry()) && existsAfter(myEntry())
               && getAfter(myEntry()).data.regNo == request.resource.data.regSeq)
           || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['registered'])
               && request.resource.data.registered == resource.data.get('registered', 0) - 1
@@ -178,11 +179,13 @@ service cloud.firestore {
         function spotTaken() {
           return getAfter(/databases/$(database)/documents/contests/$(cid)).data.get('registered', 0) == c().get('registered', 0) + 1;
         }
-        allow create: if approved() && signedIn() && eid == request.auth.uid && c().status == 'open' && spotTaken() && entryOk()
+        // Registration and photo changes stop exactly at the deadline (submitEnd), even before the phase switches.
+        function beforeDeadline() { return c().get('submitEnd', null) == null || request.time < c().submitEnd; }
+        allow create: if approved() && signedIn() && eid == request.auth.uid && c().status == 'open' && beforeDeadline() && spotTaken() && entryOk()
           && request.resource.data.regNo == getAfter(/databases/$(database)/documents/contests/$(cid)).data.regSeq;
-        allow create: if approved() && second() && c().status == 'open' && entryOk() && exists(firstDoc())
+        allow create: if approved() && second() && c().status == 'open' && beforeDeadline() && entryOk() && exists(firstDoc())
           && request.resource.data.photo != '' && request.resource.data.regNo == get(firstDoc()).data.regNo;
-        allow update: if approved() && mine() && c().status == 'open' && entryOk()
+        allow update: if approved() && mine() && c().status == 'open' && beforeDeadline() && entryOk()
           && request.resource.data.regNo == resource.data.regNo;
         function entryOk() { return true
           && !(request.auth.uid in c().get('judges', [])) && !hasRole('jury')

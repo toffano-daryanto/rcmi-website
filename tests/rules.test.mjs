@@ -396,3 +396,14 @@ test("jury: a judge on the panel can disqualify / reinstate an entry and notify 
   await env.withSecurityRulesDisabled(ctx => updateDoc(doc(ctx.firestore(), "contests", "c1"), { status: "open" }));
   await assertFails(updateDoc(ent("uJury1"), { status: "disq", disqReason: "x", disqBy: "uJury1" }));
 });
+
+test("contest: registration and photo changes stop exactly at the deadline", async () => {
+  await env.withSecurityRulesDisabled(ctx => updateDoc(doc(ctx.firestore(), "contests", "c1"), { submitEnd: Timestamp.fromMillis(Date.now() - 60000) }));
+  await assertFails(reg(U.m1));                                                                        // too late to register
+  await env.withSecurityRulesDisabled(async ctx => {
+    await updateDoc(doc(ctx.firestore(), "contests", "c1"), { submitEnd: Timestamp.fromMillis(Date.now() + 3600000) });
+  });
+  await assertSucceeds(reg(U.m1));                                                                     // before the deadline: fine
+  await env.withSecurityRulesDisabled(ctx => updateDoc(doc(ctx.firestore(), "contests", "c1"), { submitEnd: Timestamp.fromMillis(Date.now() - 60000) }));
+  await assertFails(setDoc(doc(as(U.m1), "contests", "c1", "entries", U.m1), entry(U.m1, { regNo: 1 })));   // can't change the photo after
+});
