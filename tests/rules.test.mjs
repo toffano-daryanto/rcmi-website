@@ -392,8 +392,8 @@ test("jury: a judge on the panel can disqualify / reinstate an entry and notify 
   await assertSucceeds(addDoc(collection(as("uJury1"), "notices"), nt));
   await assertFails(addDoc(collection(as("uJury1"), "notices"), { ...nt, kind: "contest_win" }));                // only the disqualified notice
   await assertFails(addDoc(collection(as(U.m2), "notices"), nt));
-  // not during registration
-  await env.withSecurityRulesDisabled(ctx => updateDoc(doc(ctx.firestore(), "contests", "c1"), { status: "open" }));
+  // not once the winners are announced
+  await env.withSecurityRulesDisabled(ctx => updateDoc(doc(ctx.firestore(), "contests", "c1"), { status: "closed" }));
   await assertFails(updateDoc(ent("uJury1"), { status: "disq", disqReason: "x", disqBy: "uJury1" }));
 });
 
