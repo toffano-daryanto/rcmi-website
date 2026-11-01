@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1793517265";
-import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1793517265";
-import { GALLERY } from "./gallery-data.js?v=1793517265";
-import { SEED_EVENTS } from "./seed-events.js?v=1793517265";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1793517265";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1793517265";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1793521524";
+import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1793521524";
+import { GALLERY } from "./gallery-data.js?v=1793521524";
+import { SEED_EVENTS } from "./seed-events.js?v=1793521524";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1793521524";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1793521524";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -4349,10 +4349,11 @@ async function loadContests() {
 }
 async function renderContestRoute() {
   const root = $("#contest-root"); if (!root) return;
-  const id = decodeURIComponent(location.hash.replace(/^#\/contest\/?/, "").split("/")[0] || "");
+  const parts = location.hash.replace(/^#\/contest\/?/, "").split("/");
+  const id = decodeURIComponent(parts[0] || ""), panel = parts[1] === "panel";
   const tok = ++ct.tok;
   root.innerHTML = `<p class="muted ct-loading">…</p>`;
-  if (id) return openContest(id, tok);
+  if (id) return openContest(id, tok, panel);
   try { await loadContests(); } catch (e) { ct.list = []; }
   if (tok !== ct.tok) return;
   root.innerHTML = `
@@ -4380,7 +4381,7 @@ async function renderContestRoute() {
         </span>
       </a>`).join("") : (ct.list.some(c => c.status !== "draft") ? `<p class="empty">${t("ct_none")}</p>` : "")}</div>`;
 }
-async function openContest(id, tok) {
+async function openContest(id, tok, panel = false) {
   let snap = null;
   try { snap = await getDoc(doc(db, "contests", id)); } catch (e) {}
   if (tok !== ct.tok) return;
@@ -4391,7 +4392,8 @@ async function openContest(id, tok) {
   const jobs = [];
   if (uid) jobs.push(getDoc(doc(db, "contests", id, "entries", uid)).then(s => { ct.myEntry = s.exists() ? { id: s.id, ...s.data() } : null; }).catch(() => {}));
   if (uid) jobs.push(getDoc(doc(db, "contests", id, "entries", uid + CT_SECOND)).then(s => { ct.myEntry2 = s.exists() ? { id: s.id, ...s.data() } : null; }).catch(() => {}));
-  if (c.status !== "open" || isAdmin()) jobs.push(getDocs(collection(db, "contests", id, "entries")).then(s => { ct.entries = s.docs.map(d => ({ id: d.id, ...d.data() })); }).catch(() => {}));
+  const judgeHere = !!uid && (c.judges || []).includes(uid) && isJury();
+  if (c.status !== "open" || isAdmin() || judgeHere) jobs.push(getDocs(collection(db, "contests", id, "entries")).then(s => { ct.entries = s.docs.map(d => ({ id: d.id, ...d.data() })); }).catch(() => {}));
   if (uid && c.status === "voting") jobs.push(getDoc(doc(db, "contests", id, "votes", uid)).then(s => { ct.myVote = s.exists() ? s.data().entry : null; }).catch(() => {}));
   if (uid && (c.judges || []).includes(uid)) jobs.push(getDocs(query(collection(db, "contests", id, "scores"), where("judge", "==", uid))).then(s => { s.docs.forEach(d => { ct.myScores[d.data().entry] = d.data(); }); }).catch(() => {}));
   if (isAdmin() && c.status !== "draft") jobs.push(Promise.all([getDocs(collection(db, "contests", id, "scores")), getDocs(collection(db, "contests", id, "votes"))])
@@ -4399,7 +4401,7 @@ async function openContest(id, tok) {
   if (isAdmin()) jobs.push(loadJurors());
   await Promise.all(jobs);
   if (tok !== ct.tok) return;
-  paintContest();
+  if (panel && (isAdmin() || judgeHere)) paintPanel(); else paintContest();
 }
 async function loadJurors() {
   if (ct.jurors) return ct.jurors;
@@ -4433,7 +4435,8 @@ function paintContest() {
     return d ? `<small>${d}</small>` : "";
   };
   root.innerHTML = `
-    <a class="btn btn-ghost ct-back" href="#/contest">← ${t("ct_all")}</a>
+    <div class="ct-topbar"><a class="btn btn-ghost ct-back" href="#/contest">← ${t("ct_all")}</a>
+      ${isJudge || isAdmin() ? `<a class="btn btn-mat" href="#/contest/${encodeURIComponent(c.id)}/panel">📋 ${t("pn_title")}</a>` : ""}</div>
     <header class="ct-head">
       <span class="ct-badge ph-${esc(c.status)}">${t("ct_ph_" + c.status)}</span>
       <h1>${esc(c.title)}</h1>
@@ -4452,6 +4455,59 @@ function paintContest() {
     ${isJudge ? `<section class="ct-jury panel-flat" id="ct-jury">${juryHTML(c)}</section>` : ""}
     ${isAdmin() ? `<section class="ct-admin panel-flat" id="ct-admin">${adminContestHTML(c)}</section>` : ""}`;
 }
+// A short fingerprint of a photo (its link), so a score can tell when the photo was changed afterwards.
+const photoKey = (p) => { const x = String(p || ""); return x.length > 150 ? `${x.length}:${x.slice(-120)}` : x; };
+
+/* ================= Jury & admin panel (#/contest/<id>/panel): who registered, who uploaded, scoring, phase controls ================= */
+function paintPanel() {
+  const c = ct.cur, uid = state.user?.uid, root = $("#contest-root");
+  const judge = !!uid && (c.judges || []).includes(uid) && isJury();
+  root.innerHTML = `
+    <div class="ct-topbar"><a class="btn btn-ghost ct-back" href="#/contest/${encodeURIComponent(c.id)}">← ${esc(c.title)}</a></div>
+    <header class="ct-head"><span class="ct-badge ph-${esc(c.status)}">${t("ct_ph_" + c.status)}</span>
+      <h1>📋 ${t("pn_title")}</h1>
+      <p class="muted">${esc(c.title)} · ${t("ct_step_open")}: ${ctRange(c.opensAt || c.openAt, c.submitEnd) || "—"} · ${t("ct_step_voting")}: ${ctRange(c.submitEnd, c.voteEnd) || "—"}</p></header>
+    <div id="pn-main">${panelMainHTML(c)}</div>
+    ${judge ? `<section class="ct-jury panel-flat" id="ct-jury">${juryHTML(c)}</section>` : ""}
+    ${isAdmin() ? `<section class="ct-admin panel-flat" id="ct-admin">${adminContestHTML(c)}</section>` : ""}`;
+}
+function panelMainHTML(c) {
+  const showNames = isAdmin();
+  const people = new Map();
+  for (const e of ct.entries) { const o = ctOwner(e); if (!people.has(o)) people.set(o, { main: null, second: null }); people.get(o)[isSecond(e) ? "second" : "main"] = e; }
+  const rows = [...people.values()].filter(p => p.main).sort((a, b) => (a.main.regNo || 0) - (b.main.regNo || 0));
+  const withPhoto = rows.filter(p => p.main.photo || p.second?.photo);
+  const photos = ct.entries.filter(e => e.photo).length, max = c.maxEntries || 100;
+  const f = state.pnFilter || "all";
+  const shown = rows.filter(p => f === "all" || (f === "with" ? (p.main.photo || p.second?.photo) : !(p.main.photo || p.second?.photo)));
+  const ph = (e) => e?.photo ? `<button type="button" class="pn-ph ${e.status === "disq" ? "disq" : ""}" data-ct-view="${esc(e.id)}"><img src="${photoSrc(e.photo)}" alt="" loading="lazy"></button>` : `<span class="pn-none">—</span>`;
+  return `
+    <div class="pn-stats">
+      <div><b>${rows.length}</b><span>${t("pn_registered")}</span></div>
+      <div class="ok"><b>${withPhoto.length}</b><span>${t("pn_uploaded")}</span></div>
+      <div class="warn"><b>${rows.length - withPhoto.length}</b><span>${t("pn_nophoto")}</span></div>
+      <div><b>${photos}</b><span>${t("pn_photos")}</span></div>
+      <div><b>${Math.max(0, max - (c.registered || rows.length))}</b><span>${t("pn_left")}</span></div>
+    </div>
+    <section class="panel-flat pn-list">
+      <div class="pn-head"><h2>${t("ct_participants")}</h2>
+        <div class="pn-filter">${["all", "with", "without"].map(k => `<button type="button" class="${f === k ? "on" : ""}" data-pn-filter="${k}">${t("pn_f_" + k)}</button>`).join("")}</div></div>
+      ${showNames ? "" : `<p class="muted pn-note">🔒 ${t("pn_names_hidden")}</p>`}
+      <div class="table-wrap"><table class="pn-table"><thead><tr><th>${t("ct_regno")}</th>${showNames ? `<th>${t("pn_name")}</th>` : ""}<th>${t("ct_photo_n", { n: 1 })}</th><th>${t("ct_photo_n", { n: 2 })}</th><th>${t("pn_status")}</th><th>${t("pn_updated")}</th></tr></thead>
+      <tbody>${shown.map(p => {
+        const disq = [p.main, p.second].some(e => e?.status === "disq");
+        const last = [p.main, p.second].filter(Boolean).map(e => toDate(e.at)?.getTime() || 0).reduce((a, b) => Math.max(a, b), 0);
+        return `<tr><td><b>${regNo(p.main.regNo)}</b></td>${showNames ? `<td>${esc(p.main.name || "")}</td>` : ""}
+          <td>${ph(p.main)}${p.main.title ? `<small>${esc(p.main.title)}</small>` : ""}</td><td>${ph(p.second)}${p.second?.title ? `<small>${esc(p.second.title)}</small>` : ""}</td>
+          <td>${disq ? `<span class="pn-tag bad">🚫 ${t("ct_disq")}</span>` : (p.main.photo || p.second?.photo) ? `<span class="pn-tag ok">✓ ${t("pn_uploaded")}</span>` : `<span class="pn-tag warn">${t("pn_nophoto")}</span>`}</td>
+          <td><small class="when">${last ? ctWhen(Timestamp.fromDate(new Date(last))) : "—"}</small></td></tr>`; }).join("") || `<tr><td colspan="6" class="muted">${t("ct_no_regs")}</td></tr>`}</tbody></table></div>
+    </section>`;
+}
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-pn-filter]"); if (!b || !ct.cur) return;
+  state.pnFilter = b.dataset.pnFilter; $("#pn-main").innerHTML = panelMainHTML(ct.cur);
+});
+
 function ctMainHTML(c) {
   const uid = state.user?.uid, me = ct.myEntry, ok = ct.entries.filter(ctOk);
   if (c.status === "draft") return `<p class="mod-note">📝 ${t("ct_draft_note")}${c.autoPhases && c.opensAt ? `<br>⏰ ${t("ct_auto_note", { d: ctWhen(c.opensAt) })}` : ""}</p>`;
@@ -4527,7 +4583,7 @@ function ctMainHTML(c) {
     <div class="ct-grid">${ranked.map(e => entryCard(e, `<small>${t("ct_score_line", { s: Number(e.final || 0).toFixed(1), j: Number(e.jury || 0).toFixed(2), v: e.votes || 0 })}</small>`)).join("")}</div>` : ""}`;
 }
 function juryHTML(c) {
-  if (!["voting", "judging"].includes(c.status)) return `<h2>⚖️ ${t("ct_jury_t")}</h2><p class="muted">${t(c.status === "closed" ? "ct_jury_done" : "ct_jury_wait")}</p>`;
+  if (!["open", "voting", "judging"].includes(c.status)) return `<h2>⚖️ ${t("ct_jury_t")}</h2><p class="muted">${t(c.status === "closed" ? "ct_jury_done" : "ct_jury_wait")}</p>`;
   const all = ct.entries.filter(e => e.photo).sort((a, b) => a.id.localeCompare(b.id)), list = all.filter(ctOk);
   const done = list.filter(e => ct.myScores[e.id]).length;
   return `<h2>⚖️ ${t("ct_jury_t")}</h2>
@@ -4540,10 +4596,12 @@ function juryHTML(c) {
         <div class="jury-f"><b>${t("ct_entry_n", { n: i + 1 })} · ${esc(e.title)}</b>
           <p class="mod-note">🚫 ${t("ct_disq")}${e.disqReason ? ` — ${esc(e.disqReason)}` : ""}</p>
           <div class="jury-save"><span></span><button type="button" class="btn btn-sm btn-ghost" data-ct-reinstate="${esc(e.id)}">${t("ct_reinstate")}</button></div></div></div>`;
-      return `<form class="jury-row ${sc ? "done" : ""}" data-score="${esc(e.id)}">
+      const changed = sc && sc.ph && sc.ph !== photoKey(e.photo);
+      return `<form class="jury-row ${sc && !changed ? "done" : ""} ${changed ? "changed" : ""}" data-score="${esc(e.id)}">
         <button type="button" class="ct-ph" data-ct-view="${esc(e.id)}"><img src="${photoSrc(e.photo)}" alt="" loading="lazy"></button>
         <div class="jury-f">
           <b>${t("ct_entry_n", { n: i + 1 })} · ${esc(e.title)}</b>
+          ${changed ? `<p class="mod-note">🔄 ${t("ct_rescore")}</p>` : ""}
           ${CT_CRIT.map(k => `<label class="jury-c">
             <span class="jury-cn"><b>${t("ct_c_" + k)}${ctWeight(k) !== 1 ? ` <em>(×${ctWeight(k)})</em>` : ""}</b><small>${t("ct_cd_" + k)}</small></span>
             <output>${sc?.crit?.[k] || 5}</output>
@@ -4739,7 +4797,8 @@ $("#contest-root").addEventListener("submit", async (e) => {
     const total = Math.round(CT_CRIT.reduce((a, k) => a + crit[k] * ctWeight(k), 0) / wsum * 100) / 100;
     btn.disabled = true;
     try {
-      const data = { judge: uid, entry, crit, total, note: f.note.value.trim().slice(0, 500), at: serverTimestamp() };
+      const ent = ct.entries.find(x => x.id === entry);
+      const data = { judge: uid, entry, crit, total, note: f.note.value.trim().slice(0, 500), at: serverTimestamp(), ph: photoKey(ent?.photo) };
       await setDoc(doc(db, "contests", c.id, "scores", `${uid}_${entry}`), data);
       ct.myScores[entry] = data;
       $("#ct-jury").innerHTML = juryHTML(c);
@@ -4806,7 +4865,7 @@ $("#contest-root").addEventListener("click", async (e) => {
     return;
   }
   const ph = e.target.closest("[data-ct-phase]"); if (ph && isAdmin()) return setContestPhase(ph.dataset.ctPhase);
-  const canJudge = !!uid && (c?.judges || []).includes(uid) && isJury() && ["voting", "judging"].includes(c?.status);
+  const canJudge = !!uid && (c?.judges || []).includes(uid) && isJury() && ["open", "voting", "judging"].includes(c?.status);
   const dq = e.target.closest("[data-ct-disq]");
   if (dq && (isAdmin() || canJudge)) {
     const reason = prompt(t("ct_disq_reason")); if (!reason || !reason.trim()) return;

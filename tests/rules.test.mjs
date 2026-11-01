@@ -407,3 +407,16 @@ test("contest: registration and photo changes stop exactly at the deadline", asy
   await env.withSecurityRulesDisabled(ctx => updateDoc(doc(ctx.firestore(), "contests", "c1"), { submitEnd: Timestamp.fromMillis(Date.now() - 60000) }));
   await assertFails(setDoc(doc(as(U.m1), "contests", "c1", "entries", U.m1), entry(U.m1, { regNo: 1 })));   // can't change the photo after
 });
+
+test("jury panel: a judge on the panel sees entries and can score while registration is open", async () => {
+  await env.withSecurityRulesDisabled(async ctx => {
+    await updateDoc(doc(ctx.firestore(), "contests", "c1"), { status: "open", judges: ["uJury1"] });
+    await setDoc(doc(ctx.firestore(), "contests", "c1", "entries", U.m1), { uid: U.m1, regNo: 1, name: "M1", avatar: "", title: "R34", caption: "", photo: "x", at: Timestamp.now() });
+  });
+  await assertSucceeds(getDocs(collection(as("uJury1"), "contests", "c1", "entries")));           // the judge sees who registered
+  await assertFails(getDocs(collection(as(U.m2), "contests", "c1", "entries")));                    // other members still don't
+  await assertFails(getDocs(collection(as("uJury2"), "contests", "c1", "entries")));                // a jury account not on this panel doesn't
+  const sc = { judge: "uJury1", entry: U.m1, crit: { light: 7 }, total: 7, note: "", at: serverTimestamp(), ph: "x" };
+  await assertSucceeds(setDoc(doc(as("uJury1"), "contests", "c1", "scores", `uJury1_${U.m1}`), sc));   // scoring can start during registration
+  await assertFails(setDoc(doc(as("uJury1"), "contests", "c1", "scores", `uJury1_${U.m1}`), { ...sc, extra: 1 }));
+});

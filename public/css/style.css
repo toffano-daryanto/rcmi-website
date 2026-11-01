@@ -1353,3 +1353,30 @@ fieldset.role-sel label { display: inline-flex; align-items: center; gap: 4px; f
 .ct-follow b { display: block; font-size: .9rem; margin-bottom: 6px; }
 .ct-follow div { display: flex; flex-wrap: wrap; gap: 6px; }
 .ct-follow a { padding: 4px 10px; border-radius: 999px; background: var(--surface); box-shadow: 0 0 0 1px var(--line); font-weight: 700; font-size: .85rem; color: var(--red); text-decoration: none; }
+
+/* Jury & admin panel */
+.ct-topbar { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+.pn-stats { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin: 12px 0 16px; }
+.pn-stats div { background: var(--surface); border-radius: var(--radius-m); box-shadow: 0 0 0 1px var(--line); padding: 12px 14px; display: grid; }
+.pn-stats b { font-family: var(--display); font-style: italic; font-size: 2rem; line-height: 1; }
+.pn-stats span { color: var(--muted); font-size: .82rem; }
+.pn-stats .ok b { color: var(--good); } .pn-stats .warn b { color: var(--red); }
+@media (max-width: 640px) { .pn-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.pn-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.pn-head h2 { margin: 0; }
+.pn-filter { display: flex; gap: 6px; flex-wrap: wrap; }
+.pn-filter button { border: 0; border-radius: 999px; padding: 6px 12px; font-weight: 700; background: var(--paper); box-shadow: 0 0 0 1px var(--line); cursor: pointer; color: inherit; }
+.pn-filter button.on { background: var(--navy); color: #fff; box-shadow: none; }
+.pn-note { margin: 8px 0 0; }
+.pn-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: .9rem; }
+.pn-table th { text-align: left; font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: 6px 8px; border-bottom: 1px solid var(--line); }
+.pn-table td { padding: 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.pn-table td small { display: block; color: var(--muted); max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pn-ph { padding: 0; border: 0; background: none; cursor: zoom-in; display: block; }
+.pn-ph img { width: 72px; height: 54px; object-fit: cover; border-radius: 6px; display: block; }
+.pn-ph.disq img { opacity: .4; outline: 2px solid var(--red); }
+.pn-none { color: var(--muted); }
+.pn-tag { display: inline-block; padding: 3px 8px; border-radius: 999px; font-size: .78rem; font-weight: 700; white-space: nowrap; }
+.pn-tag.ok { background: rgba(31,138,76,.12); color: var(--good); } .pn-tag.warn { background: rgba(214,16,43,.08); color: var(--red); } .pn-tag.bad { background: var(--red); color: #fff; }
+.jury-row.changed { box-shadow: 0 0 0 2px #F6C343; }
+.pn-table td small.when { max-width: none; white-space: nowrap; }

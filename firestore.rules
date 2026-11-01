@@ -175,7 +175,9 @@ service cloud.firestore {
         function mine() { return signedIn() && (eid == request.auth.uid || eid == request.auth.uid + '_2'); }
         function second() { return signedIn() && eid == request.auth.uid + '_2'; }
         function firstDoc() { return /databases/$(database)/documents/contests/$(cid)/entries/$(request.auth.uid); }
-        allow read: if admin() || mine() || (c().get('public', false) == true && c().status != 'open');
+        // Judges on this contest's panel see entries as they come in (the Jury & admin panel), names are hidden in the app.
+        allow read: if admin() || mine() || (c().get('public', false) == true && c().status != 'open')
+          || (jury() && request.auth.uid in c().get('judges', []));
         function spotTaken() {
           return getAfter(/databases/$(database)/documents/contests/$(cid)).data.get('registered', 0) == c().get('registered', 0) + 1;
         }
@@ -197,7 +199,7 @@ service cloud.firestore {
           && request.resource.data.photo is string && request.resource.data.photo.size() < 900000; }
         allow update: if admin() && onlyKeys(['status', 'disqReason', 'disqBy', 'votes', 'jury', 'final', 'rank']);
         // A judge on this contest's panel can disqualify an entry (with a reason) or reinstate it while voting / judging.
-        allow update: if jury() && request.auth.uid in c().get('judges', []) && c().status in ['voting', 'judging']
+        allow update: if jury() && request.auth.uid in c().get('judges', []) && c().status in ['open', 'voting', 'judging']
           && onlyKeys(['status', 'disqReason', 'disqBy']) && request.resource.data.status in ['ok', 'disq']
           && str(request.resource.data.get('disqReason', ''), 300)
           && (request.resource.data.status == 'ok' || request.resource.data.get('disqBy', '') == request.auth.uid);
@@ -219,9 +221,11 @@ service cloud.firestore {
       // Jury scores: one per judge per entry (id = judge_entry). A judge sees only their own; admins see all.
       match /scores/{sid} {
         allow read: if admin() || (signedIn() && resource.data.judge == request.auth.uid);
-        allow create, update: if jury() && request.auth.uid in c().get('judges', []) && c().status in ['voting', 'judging']
+        // Judges can start scoring while registration is still open (as photos come in); 'ph' marks which photo was scored.
+        allow create, update: if jury() && request.auth.uid in c().get('judges', []) && c().status in ['open', 'voting', 'judging']
           && sid == request.auth.uid + '_' + request.resource.data.entry
-          && request.resource.data.keys().hasOnly(['judge', 'entry', 'crit', 'total', 'note', 'at'])
+          && request.resource.data.keys().hasOnly(['judge', 'entry', 'crit', 'total', 'note', 'at', 'ph'])
+          && str(request.resource.data.get('ph', ''), 200)
           && request.resource.data.judge == request.auth.uid
           && exists(/databases/$(database)/documents/contests/$(cid)/entries/$(request.resource.data.entry))
           && request.resource.data.crit is map && request.resource.data.total is number
