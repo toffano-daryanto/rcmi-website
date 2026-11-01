@@ -7,6 +7,8 @@ on:
     paths: ["firestore.rules", "tests/**", ".github/workflows/test-rules.yml"]
   workflow_dispatch:
 
+permissions:
+  contents: write
 jobs:
   rules:
     runs-on: ubuntu-latest
@@ -35,3 +37,10 @@ jobs:
           grep -E 'FirebaseError|PERMISSION_DENIED|Error:' rules-test.log | sort | uniq -c | head -8 | while read -r line; do echo "::warning::$line"; done
           { echo '## Database rule checks'; echo '```'; grep -E '✔|✖|^ℹ' rules-test.log; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
           exit $code
+      - name: Save the log to the tool-rulestest branch
+        if: always()
+        run: |
+          mkdir -p rlog && cp rules-test.log rlog/ 2>/dev/null || true
+          cd rlog && git init -q -b tool-rulestest && git add -A
+          git -c user.name=github-actions -c user.email=github-actions@users.noreply.github.com commit -qm "Rules test log" --allow-empty
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" tool-rulestest
