@@ -1,11 +1,15 @@
+// QR code to the contest page (for the "registration open" poster), then the posters.
+import QRCode from "qrcode";
+import { writeFileSync as wqr } from "node:fs";
 // Renders the contest posters to JPG for the website (run by .github/workflows/render-posters.yml).
 import { chromium } from "playwright";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 const dir = path.dirname(fileURLToPath(import.meta.url));
+wqr(path.join(dir, "qr-contest.svg"), await QRCode.toString("https://rcmi-website.web.app/#/contest/jZ23AUkz7PJNjUQFMZUb", { type: "svg", margin: 0, errorCorrectionLevel: "M" }));
 const b = await chromium.launch();
 const pg = await b.newPage({ viewport: { width: 1080, height: 1350 }, deviceScaleFactor: 1 });
-for (const n of ["r32", "f40", "guide", "prizes"]) {
+for (const n of ["r32", "f40", "guide", "prizes", "open"]) {
   await pg.goto("file://" + path.join(dir, n + ".html"), { waitUntil: "networkidle" });
   await pg.evaluate(() => document.fonts.ready);
   await pg.waitForTimeout(500);
