@@ -5,7 +5,7 @@ D = os.path.dirname(os.path.abspath(__file__)); OUT = os.path.join(D, "out"); os
 FONTS = '<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;1,700;1,800&family=Barlow:wght@400;500;600;700&family=Permanent+Marker&family=Great+Vibes&display=swap" rel="stylesheet">'
 PLACES = {1: ("1st", "Champion"), 2: ("2nd", "Runner-up"), 3: ("3rd", "Second runner-up"), 4: ("4th", "Third runner-up"), 5: ("5th", "Fourth runner-up")}
 JURY = [("diecast-diorama", "Diecast &amp; Diorama"), ("setsudou", "setsudou"), ("ricky", "Ricky Robertus")]
-SPONSORS = [("toko-kuning", "Toko Kuning"), ("kepopic", "Kepopic Studio"), ("hellios", "Hellios Studio"), ("arsaka", "Arsaka Toys"), ("bebetoys", "bebetoys"), ("kourin", "Kourin Labs")]
+SPONSORS = [("toko-kuning", "Toko Kuning"), ("hellios", "Hellios Studio"), ("arsaka", "Arsaka Toys"), ("bebetoys", "bebetoys"), ("kourin", "Kourin Labs")]
 YEAR = "2026"; DATE = "[DATE] 2026"
 
 def plaque(n):
@@ -111,7 +111,7 @@ def plaque_color(n):
 def certificate(n):
     ordn, title = PLACES[n]
     medal = {1: ("#E2B33C", "#B8860B", "#FFF3C4"), 2: ("#C9CDD4", "#8E949C", "#F4F5F7"), 3: ("#CD8B52", "#9A5B2A", "#F6E1CC"), 4: ("#E2546A", "#A50E24", "#FFD9DF"), 5: ("#E2546A", "#A50E24", "#FFD9DF")}[n]
-    sp = "".join(f'<span class="lg"><img src="../../../public/img/sponsors/{f}" alt="{a}"><em>{a}</em></span>' for f, a in [("toko-kuning.jpg","Toko Kuning"),("kepopic-studio.jpg","Kepopic Studio"),("hellios-studio.png","Hellios Studio"),("arsaka-toys.jpg","Arsaka Toys"),("bebetoys.jpg","bebetoys"),("kourin-labs.jpg","Kourin Labs")])
+    sp = "".join(f'<span class="lg"><img src="../../../public/img/sponsors/{f}" alt="{a}"><em>{a}</em></span>' for f, a in [("toko-kuning.jpg","Toko Kuning"),("hellios-studio.png","Hellios Studio"),("arsaka-toys.jpg","Arsaka Toys"),("bebetoys.jpg","bebetoys"),("kourin-labs.jpg","Kourin Labs")])
     jy = "".join(f'<span class="lg sm"><img src="../../../public/img/jury/{f}" alt="{a}"><em>{a}</em></span>' for f, a in [("jury-chevron.png","Diecast & Diorama"),("setsudou.png","setsudou"),("ricky.png","Ricky Robertus")])
     return f'''<!doctype html><html><head><meta charset="utf-8"><title>RCMI Photo Contest certificate — {ordn} place</title>{FONTS}
 <style>
@@ -175,7 +175,7 @@ h1 span {{ color:#D6102B }}
 </main>
 </div></body></html>'''
 
-SPONSOR_FILES = [("toko-kuning.jpg", "Toko Kuning", "round"), ("kepopic-studio.jpg", "Kepopic Studio", ""), ("hellios-studio.png", "Hellios Studio", ""),
+SPONSOR_FILES = [("toko-kuning.jpg", "Toko Kuning", "round"), ("hellios-studio.png", "Hellios Studio", ""),
                  ("arsaka-toys.jpg", "Arsaka Toys", "square"), ("bebetoys.jpg", "bebetoys", ""), ("kourin-labs.jpg", "Kourin Labs", "")]
 def sponsor_certificate(f, name, shape):
     # A4 landscape: dark racing header, the sponsor's logo large on the left, "Thank you" on the right, footer band.

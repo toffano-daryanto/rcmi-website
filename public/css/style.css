@@ -1325,7 +1325,7 @@ span.rep-badge { cursor: default; }
 .ct-sponsors { display: grid; justify-items: center; gap: 8px; text-align: center; margin: 0 0 18px; padding: 16px; border-radius: var(--radius-m); background: var(--surface); box-shadow: 0 0 0 1px var(--line); }
 .ct-sponsors > small:not(.muted) { font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); font-size: .72rem; }
 .ct-sponsor-logos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 8px; width: 100%; max-width: 420px; }
-@media (min-width: 640px) { .ct-sponsor-logos { grid-template-columns: repeat(6, minmax(0, 1fr)); max-width: 680px; } }
+@media (min-width: 640px) { .ct-sponsor-logos { grid-template-columns: repeat(5, minmax(0, 1fr)); max-width: 680px; } }
 .ct-sponsor-logos.ct-jury-logos { grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: 380px; }
 .ct-sponsor-logos figure { margin: 0; display: grid; grid-template-rows: 60px auto; justify-items: center; align-items: center; align-content: start; gap: 6px; }
 .ct-sponsor-logos figcaption { align-self: start; }
@@ -1334,7 +1334,7 @@ span.rep-badge { cursor: default; }
 .ct-home-sp { display: grid; gap: 8px; margin-top: 10px; min-width: 0; }
 .ct-home-sp small { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .14em; opacity: .8; }
 .ct-home-sp-logos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 10px; }
-@media (min-width: 601px) { .ct-home-sp-logos { grid-template-columns: repeat(6, minmax(0, 64px)); } }
+@media (min-width: 601px) { .ct-home-sp-logos { grid-template-columns: repeat(5, minmax(0, 64px)); } }
 .ct-home-t .ct-home-sp, .ct-home-t .ct-home-sp span { opacity: 1; font-size: inherit; }
 .ct-home-sp-logos span { height: 40px; display: flex; align-items: center; justify-content: center; min-width: 0; }
 .ct-home-sp-logos img { max-height: 30px; max-width: 100%; width: auto; object-fit: contain; border-radius: 4px; display: block; }

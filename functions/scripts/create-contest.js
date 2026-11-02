@@ -10,16 +10,16 @@ const i18n = readFileSync(new URL("../../public/js/i18n.js", import.meta.url), "
 const rules = [...i18n.matchAll(/ct_rules_default: "((?:[^"\\]|\\.)*)"/g)].map(m => JSON.parse(`"${m[1]}"`));   // [Indonesian, English]
 const TITLE = "RCMI Photo Contest 2026";
 const PRIZES = [
-  "🥇 1st place: Certificate + Rp 500.000 cash + prizes from Kepopic Studio & Hellios Studio",
-  "🥈 2nd place: Certificate + Rp 300.000 cash + prizes from Kepopic Studio & Hellios Studio",
-  "🥉 3rd place: Certificate + Rp 200.000 cash + prizes from Kepopic Studio & Hellios Studio",
+  "🥇 1st place: Certificate + Rp 500.000 cash + prize from Hellios Studio",
+  "🥈 2nd place: Certificate + Rp 300.000 cash + prize from Hellios Studio",
+  "🥉 3rd place: Certificate + Rp 200.000 cash + prize from Hellios Studio",
   "4th place: Certificate + a miniscale model",
   "5th place: Certificate + a miniscale model",
   "",
   "— Bahasa Indonesia —",
-  "🥇 Juara 1: Sertifikat + uang tunai Rp 500.000 + hadiah dari Kepopic Studio & Hellios Studio",
-  "🥈 Juara 2: Sertifikat + uang tunai Rp 300.000 + hadiah dari Kepopic Studio & Hellios Studio",
-  "🥉 Juara 3: Sertifikat + uang tunai Rp 200.000 + hadiah dari Kepopic Studio & Hellios Studio",
+  "🥇 Juara 1: Sertifikat + uang tunai Rp 500.000 + hadiah dari Hellios Studio",
+  "🥈 Juara 2: Sertifikat + uang tunai Rp 300.000 + hadiah dari Hellios Studio",
+  "🥉 Juara 3: Sertifikat + uang tunai Rp 200.000 + hadiah dari Hellios Studio",
   "Juara 4: Sertifikat + model miniscale",
   "Juara 5: Sertifikat + model miniscale"
 ].join("\n");
