@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       only:
-        description: "Update only this field (e.g. prizes); empty = everything"
+        description: "Update only this field (prizes | text = prizes+rules | redraft | judges); empty = everything"
         default: ""
 permissions:
   contents: read

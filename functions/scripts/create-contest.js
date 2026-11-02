@@ -43,7 +43,7 @@ else if (ex && process.env.ONLY === "redraft") {
   if ((c0.registered || 0) > 0) { console.log("Not changed: people have already registered."); process.exit(1); }
   await ex.ref.update({ status: "draft", public: false, openAt: FieldValue.delete() }); console.log("Back to draft", ex.id);
 }
-else if (ex) { await ex.ref.update(process.env.ONLY === "prizes" ? { prizes: PRIZES } : data); console.log("Updated", ex.id, process.env.ONLY || "all"); }
+else if (ex) { await ex.ref.update(process.env.ONLY === "prizes" ? { prizes: PRIZES } : process.env.ONLY === "text" ? { prizes: PRIZES, rules: data.rules } : data); console.log("Updated", ex.id, process.env.ONLY || "all"); }
 else {
   const founder = (await db.collection("users").where("memberNo", "==", 1).get()).docs[0];
   const r = await db.collection("contests").add({ ...data, status: "draft", public: false, registered: 0, regSeq: 0, winners: [], judges: [], createdAt: FieldValue.serverTimestamp(), createdBy: founder?.id || "" });
