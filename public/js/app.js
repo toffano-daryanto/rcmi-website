@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1793704874";
-import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1793704874";
-import { GALLERY } from "./gallery-data.js?v=1793704874";
-import { SEED_EVENTS } from "./seed-events.js?v=1793704874";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1793704874";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1793704874";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1793705003";
+import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1793705003";
+import { GALLERY } from "./gallery-data.js?v=1793705003";
+import { SEED_EVENTS } from "./seed-events.js?v=1793705003";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1793705003";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1793705003";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -2649,13 +2649,13 @@ async function renderProfile(id) {
           ${place ? `<dt>${t("f_city")}</dt><dd>${esc(place)}</dd>` : ""}
           ${since ? `<dt>${t("registered")}</dt><dd>${fmtDate(since, { day: "numeric", month: "long", year: "numeric" })}</dd>` : ""}
           ${ig ? `<dt>Instagram</dt><dd><a href="https://instagram.com/${encodeURIComponent(ig)}" target="_blank" rel="noopener">@${esc(ig)}</a></dd>` : ""}
+          ${isAdmin() && u?.email ? `<dt>Email</dt><dd><a href="mailto:${esc(u.email)}">${esc(u.email)}</a> <small class="muted">· ${t("admin_only")}</small></dd>` : ""}
           ${wa ? `<dt>WhatsApp</dt><dd><a href="https://wa.me/${wa}" target="_blank" rel="noopener">${esc(u.whatsapp)}</a></dd>` : ""}
           <dt>Status</dt><dd>${deact ? `<span class="type-tag blocked">${t("deact_tag")}</span>` : u ? "✓ " + t("on_site") : t("not_on_site")}</dd>
         </dl>
         ${priv ? `<div class="admin-box"><small>${t("admin_only")}</small>
           ${priv.phone ? `${t("phone")}: <a href="https://wa.me/${waNumber(priv.phone)}" target="_blank" rel="noopener">${esc(priv.phone)}</a><br>` : ""}
-          ${u?.email ? `Email: <a href="mailto:${esc(u.email)}">${esc(u.email)}</a><br>` : ""}
-          ${priv.shirtSize ? `${t("shirt")}: ${esc(priv.shirtSize)} × ${priv.shirtQty || 1} — ${priv.shirtPaid ? t("paid") : t("unpaid")}<br>` : ""}
+                    ${priv.shirtSize ? `${t("shirt")}: ${esc(priv.shirtSize)} × ${priv.shirtQty || 1} — ${priv.shirtPaid ? t("paid") : t("unpaid")}<br>` : ""}
           <span id="profile-dues"></span>
           <div id="profile-addr-admin"></div>
           ${gen ? "" : `<form class="invite-form" id="f-invite" data-r="${esc(r.id)}">
