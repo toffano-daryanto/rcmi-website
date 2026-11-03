@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1793703836";
-import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1793703836";
-import { GALLERY } from "./gallery-data.js?v=1793703836";
-import { SEED_EVENTS } from "./seed-events.js?v=1793703836";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1793703836";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1793703836";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1793704874";
+import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1793704874";
+import { GALLERY } from "./gallery-data.js?v=1793704874";
+import { SEED_EVENTS } from "./seed-events.js?v=1793704874";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1793704874";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1793704874";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -2654,7 +2654,7 @@ async function renderProfile(id) {
         </dl>
         ${priv ? `<div class="admin-box"><small>${t("admin_only")}</small>
           ${priv.phone ? `${t("phone")}: <a href="https://wa.me/${waNumber(priv.phone)}" target="_blank" rel="noopener">${esc(priv.phone)}</a><br>` : ""}
-          ${gen && u?.email ? `Email: ${esc(u.email)}<br>` : ""}
+          ${u?.email ? `Email: <a href="mailto:${esc(u.email)}">${esc(u.email)}</a><br>` : ""}
           ${priv.shirtSize ? `${t("shirt")}: ${esc(priv.shirtSize)} × ${priv.shirtQty || 1} — ${priv.shirtPaid ? t("paid") : t("unpaid")}<br>` : ""}
           <span id="profile-dues"></span>
           <div id="profile-addr-admin"></div>
