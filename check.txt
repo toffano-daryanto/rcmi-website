@@ -1,0 +1,62 @@
+Billing (Blaze): ON ✅
+Database location: asia-southeast2
+Service cloudfunctions: on
+Service cloudbuild: on
+Service artifactregistry: on
+Service run: on
+Service eventarc: on
+Service pubsub: on
+Service cloudscheduler: on
+Service storage: on
+Deploy account roles: roles/artifactregistry.admin, roles/cloudbuild.editor, roles/cloudfunctions.admin, roles/cloudscheduler.admin, roles/firebase.admin, roles/firebase.sdkAdminServiceAgent, roles/firebaseauth.admin, roles/iam.serviceAccountTokenCreator, roles/iam.serviceAccountUser, roles/serviceusage.serviceUsageAdmin, roles/serviceusage.serviceUsageConsumer
+Now: 2026-11-03 11:18:42 UTC
+Last job run by: schedule | user check: 2026-11-03 11:14:02 UTC | admin check: 2026-11-03 11:14:02 UTC
+Latest notifications:
+Function logs (last 30 min, 200):
+  11:17:32 onapproved  welcome → sent
+
+  11:17:23 onapproved INFO 200
+  11:17:23 onusernumber INFO 200
+  11:17:22 onusernumber INFO 200
+  11:17:22 onapproved INFO 200
+  11:16:13 ondeletelog INFO 
+  11:16:12 ondeletelog INFO 
+  11:16:12 ondeletelog INFO Default STARTUP TCP probe succeeded after 1 attempt for container "worker" on port 8080.
+  11:16:12 onsignup INFO 
+  11:16:12 onmessage INFO 
+  11:16:11 onpaymentproof INFO 
+  11:16:11 oncontestentry INFO 
+  11:16:11 onlisting INFO 
+  11:16:11 onchat INFO 
+  11:16:11 onnotice INFO 
+  11:16:10 onusernumber INFO 
+  11:16:10 onsignup INFO 
+  11:16:10 notifyevery5min INFO 
+  11:16:10 onsignup INFO Default STARTUP TCP probe succeeded after 1 attempt for container "worker" on port 8080.
+  11:16:10 onmessage INFO 
+  11:16:10 onmessage INFO Default STARTUP TCP probe succeeded after 1 attempt for container "worker" on port 8080.
+  11:16:10 onpaymentproof INFO 
+  11:16:10 onpaymentproof INFO Default STARTUP TCP probe succeeded after 1 attempt for container "worker" on port 8080.
+  11:16:10 oncontestentry INFO 
+  11:16:10 onlisting INFO 
+Contests: 1
+  prizes: "🥇 1st place: Certificate + Rp 500.000 cash + prize from Hellios Studio\n🥈 2nd place: Certificate + Rp 300.000 cash + prize from Hellios Studio\n🥉 3rd place: Certificate + Rp 200.000 cash + prize from Hellios Studio\n4th place: Certificate + a miniscale model\n5th place: Certificate + a miniscale model\n\n— Bahasa Indonesia —\n🥇 Juara 1: Sertifikat + uang tunai Rp 500.000 + hadiah dari Hellios Studio\n🥈 Juara 2: Sertifikat + uang tunai Rp 300.000 + hadiah dari Hellios Studio\n🥉 Juara 3: Sertifikat + uang tunai Rp 200.000 + hadiah dari Hellios Studio\nJuara 4: Sertifikat + model miniscale\nJuara 5: Sertifikat + model miniscale"
+  openAt(phase): 2026-10-31T17:04Z | opensAt: 2026-10-31T17:00Z | autoPhases: true
+  jZ23AUkz7PJNjUQFMZUb | RCMI Photo Contest 2026 | open | public: true | submitEnd 2026-11-15T16:59Z | voteEnd 2026-11-22T16:59Z | judges: 3 | registered: 7
+Jury accounts: 3
+  jury: SETSUDOU | approved
+  jury: Ricky Robertus | approved
+  jury: Om DD | approved
+Associate members (active): 15 | with a number: 15 | numbers: A-0001, A-0002, A-0003, A-0004, A-0005, A-0006, A-0007, A-0008, A-0009, A-0010, A-0011, A-0012, A-0013, A-0014, A-0015
+  No account named like Diecast & Diorama yet.
+Approved in the last 24 h: 4
+- associate | status approved | email on file: yes | welcome: not sent
+- associate | status approved | email on file: yes | welcome: not sent
+- associate | status approved | email on file: yes | welcome: not sent
+- member #28 | status approved | email on file: yes | welcome: sent 2026-11-03T11:17:22.946Z
+
+onApproved log (last 3 h, 200):
+2026-11-03T11:17:32.667620Z  welcome → sent
+
+2026-11-03T11:16:02.672893Z INFO Default STARTUP TCP probe succeeded after 1 attempt for container "worker" on port 8080.
+2026-11-03T11:16:00.198399Z INFO Starting new instance. Reason: DEPLOYMENT_ROLLOUT - Instance started due to traffic shifting between revisions due to deployment, traffic split adjustment, or deployment health check.
