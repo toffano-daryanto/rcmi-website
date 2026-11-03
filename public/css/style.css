@@ -1380,3 +1380,20 @@ fieldset.role-sel label { display: inline-flex; align-items: center; gap: 4px; f
 .pn-tag.ok { background: rgba(31,138,76,.12); color: var(--good); } .pn-tag.warn { background: rgba(214,16,43,.08); color: var(--red); } .pn-tag.bad { background: var(--red); color: #fff; }
 .jury-row.changed { box-shadow: 0 0 0 2px #F6C343; }
 .pn-table td small.when { max-width: none; white-space: nowrap; }
+/* Phones: each participant becomes a small card (no sideways scrolling). */
+@media (max-width: 640px) {
+  .pn-list { min-width: 0; }
+  .pn-table, .pn-table tbody { display: block; width: 100%; }
+  .pn-table thead { display: none; }
+  .pn-table tr { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px 10px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .pn-table td { display: block; padding: 0; border: 0; min-width: 0; }
+  .pn-table td[colspan] { grid-column: 1 / -1; }
+  .pn-table td.c-no { grid-column: 1 / -1; display: flex; align-items: baseline; gap: 8px; }
+  .pn-table td.c-name { grid-column: 1 / -1; margin-top: -6px; font-weight: 700; }
+  .pn-table td.c-ph small { max-width: 100%; }
+  .pn-table .pn-ph, .pn-table .pn-ph img { width: 100%; }
+  .pn-table .pn-ph img { height: auto; aspect-ratio: 4 / 3; }
+  .pn-table td.c-ph > .pn-none { display: grid; place-items: center; aspect-ratio: 4 / 3; border: 1px dashed var(--line); border-radius: 6px; }
+  .pn-table td.c-st { align-self: center; }
+  .pn-table td.c-up { align-self: center; text-align: right; }
+}

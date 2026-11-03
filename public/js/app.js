@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1793705003";
-import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1793705003";
-import { GALLERY } from "./gallery-data.js?v=1793705003";
-import { SEED_EVENTS } from "./seed-events.js?v=1793705003";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1793705003";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1793705003";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1793738432";
+import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1793738432";
+import { GALLERY } from "./gallery-data.js?v=1793738432";
+import { SEED_EVENTS } from "./seed-events.js?v=1793738432";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1793738432";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1793738432";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -4499,10 +4499,10 @@ function panelMainHTML(c) {
       <tbody>${shown.map(p => {
         const disq = [p.main, p.second].some(e => e?.status === "disq");
         const last = [p.main, p.second].filter(Boolean).map(e => toDate(e.at)?.getTime() || 0).reduce((a, b) => Math.max(a, b), 0);
-        return `<tr><td><b>${regNo(p.main.regNo)}</b></td>${showNames ? `<td>${esc(p.main.name || "")}</td>` : ""}
-          <td>${ph(p.main)}${p.main.title ? `<small>${esc(p.main.title)}</small>` : ""}</td><td>${ph(p.second)}${p.second?.title ? `<small>${esc(p.second.title)}</small>` : ""}</td>
-          <td>${disq ? `<span class="pn-tag bad">🚫 ${t("ct_disq")}</span>` : (p.main.photo || p.second?.photo) ? `<span class="pn-tag ok">✓ ${t("pn_uploaded")}</span>` : `<span class="pn-tag warn">${t("pn_nophoto")}</span>`}</td>
-          <td><small class="when">${last ? ctWhen(Timestamp.fromDate(new Date(last))) : "—"}</small></td></tr>`; }).join("") || `<tr><td colspan="6" class="muted">${t("ct_no_regs")}</td></tr>`}</tbody></table></div>
+        return `<tr><td class="c-no"><b>${regNo(p.main.regNo)}</b></td>${showNames ? `<td class="c-name">${esc(p.main.name || "")}</td>` : ""}
+          <td class="c-ph">${ph(p.main)}${p.main.title ? `<small>${esc(p.main.title)}</small>` : ""}</td><td class="c-ph">${ph(p.second)}${p.second?.title ? `<small>${esc(p.second.title)}</small>` : ""}</td>
+          <td class="c-st">${disq ? `<span class="pn-tag bad">🚫 ${t("ct_disq")}</span>` : (p.main.photo || p.second?.photo) ? `<span class="pn-tag ok">✓ ${t("pn_uploaded")}</span>` : `<span class="pn-tag warn">${t("pn_nophoto")}</span>`}</td>
+          <td class="c-up"><small class="when">${last ? ctWhen(Timestamp.fromDate(new Date(last))) : "—"}</small></td></tr>`; }).join("") || `<tr><td colspan="6" class="muted">${t("ct_no_regs")}</td></tr>`}</tbody></table></div>
     </section>`;
 }
 document.addEventListener("click", (e) => {
