@@ -8,12 +8,12 @@ import {
   orderBy, limit, getDocs, onSnapshot, serverTimestamp, runTransaction, Timestamp, writeBatch,
   startAfter, arrayUnion, arrayRemove, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-import { firebaseConfig, uploadUrl } from "./config.js?v=1793598874";
-import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1793598874";
-import { GALLERY } from "./gallery-data.js?v=1793598874";
-import { SEED_EVENTS } from "./seed-events.js?v=1793598874";
-import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1793598874";
-import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1793598874";
+import { firebaseConfig, uploadUrl } from "./config.js?v=1793703836";
+import { t, getLang, setLang, applyStatic } from "./i18n.js?v=1793703836";
+import { GALLERY } from "./gallery-data.js?v=1793703836";
+import { SEED_EVENTS } from "./seed-events.js?v=1793703836";
+import { parseLedgerCSV, parseLedgerTable, buildPL, balanceIssues } from "./finance.js?v=1793703836";
+import { parseMemberSheets, phoneKey as sheetPhoneKey } from "./members-sync.js?v=1793703836";
 
 /* ---------------- helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -530,7 +530,8 @@ async function renderJoinPay() {
         <p class="muted">${t("qris_mobile")}</p>
         <a class="btn btn-ghost btn-sm" href="${qris}" download="QRIS-RCMI.png">${t("qris_save")}</a></div></div>` : ""}
     ${hasBank ? `<p class="muted">${qris ? t("or_transfer") : t("dues_transfer_to")}</p>
-      <p class="acct"><strong>${esc(p.bank)} ${esc(p.accountNo)}</strong><br>${esc(p.accountName)}</p>` : ""}
+      <p class="acct"><strong>${esc(p.bank)} ${esc(p.accountNo)}</strong><br>${esc(p.accountName)}</p>
+      <p class="muted">${t("transfer_then")}</p>` : ""}
     ${!qris && !hasBank ? `<p class="muted">${t("joinpay_ask_admin")}</p>` : ""}
     ${proof ? `<p class="joinpay-ok">${t("joinpay_received")}</p>` : ""}
     <form class="form" id="f-joinpay">
@@ -2765,11 +2766,12 @@ function payInfoHTML() {
           <p>${t("qris_hint", { amount: `<strong>${fmtIDR(p.amount)}</strong>` })}</p>
           <p class="muted">${t("qris_mobile")}</p>
           <a class="btn btn-ghost btn-sm" href="${qris}" download="QRIS-RCMI.png">${t("qris_save")}</a>
-          <p class="muted qris-then">${t("qris_then")}</p>
+          ${hasBank ? "" : `<p class="muted qris-then">${t("qris_then")}</p>`}
         </div>
       </div>` : ""}
     ${hasBank ? `<p class="muted">${qris ? t("or_transfer") : t("dues_transfer_to")}</p>
-      <p class="acct"><strong>${esc(p.bank)} ${esc(p.accountNo)}</strong><br>${esc(p.accountName)}</p>` : ""}
+      <p class="acct"><strong>${esc(p.bank)} ${esc(p.accountNo)}</strong><br>${esc(p.accountName)}</p>
+      <p class="muted">${t("transfer_then")}</p>` : ""}
     ${!qris && !hasBank ? `<p class="muted">${t("dues_bank_missing")}</p>` : ""}
   </div>`;
 }
