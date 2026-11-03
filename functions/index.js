@@ -10,6 +10,8 @@ import { onSchedule } from "firebase-functions/v2/scheduler";
 import { runAll } from "./lib/run-all.js";
 import { autoPhases } from "./lib/phases.js";
 import { giveGeneralNo, giveMissingGeneralNos } from "./lib/numbers.js";
+import { sendWelcome } from "./lib/welcome.js";
+import nodemailer from "nodemailer";
 
 initializeApp();
 const db = getFirestore();
@@ -25,6 +27,14 @@ export const onSignup = onDocumentCreated("users/{id}", run("signup"));
 export const onUserNumber = onDocumentWritten("users/{id}", async (e) => {
   const b = e.data?.after?.data();
   if (b && b.accountType === "general" && b.status === "approved" && !b.generalNo) console.log("number →", await giveGeneralNo(db, e.params.id));
+});
+// Welcome email + virtual member card when an admin approves a new Exclusive Member (pending → approved).
+export const onApproved = onDocumentWritten({ document: "users/{id}", memory: "512MiB" }, async (e) => {
+  const a = e.data?.before?.data(), b = e.data?.after?.data();
+  if (!a || !b || a.status !== "pending" || b.status !== "approved" || b.accountType === "general") return;
+  const c = cfg();
+  const mail = c.GMAIL_USER && c.GMAIL_APP_PASSWORD ? nodemailer.createTransport({ service: "gmail", auth: { user: c.GMAIL_USER, pass: String(c.GMAIL_APP_PASSWORD).replace(/\s+/g, "") } }) : null;
+  console.log("welcome →", await sendWelcome(db, mail, c, e.params.id));
 });
 export const onMessage = onDocumentCreated("messages/{id}", run("message"));
 export const onPaymentProof = onDocumentWritten("joinPayments/{id}", run("payment"));

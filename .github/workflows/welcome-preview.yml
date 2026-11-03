@@ -1,0 +1,23 @@
+name: Welcome email preview
+# Renders the new-member welcome email + virtual card with sample data (nothing is sent) to the tool-welcome branch.
+on:
+  push:
+    branches: [welcome-preview]
+    paths: ["functions/**", ".github/workflows/welcome-preview.yml"]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with: { node-version: 22 }
+      - run: sh functions/scripts/get-fonts.sh
+      - run: cd functions && npm install --no-audit --no-fund --silent && OUT=../welcome-out node scripts/welcome-preview.js
+      - name: Save to the tool-welcome branch
+        run: |
+          cd welcome-out && git init -q -b tool-welcome && git add -A
+          git -c user.name=github-actions -c user.email=github-actions@users.noreply.github.com commit -qm "Welcome email preview"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" tool-welcome
